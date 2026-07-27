@@ -21,15 +21,13 @@ export function MembershipPage() {
     <div className="page">
       <header className="page-header">
         <h1>멤버십</h1>
-        <p>기간만 고르면 모든 제휴 혜택이 열려요</p>
+        <p>기간에 맞는 잼을 고르면 모든 제휴 혜택이 열려요</p>
       </header>
 
       {membership && (
         <div className="status-banner">
           <strong>{membership.name} 이용 중</strong>
-          <span>
-            ~ {new Date(membership.expiresAt).toLocaleDateString('ko-KR')}까지
-          </span>
+          <span>~ {new Date(membership.expiresAt).toLocaleDateString('ko-KR')}까지</span>
         </div>
       )}
 
@@ -66,15 +64,13 @@ export function MembershipPage() {
       <button type="button" className="btn btn-primary full" onClick={handleBuy}>
         {membership ? '이용권 변경하기' : '지금 구매하기'}
       </button>
-
       <p className="fine-print">
-        * 데모용 화면입니다. 실제 결제는 되지 않으며, 선택 즉시 체험 멤버십이 활성화됩니다.
+        * 데모입니다. 실제 결제는 되지 않으며, 구매 즉시 체험 멤버십과 서핑 멤버스 온리 티켓이
+        활성화됩니다.
       </p>
-
       {done && (
         <div className="toast success">
-          멤버십이 활성화됐어요!{' '}
-          <Link to="/places">장소 보러가기</Link>
+          멤버십 활성화! 서핑 티켓은 <Link to="/pay">Pay &gt; 티켓</Link>에서 확인하세요.
         </div>
       )}
     </div>

@@ -2,9 +2,9 @@ import { NavLink } from 'react-router-dom'
 
 const items = [
   { to: '/', label: '홈', icon: '⌂' },
-  { to: '/places', label: '탐험', icon: '◎' },
-  { to: '/membership', label: '멤버십', icon: '◆' },
-  { to: '/coupons', label: '쿠폰', icon: '◇' },
+  { to: '/explore', label: '탐험', icon: '◎' },
+  { to: '/tickets', label: '티켓', icon: '🎟' },
+  { to: '/pay', label: 'Pay', icon: '◇' },
   { to: '/my', label: '마이', icon: '☺' },
 ]
 

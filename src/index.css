@@ -1,13 +1,13 @@
 :root {
-  --bg: #eef5f6;
+  --bg: #f0f9fb;
   --bg-elevated: #ffffff;
-  --ink: #0b2a32;
-  --muted: #5a737a;
-  --ocean: #0c6b7a;
-  --aqua: #1db8a8;
-  --sunset: #ff6b4a;
-  --line: rgba(11, 42, 50, 0.08);
-  --shadow: 0 12px 30px rgba(11, 42, 50, 0.1);
+  --ink: #0c4a5c;
+  --muted: #5b7a84;
+  --ocean: #0891b2;
+  --aqua: #22d3ee;
+  --sunset: #f97316;
+  --line: rgba(8, 145, 178, 0.12);
+  --shadow: 0 12px 30px rgba(8, 105, 130, 0.1);
   --radius: 18px;
   --nav-h: 68px;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -87,7 +87,7 @@ p {
 }
 
 .home-page {
-  padding-top: 0;
+  padding: 0 0 28px;
 }
 
 @keyframes fadeUp {
@@ -142,18 +142,10 @@ p {
 .brand {
   font-family: var(--font-display);
   font-weight: 800;
-  font-size: clamp(2rem, 9vw, 2.8rem);
-  letter-spacing: 0.04em;
-  margin-bottom: 10px;
+  font-size: clamp(2.2rem, 10vw, 3rem);
+  letter-spacing: -0.02em;
+  margin-bottom: 8px;
   animation: fadeUp 0.6s ease both;
-}
-
-.hero h1 {
-  font-size: clamp(1.35rem, 5.5vw, 1.75rem);
-  font-weight: 700;
-  line-height: 1.35;
-  max-width: 14ch;
-  margin-bottom: 10px;
 }
 
 .hero-sub {
@@ -227,7 +219,12 @@ p {
   margin-top: 18px;
 }
 
-/* Sections */
+.home-page .section,
+.home-page .how-section {
+  padding-left: 18px;
+  padding-right: 18px;
+}
+
 .section {
   margin-top: 28px;
 }
@@ -803,6 +800,295 @@ p {
 .toast a {
   text-decoration: underline;
   font-weight: 700;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px 0;
+}
+
+.brand-mark {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--ocean);
+  font-size: 0.85rem;
+}
+
+.top-chip {
+  background: rgba(8, 145, 178, 0.12);
+  color: var(--ocean);
+  font-weight: 700;
+  font-size: 0.82rem;
+  padding: 8px 12px;
+  border-radius: 999px;
+}
+
+.hero h2 {
+  font-size: clamp(1.2rem, 5vw, 1.55rem);
+  font-weight: 700;
+  line-height: 1.35;
+  max-width: 16ch;
+  margin-bottom: 10px;
+}
+
+.banner-link,
+.promo-banner {
+  display: block;
+  border-radius: 16px;
+  padding: 14px 16px;
+  margin: 14px 18px 0;
+  color: #fff;
+  font-weight: 600;
+}
+
+.login-banner {
+  background: linear-gradient(120deg, #0891b2, #22d3ee);
+  text-align: center;
+}
+
+.banner-stack {
+  display: grid;
+  gap: 10px;
+  padding: 14px 18px 0;
+}
+
+.promo-banner {
+  margin: 0;
+}
+
+.promo-banner strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 1rem;
+}
+
+.promo-banner span {
+  font-size: 0.85rem;
+  opacity: 0.92;
+  font-weight: 500;
+}
+
+.promo-banner.cyan {
+  background: linear-gradient(125deg, #0e7490, #06b6d4);
+}
+
+.promo-banner.night {
+  background: linear-gradient(125deg, #1e3a5f, #0891b2);
+}
+
+.promo-banner.sand {
+  background: linear-gradient(125deg, #0f766e, #14b8a6);
+}
+
+.benefit-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.benefit-grid div {
+  background: var(--bg-elevated);
+  border-radius: 14px;
+  padding: 14px;
+  box-shadow: var(--shadow);
+}
+
+.benefit-grid strong {
+  display: block;
+  font-family: var(--font-display);
+  margin-bottom: 2px;
+}
+
+.benefit-grid span {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.course-scroll {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: none;
+}
+
+.course-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.course-card {
+  flex: 0 0 240px;
+  background: var(--bg-elevated);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+.course-card img {
+  width: 100%;
+  height: 110px;
+  object-fit: cover;
+}
+
+.course-card div {
+  padding: 12px;
+}
+
+.course-card h3 {
+  font-size: 0.98rem;
+  margin: 4px 0;
+}
+
+.course-card p:last-child {
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.chip.ghost {
+  background: transparent;
+}
+
+.chip-row.thin {
+  padding-top: 0;
+}
+
+.ticket-list {
+  display: grid;
+  gap: 12px;
+}
+
+.ticket-card {
+  display: grid;
+  grid-template-columns: 104px 1fr;
+  gap: 12px;
+  background: var(--bg-elevated);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+.ticket-card img {
+  width: 100%;
+  height: 100%;
+  min-height: 110px;
+  object-fit: cover;
+}
+
+.ticket-card > div {
+  padding: 12px 12px 12px 0;
+}
+
+.ticket-card h3 {
+  font-size: 1rem;
+  margin: 4px 0;
+}
+
+.pay-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.pay-tabs button {
+  border: 1px solid var(--line);
+  background: var(--bg-elevated);
+  border-radius: 12px;
+  padding: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.pay-tabs button.active {
+  background: var(--ink);
+  color: #fff;
+  border-color: var(--ink);
+}
+
+.ticket-owned {
+  margin-bottom: 10px;
+}
+
+.phone-line {
+  margin-top: 6px;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.free-badge {
+  display: inline-block;
+  margin: 8px 0;
+  background: rgba(34, 211, 238, 0.18);
+  color: var(--ocean);
+  font-weight: 700;
+  font-size: 0.82rem;
+  padding: 6px 10px;
+  border-radius: 999px;
+}
+
+.login-form {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.login-form label {
+  display: grid;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.login-form input {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 13px 14px;
+  outline: none;
+}
+
+.login-form input:focus {
+  border-color: var(--ocean);
+  box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.15);
+}
+
+.text-link {
+  color: var(--ocean);
+  font-weight: 600;
+  text-align: center;
+  display: block;
+}
+
+.menu-btn {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  padding: 15px 16px;
+  font-weight: 600;
+  cursor: pointer;
+  color: inherit;
+}
+
+.fine-print.center {
+  text-align: center;
+  margin: 16px 0 0;
 }
 
 @media (min-width: 481px) {

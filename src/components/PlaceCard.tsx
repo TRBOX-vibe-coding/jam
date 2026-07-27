@@ -3,7 +3,7 @@ import type { Place } from '../data/places'
 
 export function PlaceCard({ place }: { place: Place }) {
   return (
-    <Link to={`/places/${place.id}`} className="place-card">
+    <Link to={`/explore/${place.id}`} className="place-card">
       <div className="place-card-media">
         <img src={place.image} alt={place.name} loading="lazy" />
         <span className="place-discount">{place.discount}</span>

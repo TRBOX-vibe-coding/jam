@@ -14,28 +14,31 @@ export function PlaceDetailPage() {
     return (
       <div className="page">
         <p className="empty-text">장소를 찾을 수 없어요.</p>
-        <Link to="/places" className="btn btn-primary">
+        <Link to="/explore" className="btn btn-primary">
           목록으로
         </Link>
       </div>
     )
   }
 
+  const canFree = place.freeWithoutMembership
+  const locked = !canFree && !membership
+
   const handleDownload = () => {
-    if (!membership) {
+    if (locked) {
       navigate('/membership')
       return
     }
     const result = downloadCoupon(place.id)
     setToast(result.message)
-    window.setTimeout(() => setToast(null), 2200)
+    window.setTimeout(() => setToast(null), 2400)
   }
 
   return (
     <div className="page detail-page">
       <div className="detail-hero">
         <img src={place.image} alt={place.name} />
-        <Link to="/places" className="back-btn" aria-label="뒤로">
+        <Link to="/explore" className="back-btn" aria-label="뒤로">
           ←
         </Link>
         <span className="place-discount detail-discount">{place.discount}</span>
@@ -48,7 +51,9 @@ export function PlaceDetailPage() {
         <h1>{place.name}</h1>
         <p className="detail-benefit">{place.benefit}</p>
         <p className="detail-desc">{place.description}</p>
-
+        {canFree && (
+          <p className="free-badge">기획전 · 멤버십 없이 쿠폰 이용 가능</p>
+        )}
         <div className="tag-row">
           {place.tags.map((tag) => (
             <span key={tag} className="tag">
@@ -56,19 +61,17 @@ export function PlaceDetailPage() {
             </span>
           ))}
         </div>
-
         <div className="detail-note">
           <strong>이용 방법</strong>
-          <p>쿠폰 받기 → 매장 방문 → 직원에게 쿠폰 제시</p>
+          <p>쿠폰 다운로드 → 매장 방문 → Pay &gt; 쿠폰 제시 → 현장 할인</p>
         </div>
       </div>
 
       <div className="sticky-cta">
         <button type="button" className="btn btn-primary full" onClick={handleDownload}>
-          {membership ? '쿠폰 받기' : '멤버십 구매 후 쿠폰 받기'}
+          {locked ? '멤버십 구매 후 쿠폰 받기' : '할인권 다운로드'}
         </button>
       </div>
-
       {toast && <div className="toast">{toast}</div>}
     </div>
   )
