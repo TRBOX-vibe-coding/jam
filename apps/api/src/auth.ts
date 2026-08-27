@@ -132,7 +132,7 @@ export class AuthController {
 
     const ownedMerchant = await db.merchant.findFirst({
       where: { ownerUserId: user.id },
-      select: { id: true, name: true },
+      select: { id: true, name: true, status: true },
     });
 
     const token = this.jwt.sign({ sub: user.id, typ: 'user' } satisfies UserToken);

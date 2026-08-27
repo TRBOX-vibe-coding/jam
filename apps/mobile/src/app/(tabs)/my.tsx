@@ -106,11 +106,8 @@ export default function MyScreen() {
               <Text style={st.devNote}>개발 모드: 데모 계정으로 로그인됩니다</Text>
               {__DEV__ && (
                 <View style={st.devOwnerRow}>
-                  <Text style={st.devOwner} onPress={() => !busy && doOwnerLogin('demo-owner-1')}>
-                    점주로 로그인 · 까사부사노
-                  </Text>
                   <Text style={st.devOwner} onPress={() => !busy && doOwnerLogin('demo-owner-2')}>
-                    점주로 로그인 · 서프홀릭
+                    [시연용] 승인된 점주 화면 체험 (서프홀릭)
                   </Text>
                 </View>
               )}
@@ -186,10 +183,10 @@ export default function MyScreen() {
               </View>
             </Card>
 
-            {/* 가맹점 모드 */}
-            {me.ownedMerchant && (
-              <>
-                <Text style={st.section}>내 가게</Text>
+            {/* 내 가게 — 사장님도 같은 카카오 로그인. 계정에 가게가 연결되면 여기가 자동으로 열린다 */}
+            <Text style={st.section}>내 가게</Text>
+            {me.ownedMerchant ? (
+              me.ownedMerchant.status === 'ACTIVE' ? (
                 <Card>
                   <View style={st.rowBetween}>
                     <View>
@@ -199,7 +196,22 @@ export default function MyScreen() {
                     <Btn title="가맹점 모드" small onPress={() => router.push('/merchant')} />
                   </View>
                 </Card>
-              </>
+              ) : (
+                <Card>
+                  <Text style={st.planName}>{me.ownedMerchant.name}</Text>
+                  <Text style={st.planDesc}>입점 신청 접수됨 — 본사 승인을 기다리고 있어요 ⏳</Text>
+                </Card>
+              )
+            ) : (
+              <Card>
+                <View style={st.rowBetween}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={st.planName}>사장님이신가요?</Text>
+                    <Text style={st.planDesc}>가게를 등록하면 한정 딜을 직접 올릴 수 있어요</Text>
+                  </View>
+                  <Btn title="입점 신청" small onPress={() => router.push('/apply')} />
+                </View>
+              </Card>
             )}
 
             <View style={{ marginTop: 18 }}>
