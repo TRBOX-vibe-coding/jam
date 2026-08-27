@@ -46,6 +46,18 @@ export default function MyScreen() {
     }
   }
 
+  /** 개발/시연 전용 — 시드된 점주 계정으로 바로 로그인해 가맹점 모드를 보여준다. */
+  async function doOwnerLogin(providerId: string) {
+    setBusy(true);
+    try {
+      await login('KAKAO', providerId);
+    } catch (e: any) {
+      notify('로그인 실패', e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function buy(plan: Plan) {
     const run = async () => {
       setBusy(true);
@@ -92,6 +104,16 @@ export default function MyScreen() {
                 </View>
               ))}
               <Text style={st.devNote}>개발 모드: 데모 계정으로 로그인됩니다</Text>
+              {__DEV__ && (
+                <View style={st.devOwnerRow}>
+                  <Text style={st.devOwner} onPress={() => !busy && doOwnerLogin('demo-owner-1')}>
+                    점주로 로그인 · 까사부사노
+                  </Text>
+                  <Text style={st.devOwner} onPress={() => !busy && doOwnerLogin('demo-owner-2')}>
+                    점주로 로그인 · 서프홀릭
+                  </Text>
+                </View>
+              )}
             </Card>
           </>
         ) : (
@@ -192,6 +214,8 @@ const st = StyleSheet.create({
     fontSize: 15, fontWeight: '800', borderWidth: 1, borderColor: C.line,
   },
   devNote: { fontSize: 11, color: C.ink3, textAlign: 'center', marginTop: 10 },
+  devOwnerRow: { flexDirection: 'row', justifyContent: 'center', gap: 16, marginTop: 8 },
+  devOwner: { fontSize: 12, color: C.brand, fontWeight: '700', textDecorationLine: 'underline' },
   cardBrand: { color: '#9DB8D2', fontSize: 12, fontWeight: '900', letterSpacing: 2 },
   cardName: { color: '#fff', fontSize: 22, fontWeight: '900', marginTop: 10 },
   cardSaving: { color: '#C8D9EA', fontSize: 13, fontWeight: '700', marginTop: 6 },

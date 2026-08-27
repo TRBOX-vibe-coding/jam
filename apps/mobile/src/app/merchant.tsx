@@ -3,7 +3,7 @@
  */
 import { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { api } from '../lib/api';
 import { C, won } from '../lib/theme';
 import { Btn, Card, EmptyText, Loading, Screen, Tag } from '../lib/ui';
@@ -58,6 +58,26 @@ export default function MerchantMode() {
             </Card>
           </View>
         )}
+
+        <Text style={st.section}>내 DROP</Text>
+        <Card>
+          <Btn title="＋ 한정 딜 등록하기" onPress={() => router.push('/merchant-drop')} />
+          <Text style={st.hint}>등록하면 본사 승인 후 고객에게 오픈됩니다.</Text>
+        </Card>
+        {summary?.drops?.map((d: any) => (
+          <Card key={d.id}>
+            <View style={st.rowBetween}>
+              <Text style={st.redTitle} numberOfLines={1}>{d.title}</Text>
+              <Tag
+                text={{ PENDING: '승인 대기', SCHEDULED: '오픈 예약', OPEN: '판매 중', SOLD_OUT: '완판' }[d.status as string] ?? d.status}
+                tone={({ PENDING: 'warn', SCHEDULED: 'brand', OPEN: 'ok', SOLD_OUT: 'gold' } as const)[d.status as string] ?? 'bad'}
+              />
+            </View>
+            <Text style={st.redSub}>
+              남은 수량 {d.remainingQty}/{d.totalQty} · 마감 {new Date(d.closeAt).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+            </Text>
+          </Card>
+        ))}
 
         <Text style={st.section}>직원 확인 코드 조회</Text>
         <Card>

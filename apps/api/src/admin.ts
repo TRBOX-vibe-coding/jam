@@ -39,6 +39,26 @@ class GenerateSettlementDto {
   @IsString() periodStart!: string; // ISO
   @IsString() periodEnd!: string;
 }
+class CreateProductDto {
+  @IsString() merchantId!: string;
+  @IsString() @MinLength(2) name!: string;
+  @IsIn(['TICKET', 'RESERVATION', 'PASS']) type!: string;
+  @Type(() => Number) @IsInt() @Min(100) basePrice!: number;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(100) memberPrice?: number;
+  @IsOptional() @IsIn(['QR_ONLY', 'QR_PIN', 'STAFF_CONFIRM']) verification?: string;
+  @IsOptional() @IsString() description?: string;
+  @IsOptional() cancelPolicy?: string;
+}
+class PatchProductDto {
+  @IsOptional() isActive?: boolean;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(100) basePrice?: number;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(100) memberPrice?: number;
+}
+class CreateSlotDto {
+  @IsString() startAt!: string; // ISO
+  @Type(() => Number) @IsInt() @Min(15) @Max(600) durationMinutes!: number;
+  @Type(() => Number) @IsInt() @Min(1) @Max(200) capacity!: number;
+}
 
 @Controller('admin')
 @UseGuards(AdminGuard)
@@ -342,6 +362,88 @@ export class AdminController {
     });
     await this.audit(adminId, 'SETTLEMENT_CONFIRM', 'Settlement', id);
     return s;
+  }
+
+  // ---------------- 상품 · 예약 슬롯 ----------------
+
+  @Get('products')
+  products() {
+    return this.prisma.client.product.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        merchant: { select: { id: true, name: true } },
+        category: { select: { name: true, emoji: true } },
+        _count: { select: { slots: true, vouchers: true } },
+      },
+    });
+  }
+
+  @Post('products')
+  async createProduct(@AdminId() adminId: string, @Body() dto: CreateProductDto) {
+    const merchant = await this.prisma.client.merchant.findUnique({
+      where: { id: dto.merchantId },
+      select: { categoryId: true, name: true },
+    });
+    if (!merchant) throw new NotFoundException('가맹점을 찾을 수 없습니다');
+    const p = await this.prisma.client.product.create({
+      data: {
+        merchantId: dto.merchantId,
+        categoryId: merchant.categoryId,
+        name: dto.name,
+        type: dto.type as never,
+        basePrice: dto.basePrice,
+        memberPrice: dto.memberPrice ?? null,
+        verification: (dto.verification ?? 'QR_ONLY') as never,
+        description: dto.description,
+        cancelPolicy: dto.cancelPolicy,
+      },
+    });
+    await this.audit(adminId, 'PRODUCT_CREATE', 'Product', p.id, `${merchant.name} / ${dto.name}`);
+    return p;
+  }
+
+  @Patch('products/:id')
+  async patchProduct(@AdminId() adminId: string, @Param('id') id: string, @Body() dto: PatchProductDto) {
+    const p = await this.prisma.client.product.update({
+      where: { id },
+      data: {
+        ...(dto.isActive != null ? { isActive: dto.isActive } : {}),
+        ...(dto.basePrice != null ? { basePrice: dto.basePrice } : {}),
+        ...(dto.memberPrice != null ? { memberPrice: dto.memberPrice } : {}),
+      },
+    });
+    await this.audit(adminId, 'PRODUCT_UPDATE', 'Product', id, JSON.stringify(dto));
+    return p;
+  }
+
+  @Get('products/:id/slots')
+  slots(@Param('id') id: string) {
+    return this.prisma.client.productSlot.findMany({
+      where: { productId: id },
+      orderBy: { startAt: 'asc' },
+    });
+  }
+
+  @Post('products/:id/slots')
+  async createSlot(@AdminId() adminId: string, @Param('id') id: string, @Body() dto: CreateSlotDto) {
+    const startAt = new Date(dto.startAt);
+    if (Number.isNaN(startAt.getTime())) throw new BadRequestException('시작 시각이 올바르지 않습니다');
+    const endAt = new Date(startAt.getTime() + dto.durationMinutes * 60_000);
+    const slot = await this.prisma.client.productSlot.create({
+      data: { productId: id, startAt, endAt, capacity: dto.capacity },
+    });
+    await this.audit(adminId, 'SLOT_CREATE', 'ProductSlot', slot.id, `${dto.startAt} / ${dto.capacity}명`);
+    return slot;
+  }
+
+  @Patch('slots/:id')
+  async patchSlot(@AdminId() adminId: string, @Param('id') id: string, @Body('isOpen') isOpen: boolean) {
+    const slot = await this.prisma.client.productSlot.update({
+      where: { id },
+      data: { isOpen: !!isOpen },
+    });
+    await this.audit(adminId, 'SLOT_UPDATE', 'ProductSlot', id, `isOpen=${!!isOpen}`);
+    return slot;
   }
 
   // ---------------- 감사 로그 ----------------

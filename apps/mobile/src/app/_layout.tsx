@@ -42,6 +42,7 @@ export default function RootLayout() {
           <Stack.Screen name="use/[qr]" options={{ title: '매장에서 사용' }} />
           <Stack.Screen name="done" options={{ title: '사용 완료', headerBackVisible: false }} />
           <Stack.Screen name="merchant" options={{ title: '가맹점 모드' }} />
+          <Stack.Screen name="merchant-drop" options={{ title: 'DROP 등록' }} />
         </Stack>
       </PhoneFrame>
     </AuthProvider>
