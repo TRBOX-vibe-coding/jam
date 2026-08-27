@@ -1,0 +1,837 @@
+// =============================================================================
+// HOLIC GEM 2.0 데이터 모델
+// -----------------------------------------------------------------------------
+// 설계 원칙
+//  1) 혜택을 받을 "자격"은 한 곳(UserBenefit)으로 모은다.
+//     멤버십을 사든, 상품을 사든, 회사 복지로 받든 결과는 똑같이 UserBenefit이다.
+//     -> 기존 앱의 "멤버십 샀는데 쿠폰을 또 찾아서 받아야 하는" 문제를 구조로 없앤다.
+//  2) 현장 사용은 Redemption 한 곳에 기록한다. 상시 혜택이든 DROP이든 구매 이용권이든 같다.
+//  3) 결제는 PG사가 정해지기 전까지 Payment.provider = MOCK 으로 동작한다.
+//     PG가 정해지면 provider와 raw만 바꿔 끼우고 주문/이용권 로직은 건드리지 않는다.
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================== 공통 =========================================
+
+enum SocialProvider {
+  KAKAO
+  NAVER
+  GOOGLE
+  APPLE
+}
+
+enum UserStatus {
+  ACTIVE
+  DORMANT
+  WITHDRAWN
+}
+
+enum AdminRole {
+  SUPER_ADMIN
+  OPERATOR
+  CS
+}
+
+/// 시/구 단위 지역. DROP 노출과 확장 순서를 지역 단위로 통제한다.
+model Region {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  city      String
+  district  String
+  name      String
+  isOpen    Boolean  @default(false)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  merchants Merchant[]
+  drops     Drop[]
+  interests UserInterestRegion[]
+
+  @@index([isOpen, sortOrder])
+}
+
+/// 카테고리(맛집/카페/펍/액티비티/전시/키즈/뷰티/클래스/숙박 ...)
+model Category {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  emoji     String?
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  merchants Merchant[]
+  drops     Drop[]
+  products  Product[]
+  interests UserInterestCategory[]
+}
+
+// ============================== 회원 =========================================
+
+model User {
+  id     String     @id @default(cuid())
+  status UserStatus @default(ACTIVE)
+
+  // 간편가입만 지원한다. 비밀번호는 두지 않는다.
+  provider   SocialProvider
+  providerId String
+  email      String?
+  phone      String?
+
+  nickname     String
+  profileImage String?
+  birthYear    Int?
+  gender       String?
+
+  marketingAgreedAt DateTime?
+  lastLoginAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  interestRegions    UserInterestRegion[]
+  interestCategories UserInterestCategory[]
+  memberships        UserMembership[]
+  benefits           UserBenefit[]
+  claims             DropClaim[]
+  orders             Order[]
+  vouchers           Voucher[]
+  reservations       Reservation[]
+  redemptions        Redemption[]
+  ownedMerchants     Merchant[]             @relation("MerchantOwner")
+  devices            UserDevice[]
+
+  @@unique([provider, providerId])
+  @@index([status])
+}
+
+model UserDevice {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  platform  String
+  pushToken String
+  isActive  Boolean  @default(true)
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, pushToken])
+}
+
+model UserInterestRegion {
+  userId   String
+  regionId String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  region   Region @relation(fields: [regionId], references: [id], onDelete: Cascade)
+
+  @@id([userId, regionId])
+}
+
+model UserInterestCategory {
+  userId     String
+  categoryId String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([userId, categoryId])
+}
+
+/// 본사 관리자(PC 웹). 앱 사용자와 완전히 분리한다.
+model AdminUser {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  name         String
+  role         AdminRole @default(OPERATOR)
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+
+  auditLogs AuditLog[]
+}
+
+// ============================== 멤버십 =======================================
+
+enum MembershipStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+/// 판매 중인 멤버십 상품 정의 (3일잼 / 5일잼 / 잼마스터)
+model MembershipPlan {
+  id           String   @id @default(cuid())
+  code         String   @unique
+  name         String
+  description  String?
+  price        Int
+  durationDays Int
+  sortOrder    Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  memberships UserMembership[]
+  grantRules  BenefitGrantRule[]
+}
+
+model UserMembership {
+  id     String           @id @default(cuid())
+  userId String
+  planId String
+  user   User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan   MembershipPlan   @relation(fields: [planId], references: [id])
+  status MembershipStatus @default(ACTIVE)
+
+  /// 유료 구매인지 회사 복지로 받은 것인지 구분한다. PURCHASE | B2B_GRANT | PROMOTION
+  source  String  @default("PURCHASE")
+  orderId String?
+  order   Order?  @relation(fields: [orderId], references: [id])
+
+  startAt   DateTime
+  endAt     DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId, status, endAt])
+}
+
+// ============================== 가맹점 =======================================
+
+enum MerchantStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  CLOSED
+}
+
+model Merchant {
+  id         String         @id @default(cuid())
+  name       String
+  status     MerchantStatus @default(PENDING)
+  categoryId String
+  regionId   String
+  category   Category       @relation(fields: [categoryId], references: [id])
+  region     Region         @relation(fields: [regionId], references: [id])
+
+  /// 점주 계정. 점주도 앱으로 로그인해 "가맹점 모드"에 들어온다.
+  ownerUserId String?
+  owner       User?   @relation("MerchantOwner", fields: [ownerUserId], references: [id])
+
+  bizRegNo      String?
+  ownerName     String?
+  contactPhone  String?
+  address       String?
+  addressDetail String?
+  lat           Float?
+  lng           Float?
+  intro         String?
+  thumbnailUrl  String?
+
+  /// 거래 수수료율(%). 상품 판매에만 적용하고 상시 할인 혜택에는 수수료가 없다.
+  commissionRate Decimal @default(0) @db.Decimal(5, 2)
+
+  bankName    String?
+  bankAccount String?
+  bankHolder  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  qrCodes     MerchantQr[]
+  benefits    Benefit[]
+  drops       Drop[]
+  products    Product[]
+  redemptions Redemption[]
+  settlements Settlement[]
+  boosts      Boost[]
+
+  @@index([status, regionId, categoryId])
+}
+
+/// 매장 카운터에 비치하는 고정 QR. 손님이 이걸 스캔한다.
+model MerchantQr {
+  id         String   @id @default(cuid())
+  merchantId String
+  merchant   Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  code       String   @unique
+  label      String?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  redemptions Redemption[]
+
+  @@index([merchantId, isActive])
+}
+
+// ============================== 혜택(상시 할인) ==============================
+
+enum BenefitType {
+  PERCENT
+  AMOUNT
+  FREEBIE
+}
+
+/// 가맹점이 제공하는 상시 혜택 정의
+model Benefit {
+  id          String      @id @default(cuid())
+  merchantId  String
+  merchant    Merchant    @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  title       String
+  type        BenefitType
+  value       Int         @default(0)
+  freebieName String?
+
+  /// 동반 인원. null이면 제한 없음.
+  /// 기존 서비스에서 문서마다 값이 달라 현장 분쟁이 났던 항목이라 여기 하나만 둔다.
+  companionLimit Int?
+
+  maxUsePerUser  Int?
+  maxUsePerDay   Int?
+  minOrderAmount Int?
+  conditions     String?
+
+  isActive  Boolean   @default(true)
+  startAt   DateTime?
+  endAt     DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  grantRules   BenefitGrantRule[]
+  userBenefits UserBenefit[]
+
+  @@index([merchantId, isActive])
+}
+
+enum GrantTrigger {
+  MEMBERSHIP_PLAN
+  PRODUCT
+  REGION_PASS
+  MANUAL
+}
+
+/// "어떤 조건에서 이 혜택이 열리는가"를 정의한다.
+/// 이 테이블 덕분에 사용자는 쿠폰을 따로 찾아서 받을 필요가 없다.
+model BenefitGrantRule {
+  id        String       @id @default(cuid())
+  benefitId String
+  benefit   Benefit      @relation(fields: [benefitId], references: [id], onDelete: Cascade)
+  trigger   GrantTrigger
+
+  membershipPlanId String?
+  membershipPlan   MembershipPlan? @relation(fields: [membershipPlanId], references: [id])
+  productId        String?
+  product          Product?        @relation(fields: [productId], references: [id])
+  regionCode       String?
+
+  /// 열린 뒤 며칠간 유효한가. null이면 자격 기간(멤버십 종료일 등)을 따른다.
+  validDays Int?
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@index([trigger, membershipPlanId])
+  @@index([trigger, productId])
+}
+
+enum UserBenefitStatus {
+  ACTIVE
+  EXHAUSTED
+  EXPIRED
+  REVOKED
+}
+
+/// 사용자에게 실제로 열린 혜택. 앱의 "내 혜택"은 이 테이블만 보면 된다.
+model UserBenefit {
+  id        String            @id @default(cuid())
+  userId    String
+  benefitId String
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  benefit   Benefit           @relation(fields: [benefitId], references: [id], onDelete: Cascade)
+  status    UserBenefitStatus @default(ACTIVE)
+
+  /// 어디서 생긴 자격인지 추적한다.
+  sourceType GrantTrigger
+  sourceId   String?
+
+  validFrom DateTime  @default(now())
+  validTo   DateTime?
+  usedCount Int       @default(0)
+  createdAt DateTime  @default(now())
+
+  redemptions Redemption[]
+
+  @@unique([userId, benefitId, sourceType, sourceId])
+  @@index([userId, status, validTo])
+}
+
+// ============================== DROP =========================================
+
+enum DropStatus {
+  DRAFT
+  PENDING
+  SCHEDULED
+  OPEN
+  SOLD_OUT
+  CLOSED
+  REJECTED
+  CANCELLED
+}
+
+enum DropAudience {
+  ALL
+  MEMBER_ONLY
+}
+
+enum DropKind {
+  DEAL
+  TICKET
+}
+
+/// 오늘의 DROP. 서비스의 핵심 경험.
+model Drop {
+  id         String   @id @default(cuid())
+  merchantId String
+  merchant   Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  regionId   String
+  region     Region   @relation(fields: [regionId], references: [id])
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
+  productId  String?
+  product    Product? @relation(fields: [productId], references: [id])
+
+  kind     DropKind     @default(DEAL)
+  status   DropStatus   @default(DRAFT)
+  audience DropAudience @default(ALL)
+
+  title       String
+  description String?
+  imageUrl    String?
+  normalPrice Int
+  dropPrice   Int
+
+  /// 남은 수량은 트랜잭션 안에서 조건부로만 감소시킨다.
+  totalQty     Int
+  remainingQty Int
+
+  /// DROP 1개가 몇 명까지 쓸 수 있는지. 기본 1인.
+  personsPerUnit Int @default(1)
+  maxPerUser     Int @default(1)
+
+  openAt  DateTime
+  closeAt DateTime
+
+  /// 멤버십 회원 선오픈 시각. null이면 선오픈 없음.
+  memberPreOpenAt DateTime?
+
+  /// 현장 이용 가능 시간대(분 단위, 0~1439). null이면 매장 영업시간 전체.
+  usableFromMinute Int?
+  usableToMinute   Int?
+
+  /// 획득 후 며칠 안에 써야 하는지. null이면 closeAt 까지.
+  useWithinDays Int?
+
+  /// 광고로 노출되는 DROP인지. 앱에 반드시 표기한다.
+  isSponsored Boolean @default(false)
+
+  rejectReason String?
+  approvedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  claims DropClaim[]
+  boosts Boost[]
+
+  @@index([status, regionId, openAt, closeAt])
+  @@index([merchantId, status])
+}
+
+enum ClaimStatus {
+  CLAIMED
+  RESERVED
+  USED
+  EXPIRED
+  CANCELLED
+  REFUNDED
+}
+
+model DropClaim {
+  id     String      @id @default(cuid())
+  dropId String
+  userId String
+  drop   Drop        @relation(fields: [dropId], references: [id], onDelete: Cascade)
+  user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status ClaimStatus @default(CLAIMED)
+
+  orderId String?
+  order   Order?  @relation(fields: [orderId], references: [id])
+
+  qty       Int       @default(1)
+  validTo   DateTime
+  claimedAt DateTime  @default(now())
+  usedAt    DateTime?
+
+  redemptions Redemption[]
+
+  @@index([userId, status])
+  @@index([dropId, status])
+}
+
+// ============================== 상품 / 예약 ==================================
+
+enum ProductType {
+  TICKET
+  RESERVATION
+  PASS
+}
+
+enum VerificationLevel {
+  QR_ONLY
+  QR_PIN
+  STAFF_CONFIRM
+}
+
+model Product {
+  id         String      @id @default(cuid())
+  merchantId String
+  merchant   Merchant    @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  categoryId String
+  category   Category    @relation(fields: [categoryId], references: [id])
+  type       ProductType
+
+  name        String
+  description String?
+  imageUrl    String?
+  basePrice   Int
+  memberPrice Int?
+
+  verification VerificationLevel @default(QR_ONLY)
+
+  /// 기상 영향 상품이면 취소·변경 정책을 반드시 노출한다.
+  weatherDependent Boolean @default(false)
+  cancelPolicy     String?
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  slots        ProductSlot[]
+  orderItems   OrderItem[]
+  vouchers     Voucher[]
+  drops        Drop[]
+  grantRules   BenefitGrantRule[]
+  reservations Reservation[]
+
+  @@index([merchantId, isActive])
+}
+
+/// 예약형 상품의 회차. 날짜·시간·정원.
+model ProductSlot {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  startAt   DateTime
+  endAt     DateTime
+  capacity  Int
+  reserved  Int      @default(0)
+  isOpen    Boolean  @default(true)
+
+  reservations Reservation[]
+
+  @@index([productId, startAt, isOpen])
+}
+
+enum ReservationStatus {
+  REQUESTED
+  CONFIRMED
+  CANCELLED
+  NO_SHOW
+  COMPLETED
+}
+
+model Reservation {
+  id        String            @id @default(cuid())
+  userId    String
+  productId String
+  slotId    String
+  voucherId String?           @unique
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product   Product           @relation(fields: [productId], references: [id])
+  slot      ProductSlot       @relation(fields: [slotId], references: [id])
+  voucher   Voucher?          @relation(fields: [voucherId], references: [id])
+  status    ReservationStatus @default(CONFIRMED)
+
+  headcount    Int
+  contactName  String
+  contactPhone String
+  memo         String?
+  cancelledAt  DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([userId, status])
+  @@index([slotId, status])
+}
+
+// ============================== 주문 / 결제 ==================================
+
+enum OrderStatus {
+  PENDING
+  PAID
+  CANCELLED
+  REFUNDED
+  FAILED
+}
+
+enum OrderItemType {
+  MEMBERSHIP
+  DROP
+  PRODUCT
+}
+
+model Order {
+  id     String      @id @default(cuid())
+  userId String
+  user   User        @relation(fields: [userId], references: [id])
+  status OrderStatus @default(PENDING)
+
+  orderNo     String @unique
+  totalAmount Int
+  paidAmount  Int    @default(0)
+
+  paidAt      DateTime?
+  cancelledAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  items       OrderItem[]
+  payments    Payment[]
+  vouchers    Voucher[]
+  claims      DropClaim[]
+  memberships UserMembership[]
+
+  @@index([userId, status])
+}
+
+model OrderItem {
+  id      String        @id @default(cuid())
+  orderId String
+  order   Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  type    OrderItemType
+
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id])
+
+  /// MEMBERSHIP이면 planId, DROP이면 dropId
+  refId String?
+
+  name      String
+  unitPrice Int
+  qty       Int    @default(1)
+  amount    Int
+}
+
+enum PaymentProvider {
+  MOCK
+  TOSS
+  INICIS
+  NICE
+  KAKAOPAY
+  NAVERPAY
+}
+
+enum PaymentStatus {
+  READY
+  PAID
+  CANCELLED
+  PARTIAL_CANCELLED
+  FAILED
+}
+
+/// PG사가 정해지면 provider와 raw만 바꿔 끼운다. 주문/이용권 로직은 그대로 둔다.
+model Payment {
+  id         String          @id @default(cuid())
+  orderId    String
+  order      Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  provider   PaymentProvider @default(MOCK)
+  status     PaymentStatus   @default(READY)
+  amount     Int
+  method     String?
+  pgTid      String?
+  receiptUrl String?
+  failReason String?
+  raw        Json?
+  paidAt     DateTime?
+  createdAt  DateTime        @default(now())
+
+  @@index([orderId])
+  @@index([pgTid])
+}
+
+// ============================== 이용권 =======================================
+
+enum VoucherStatus {
+  ISSUED
+  RESERVED
+  USED
+  EXPIRED
+  CANCELLED
+}
+
+/// 결제로 발급된 모바일 이용권. 현장 QR 스캔으로 사용처리한다.
+model Voucher {
+  id        String        @id @default(cuid())
+  userId    String
+  orderId   String
+  productId String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  order     Order         @relation(fields: [orderId], references: [id])
+  product   Product       @relation(fields: [productId], references: [id])
+  status    VoucherStatus @default(ISSUED)
+
+  code      String    @unique
+  headcount Int       @default(1)
+  validFrom DateTime  @default(now())
+  validTo   DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  reservation Reservation?
+  redemptions Redemption[]
+
+  @@index([userId, status])
+}
+
+// ============================== 현장 사용 ====================================
+
+enum RedemptionType {
+  BENEFIT
+  DROP
+  VOUCHER
+}
+
+enum RedemptionStatus {
+  DONE
+  CANCELLED
+}
+
+/// 현장에서 실제로 쓴 기록. 절약금액·정산·통계가 전부 여기서 나온다.
+model Redemption {
+  id         String           @id @default(cuid())
+  userId     String
+  merchantId String
+  user       User             @relation(fields: [userId], references: [id])
+  merchant   Merchant         @relation(fields: [merchantId], references: [id])
+  type       RedemptionType
+  status     RedemptionStatus @default(DONE)
+
+  userBenefitId String?
+  userBenefit   UserBenefit? @relation(fields: [userBenefitId], references: [id])
+  dropClaimId   String?
+  dropClaim     DropClaim?   @relation(fields: [dropClaimId], references: [id])
+  voucherId     String?
+  voucher       Voucher?     @relation(fields: [voucherId], references: [id])
+
+  merchantQrId String?
+  merchantQr   MerchantQr? @relation(fields: [merchantQrId], references: [id])
+
+  headcount Int @default(1)
+
+  /// 절약금액. 앱의 "이번 달 얼마 아꼈어요"와 멤버십 회수율 표시에 쓴다.
+  savedAmount Int @default(0)
+
+  /// 완료화면 캡처 재사용을 막기 위한 1회용 검증 토큰과 만료 시각.
+  verifyToken   String   @unique
+  verifyExpires DateTime
+
+  lat Float?
+  lng Float?
+
+  cancelledAt  DateTime?
+  cancelReason String?
+  createdAt    DateTime  @default(now())
+
+  @@index([userId, createdAt])
+  @@index([merchantId, createdAt])
+  @@index([status, createdAt])
+}
+
+// ============================== 정산 / 광고 ==================================
+
+enum SettlementStatus {
+  PENDING
+  CONFIRMED
+  PAID
+}
+
+model Settlement {
+  id          String           @id @default(cuid())
+  merchantId  String
+  merchant    Merchant         @relation(fields: [merchantId], references: [id])
+  status      SettlementStatus @default(PENDING)
+  periodStart DateTime
+  periodEnd   DateTime
+
+  grossAmount Int @default(0)
+  feeAmount   Int @default(0)
+  netAmount   Int @default(0)
+
+  confirmedAt DateTime?
+  paidAt      DateTime?
+  memo        String?
+  createdAt   DateTime  @default(now())
+
+  @@unique([merchantId, periodStart, periodEnd])
+  @@index([status, periodEnd])
+}
+
+enum BoostStatus {
+  REQUESTED
+  ACTIVE
+  ENDED
+  REJECTED
+}
+
+/// 가맹점 상위노출(광고). 노출→클릭→구매→현장사용까지 성과를 기록해야 계속 팔 수 있다.
+model Boost {
+  id         String      @id @default(cuid())
+  merchantId String
+  merchant   Merchant    @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  dropId     String?
+  drop       Drop?       @relation(fields: [dropId], references: [id])
+  status     BoostStatus @default(REQUESTED)
+
+  startAt DateTime
+  endAt   DateTime
+  amount  Int
+
+  impressions Int @default(0)
+  clicks      Int @default(0)
+  purchases   Int @default(0)
+  redemptions Int @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([status, startAt, endAt])
+}
+
+// ============================== 감사 로그 ====================================
+
+model AuditLog {
+  id          String     @id @default(cuid())
+  adminUserId String?
+  adminUser   AdminUser? @relation(fields: [adminUserId], references: [id])
+  action      String
+  targetType  String
+  targetId    String
+  before      Json?
+  after       Json?
+  memo        String?
+  createdAt   DateTime   @default(now())
+
+  @@index([targetType, targetId])
+  @@index([createdAt])
+}

@@ -1,0 +1,197 @@
+/**
+ * 가맹점 모드 — "점주가 필요할 때 보는 관리 화면".
+ * 일반 직원용 시스템은 없다. 현장 사용은 손님 스캔으로 끝나고,
+ * 점주는 앱의 가맹점 모드에서 사용내역·DROP·정산만 확인한다.
+ */
+import {
+  BadRequestException, Body, Controller, ForbiddenException, Get, Module,
+  NotFoundException, Param, Post, Query, UseGuards,
+} from '@nestjs/common';
+import { IsIn, IsInt, IsOptional, IsString, Max, Min, MinLength } from 'class-validator';
+import { Type } from 'class-transformer';
+import { PrismaService } from './prisma.service';
+import { AuthModule, UserGuard, UserId } from './auth';
+
+class CreateDropDto {
+  @IsString() @MinLength(4) title!: string;
+  @IsOptional() @IsString() description?: string;
+  @IsIn(['DEAL', 'TICKET']) kind!: 'DEAL' | 'TICKET';
+  @Type(() => Number) @IsInt() @Min(1000) normalPrice!: number;
+  @Type(() => Number) @IsInt() @Min(100) dropPrice!: number;
+  @Type(() => Number) @IsInt() @Min(1) @Max(500) totalQty!: number;
+  @Type(() => Number) @IsInt() @Min(1) @Max(10) personsPerUnit!: number;
+  @IsString() openAt!: string;
+  @IsString() closeAt!: string;
+  @IsOptional() @Type(() => Number) @IsInt() usableFromMinute?: number;
+  @IsOptional() @Type(() => Number) @IsInt() usableToMinute?: number;
+  @IsOptional() @IsString() productId?: string;
+}
+
+class VerifyDto {
+  @IsString() @MinLength(4) token!: string;
+}
+
+@Controller('merchant')
+@UseGuards(UserGuard)
+export class MerchantController {
+  constructor(private prisma: PrismaService) {}
+
+  private async myMerchant(userId: string) {
+    const m = await this.prisma.client.merchant.findFirst({
+      where: { ownerUserId: userId },
+      include: {
+        region: { select: { name: true } },
+        category: { select: { name: true } },
+        qrCodes: { where: { isActive: true } },
+      },
+    });
+    if (!m) throw new ForbiddenException('가맹점 계정이 아닙니다');
+    return m;
+  }
+
+  @Get('my')
+  async my(@UserId() userId: string) {
+    const m = await this.myMerchant(userId);
+    return {
+      id: m.id, name: m.name, status: m.status,
+      region: m.region.name, category: m.category.name,
+      address: m.address, commissionRate: m.commissionRate,
+      qrCodes: m.qrCodes.map((q) => ({ id: q.id, code: q.code, label: q.label })),
+    };
+  }
+
+  /** 오늘/이번달 사용 현황 요약 */
+  @Get('my/summary')
+  async summary(@UserId() userId: string) {
+    const m = await this.myMerchant(userId);
+    const db = this.prisma.client;
+    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+    const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
+
+    const [today, month, openDrops] = await Promise.all([
+      db.redemption.count({ where: { merchantId: m.id, status: 'DONE', createdAt: { gte: todayStart } } }),
+      db.redemption.count({ where: { merchantId: m.id, status: 'DONE', createdAt: { gte: monthStart } } }),
+      db.drop.findMany({
+        where: { merchantId: m.id, status: { in: ['OPEN', 'SOLD_OUT', 'PENDING', 'SCHEDULED'] } },
+        select: { id: true, title: true, status: true, remainingQty: true, totalQty: true, closeAt: true },
+        orderBy: { closeAt: 'asc' },
+      }),
+    ]);
+    return { merchantName: m.name, todayRedemptions: today, monthRedemptions: month, drops: openDrops };
+  }
+
+  /** 사용내역 (기본 오늘) */
+  @Get('my/redemptions')
+  async redemptions(@UserId() userId: string, @Query('days') days?: string) {
+    const m = await this.myMerchant(userId);
+    const since = new Date();
+    since.setDate(since.getDate() - (Number(days) || 1));
+    since.setHours(0, 0, 0, 0);
+    return this.prisma.client.redemption.findMany({
+      where: { merchantId: m.id, createdAt: { gte: since } },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+      include: {
+        user: { select: { nickname: true } },
+        userBenefit: { include: { benefit: { select: { title: true } } } },
+        dropClaim: { include: { drop: { select: { title: true } } } },
+        voucher: { include: { product: { select: { name: true } } } },
+      },
+    });
+  }
+
+  /** DROP 등록 요청 → 본사 승인 대기 */
+  @Post('my/drops')
+  async createDrop(@UserId() userId: string, @Body() dto: CreateDropDto) {
+    const m = await this.myMerchant(userId);
+    if (dto.dropPrice >= dto.normalPrice) {
+      throw new BadRequestException('할인가는 정상가보다 낮아야 합니다');
+    }
+    const openAt = new Date(dto.openAt);
+    const closeAt = new Date(dto.closeAt);
+    if (!(openAt < closeAt)) throw new BadRequestException('기간이 올바르지 않습니다');
+
+    const merchant = await this.prisma.client.merchant.findUniqueOrThrow({
+      where: { id: m.id }, select: { regionId: true, categoryId: true },
+    });
+
+    const drop = await this.prisma.client.drop.create({
+      data: {
+        merchantId: m.id,
+        regionId: merchant.regionId,
+        categoryId: merchant.categoryId,
+        productId: dto.productId ?? null,
+        kind: dto.kind,
+        status: 'PENDING',
+        title: dto.title,
+        description: dto.description,
+        normalPrice: dto.normalPrice,
+        dropPrice: dto.dropPrice,
+        totalQty: dto.totalQty,
+        remainingQty: dto.totalQty,
+        personsPerUnit: dto.personsPerUnit,
+        openAt, closeAt,
+        usableFromMinute: dto.usableFromMinute ?? null,
+        usableToMinute: dto.usableToMinute ?? null,
+      },
+    });
+    return { ok: true, dropId: drop.id, status: drop.status, message: '등록 요청 완료. 본사 승인 후 오픈됩니다.' };
+  }
+
+  @Get('my/drops')
+  async myDrops(@UserId() userId: string) {
+    const m = await this.myMerchant(userId);
+    return this.prisma.client.drop.findMany({
+      where: { merchantId: m.id },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+  }
+
+  /** 정산 내역 */
+  @Get('my/settlements')
+  async settlements(@UserId() userId: string) {
+    const m = await this.myMerchant(userId);
+    return this.prisma.client.settlement.findMany({
+      where: { merchantId: m.id },
+      orderBy: { periodEnd: 'desc' },
+      take: 24,
+    });
+  }
+
+  /**
+   * 완료화면 검증 — 고가 상품(QR_PIN)일 때 직원이 손님 화면의 6자리 토큰을 조회.
+   * 90초 안에서만 유효하고, 이 매장 건만 조회된다.
+   */
+  @Post('verify')
+  async verify(@UserId() userId: string, @Body() dto: VerifyDto) {
+    const m = await this.myMerchant(userId);
+    const r = await this.prisma.client.redemption.findUnique({
+      where: { verifyToken: dto.token.toUpperCase() },
+      include: {
+        user: { select: { nickname: true } },
+        voucher: { include: { product: { select: { name: true } } } },
+        dropClaim: { include: { drop: { select: { title: true } } } },
+        userBenefit: { include: { benefit: { select: { title: true } } } },
+      },
+    });
+    if (!r || r.merchantId !== m.id) throw new NotFoundException('확인할 수 없는 코드입니다');
+    const expired = r.verifyExpires < new Date();
+    return {
+      valid: !expired && r.status === 'DONE',
+      expired,
+      usedAt: r.createdAt,
+      headcount: r.headcount,
+      customer: r.user.nickname,
+      item:
+        r.voucher?.product.name ?? r.dropClaim?.drop.title ?? r.userBenefit?.benefit.title ?? '',
+    };
+  }
+}
+
+@Module({
+  imports: [AuthModule],
+  controllers: [MerchantController],
+  providers: [PrismaService],
+})
+export class MerchantModule {}

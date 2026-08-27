@@ -1,27 +1,31 @@
 {
   "name": "holicgem",
   "private": true,
-  "version": "0.0.0",
-  "type": "module",
+  "version": "0.1.0",
+  "description": "HOLIC GEM 2.0 - 유저 앱 / 가맹점 모드 / 본사 관리자",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "lint": "oxlint",
-    "preview": "vite preview",
-    "deploy": "npm run build && wrangler pages deploy dist --project-name=jam"
+    "db:generate": "npm run generate -w @holicgem/db",
+    "db:push": "npm run push -w @holicgem/db",
+    "db:migrate": "npm run migrate -w @holicgem/db",
+    "db:seed": "npm run seed -w @holicgem/db",
+    "db:studio": "npm run studio -w @holicgem/db",
+    "api": "npm run start:dev -w @holicgem/api",
+    "admin": "npm run dev -w @holicgem/admin",
+    "mobile": "npm run start -w @holicgem/mobile"
   },
-  "dependencies": {
-    "react": "^19.2.7",
-    "react-dom": "^19.2.7",
-    "react-router-dom": "^7.18.1"
-  },
-  "devDependencies": {
-    "@types/node": "^24.13.2",
-    "@types/react": "^19.2.17",
-    "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^6.0.3",
-    "oxlint": "^1.71.0",
-    "typescript": "~6.0.2",
-    "vite": "^8.1.1"
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "prisma@6.19.3": true,
+    "@prisma/client@6.19.3": true,
+    "@prisma/engines@6.19.3": true,
+    "@embedded-postgres/windows-x64@17.5.0-beta.15": true,
+    "@nestjs/core@10.4.22": true
   }
 }
