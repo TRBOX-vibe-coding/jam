@@ -225,6 +225,7 @@ model Merchant {
   bizRegNo      String?
   ownerName     String?
   contactPhone  String?
+  contactEmail  String?
   address       String?
   addressDetail String?
   lat           Float?
