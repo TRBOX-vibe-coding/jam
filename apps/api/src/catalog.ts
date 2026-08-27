@@ -76,7 +76,7 @@ export class CatalogController {
 
     const ownedMerchant = await db.merchant.findFirst({
       where: { ownerUserId: userId },
-      select: { id: true, name: true },
+      select: { id: true, name: true, status: true },
     });
 
     return {

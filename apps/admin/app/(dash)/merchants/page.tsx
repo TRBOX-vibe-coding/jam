@@ -26,6 +26,12 @@ export default function MerchantsPage() {
     setQrPreview({ name, code, dataUrl });
   }
 
+  async function approve(m: any) {
+    await api(`/admin/merchants/${m.id}`, { method: 'PATCH', body: { status: 'ACTIVE' } });
+    setMsg(`${m.name} 입점 승인 완료`);
+    load();
+  }
+
   async function toggleStatus(m: any) {
     const next = m.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE';
     await api(`/admin/merchants/${m.id}`, { method: 'PATCH', body: { status: next } });
@@ -74,10 +80,16 @@ export default function MerchantsPage() {
                 </Td>
                 <Td>
                   <div className="flex gap-1.5">
-                    <Button small variant="ghost" onClick={() => issueQr(m.id, m.name)}>QR 발급</Button>
-                    <Button small variant={m.status === 'ACTIVE' ? 'danger' : 'primary'} onClick={() => toggleStatus(m)}>
-                      {m.status === 'ACTIVE' ? '중지' : '재개'}
-                    </Button>
+                    {m.status === 'PENDING' ? (
+                      <Button small onClick={() => approve(m)}>입점 승인</Button>
+                    ) : (
+                      <>
+                        <Button small variant="ghost" onClick={() => issueQr(m.id, m.name)}>QR 발급</Button>
+                        <Button small variant={m.status === 'ACTIVE' ? 'danger' : 'primary'} onClick={() => toggleStatus(m)}>
+                          {m.status === 'ACTIVE' ? '중지' : '재개'}
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </Td>
               </tr>

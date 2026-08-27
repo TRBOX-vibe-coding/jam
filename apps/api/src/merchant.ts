@@ -31,6 +31,14 @@ class VerifyDto {
   @IsString() @MinLength(4) token!: string;
 }
 
+class ApplyDto {
+  @IsString() @MinLength(2) name!: string;
+  @IsString() regionId!: string;
+  @IsString() categoryId!: string;
+  @IsOptional() @IsString() contactPhone?: string;
+  @IsOptional() @IsString() intro?: string;
+}
+
 @Controller('merchant')
 @UseGuards(UserGuard)
 export class MerchantController {
@@ -47,6 +55,39 @@ export class MerchantController {
     });
     if (!m) throw new ForbiddenException('가맹점 계정이 아닙니다');
     return m;
+  }
+
+  /**
+   * 입점 신청 — 사장님도 손님과 똑같이 카카오로 로그인한 뒤,
+   * 여기서 가게 정보를 제출하면 PENDING 상태로 등록되고 본사 승인 시 가맹점 모드가 열린다.
+   */
+  @Post('apply')
+  async apply(@UserId() userId: string, @Body() dto: ApplyDto) {
+    const db = this.prisma.client;
+    const existing = await db.merchant.findFirst({ where: { ownerUserId: userId } });
+    if (existing) {
+      throw new BadRequestException(
+        existing.status === 'PENDING'
+          ? '이미 입점 신청이 접수되어 승인 대기 중입니다'
+          : '이미 연결된 가게가 있습니다',
+      );
+    }
+    const merchant = await db.merchant.create({
+      data: {
+        name: dto.name.trim(),
+        regionId: dto.regionId,
+        categoryId: dto.categoryId,
+        contactPhone: dto.contactPhone,
+        intro: dto.intro,
+        ownerUserId: userId,
+        status: 'PENDING',
+      },
+    });
+    return {
+      ok: true,
+      merchantId: merchant.id,
+      message: '입점 신청이 접수되었습니다. 본사 승인 후 가맹점 모드가 열립니다.',
+    };
   }
 
   @Get('my')
