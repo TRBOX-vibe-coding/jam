@@ -57,6 +57,14 @@ export default function MerchantsPage() {
                 <Td><Badge>{m.status}</Badge></Td>
                 <Td>
                   <div className="font-medium">{m.name}</div>
+                  {(m.ownerName || m.bizRegNo) && (
+                    <div className="max-w-[260px] text-[11px] text-ink-3">
+                      대표 {m.ownerName ?? '-'} · 사업자 {m.bizRegNo ?? '-'}
+                      {m.contactPhone && <> · {m.contactPhone}</>}
+                      {m.contactEmail && <> · {m.contactEmail}</>}
+                      {m.address && <div className="truncate">{m.address}</div>}
+                    </div>
+                  )}
                   <div className="max-w-[200px] truncate text-xs text-ink-3">{m.intro}</div>
                 </Td>
                 <Td className="whitespace-nowrap text-xs">

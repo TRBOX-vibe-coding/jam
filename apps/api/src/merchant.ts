@@ -7,7 +7,7 @@ import {
   BadRequestException, Body, Controller, ForbiddenException, Get, Module,
   NotFoundException, Param, Post, Query, UseGuards,
 } from '@nestjs/common';
-import { IsIn, IsInt, IsOptional, IsString, Max, Min, MinLength } from 'class-validator';
+import { IsEmail, IsIn, IsInt, IsOptional, IsString, Matches, Max, Min, MinLength } from 'class-validator';
 import { Type } from 'class-transformer';
 import { PrismaService } from './prisma.service';
 import { AuthModule, UserGuard, UserId } from './auth';
@@ -35,7 +35,12 @@ class ApplyDto {
   @IsString() @MinLength(2) name!: string;
   @IsString() regionId!: string;
   @IsString() categoryId!: string;
-  @IsOptional() @IsString() contactPhone?: string;
+  @IsString() @MinLength(5) address!: string;
+  /// 사업자등록번호 10자리. 하이픈은 넣어도 되고 안 넣어도 된다. 등록증 사본은 승인 단계에서 확인.
+  @IsString() @Matches(/^\d{3}-?\d{2}-?\d{5}$/, { message: '사업자등록번호는 10자리 숫자여야 합니다' }) bizRegNo!: string;
+  @IsString() @MinLength(2) ownerName!: string;
+  @IsString() @Matches(/^01[016789]-?\d{3,4}-?\d{4}$/, { message: '연락처 형식이 올바르지 않습니다' }) contactPhone!: string;
+  @IsEmail({}, { message: '이메일 형식이 올바르지 않습니다' }) contactEmail!: string;
   @IsOptional() @IsString() intro?: string;
 }
 
@@ -77,7 +82,11 @@ export class MerchantController {
         name: dto.name.trim(),
         regionId: dto.regionId,
         categoryId: dto.categoryId,
+        address: dto.address.trim(),
+        bizRegNo: dto.bizRegNo.replace(/-/g, ''),
+        ownerName: dto.ownerName.trim(),
         contactPhone: dto.contactPhone,
+        contactEmail: dto.contactEmail.trim(),
         intro: dto.intro,
         ownerUserId: userId,
         status: 'PENDING',
