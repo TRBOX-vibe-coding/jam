@@ -41,7 +41,7 @@ export default function WalletScreen() {
       <Screen>
         <View style={{ padding: 24 }}>
           <EmptyText text="로그인하면 이용권과 예약이 여기에 보여요" />
-          <Btn title="로그인하러 가기" onPress={() => router.push('/my')} />
+          <Btn title="로그인하러 가기" onPress={() => router.push('/(tabs)/my')} />
         </View>
       </Screen>
     );

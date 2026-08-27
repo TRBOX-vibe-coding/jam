@@ -1,6 +1,6 @@
 /** DROP 상세 — 받기(DEAL) 또는 바로 결제(TICKET) */
 import { useCallback, useState } from 'react';
-import { Alert, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { api } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
@@ -29,7 +29,7 @@ export default function DropDetail() {
 
   async function claim() {
     if (!me) {
-      router.push('/my');
+      router.push('/(tabs)/my');
       return;
     }
     setBusy(true);
@@ -52,6 +52,7 @@ export default function DropDetail() {
   return (
     <Screen>
       <ScrollView contentContainerStyle={{ padding: 16 }}>
+        {d.imageUrl && <Image source={{ uri: d.imageUrl }} style={st.hero} />}
         <Card>
           <View style={{ flexDirection: 'row', gap: 5, marginBottom: 8 }}>
             <Tag text={`${d.category.emoji} ${d.region.name}`} />
@@ -106,6 +107,7 @@ export default function DropDetail() {
 }
 
 const st = StyleSheet.create({
+  hero: { width: '100%', height: 190, borderRadius: 16, marginBottom: 12 },
   title: { fontSize: 20, fontWeight: '900', color: C.ink, lineHeight: 27 },
   merchant: { fontSize: 13, color: C.ink3, marginTop: 4 },
   desc: { fontSize: 14, color: C.ink2, marginTop: 10, lineHeight: 21 },

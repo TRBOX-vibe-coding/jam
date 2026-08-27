@@ -3,7 +3,7 @@ import { Text } from 'react-native';
 import { C } from '../../lib/theme';
 
 function Icon({ glyph, focused }: { glyph: string; focused: boolean }) {
-  return <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.45 }}>{glyph}</Text>;
+  return <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.4 }}>{glyph}</Text>;
 }
 
 export default function TabsLayout() {
@@ -15,24 +15,24 @@ export default function TabsLayout() {
         headerTitleStyle: { fontWeight: '800', fontSize: 17 },
         tabBarActiveTintColor: C.brand,
         tabBarInactiveTintColor: C.ink3,
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
-        tabBarStyle: { backgroundColor: C.white, borderTopColor: C.line },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '700' },
+        tabBarStyle: { backgroundColor: C.white, borderTopColor: C.line, height: 58, paddingTop: 4 },
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
-          title: '오늘의 DROP',
-          tabBarLabel: '오늘',
-          tabBarIcon: ({ focused }) => <Icon glyph="⚡" focused={focused} />,
+          headerShown: false,
+          tabBarLabel: '홈',
+          tabBarIcon: ({ focused }) => <Icon glyph="🏠" focused={focused} />,
         }}
       />
       <Tabs.Screen
-        name="benefits"
+        name="drops"
         options={{
-          title: '내 혜택',
-          tabBarLabel: '혜택',
-          tabBarIcon: ({ focused }) => <Icon glyph="🎁" focused={focused} />,
+          title: '오늘의 DROP',
+          tabBarLabel: 'DROP',
+          tabBarIcon: ({ focused }) => <Icon glyph="⚡" focused={focused} />,
         }}
       />
       <Tabs.Screen

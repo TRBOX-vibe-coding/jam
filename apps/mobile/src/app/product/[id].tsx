@@ -2,7 +2,7 @@
  * 상품 상세 — 예약형은 날짜·시간·인원 선택 → 결제 → 예약확정까지 앱 안에서 끝낸다.
  */
 import { useCallback, useState } from 'react';
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { api } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
@@ -60,6 +60,7 @@ export default function ProductDetail() {
   return (
     <Screen>
       <ScrollView contentContainerStyle={{ padding: 16 }}>
+        {p.imageUrl && <Image source={{ uri: p.imageUrl }} style={st.hero} />}
         <Card>
           <View style={{ flexDirection: 'row', gap: 5, marginBottom: 8 }}>
             <Tag text={p.type === 'RESERVATION' ? '예약형' : p.type === 'PASS' ? 'PASS' : '티켓'} />
@@ -148,6 +149,7 @@ export default function ProductDetail() {
 
 const st = StyleSheet.create({
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  hero: { width: '100%', height: 190, borderRadius: 16, marginBottom: 12 },
   title: { fontSize: 20, fontWeight: '900', color: C.ink, lineHeight: 27 },
   merchant: { fontSize: 13, color: C.ink3, marginTop: 4 },
   desc: { fontSize: 14, color: C.ink2, marginTop: 10, lineHeight: 21 },

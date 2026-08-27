@@ -443,6 +443,48 @@ async function main() {
     users: await prisma.user.count(),
     admins: await prisma.adminUser.count(),
   };
+  // ---------- 이미지 연결 (무료 스톡, UI 데모용) ----------
+  const U = (id: string, w = 900) => `https://images.unsplash.com/photo-${id}?w=${w}&q=60&auto=format&fit=crop`;
+  const merchantImg: Record<string, string> = {
+    '까사부사노': U('1509042239860-f550ce710b93'),
+    '스크러피': U('1509440159596-0249088772ff'),
+    'PODO': U('1510812431401-41d2bd2722f3'),
+    '베이스먼트': U('1470337458703-46ad1756a187'),
+    '도우개러지': U('1513104890138-7c749659a591'),
+    '씀모이가든': U('1414235077428-338989a2e8c0'),
+    '서프홀릭 송정본점': U('1502680390469-be75c86b636f'),
+    '요트홀릭': U('1500514966906-fe245eea9344'),
+    '해운대리버크루즈': U('1477959858617-67f85cf4f1df'),
+    '뮤지엄원': U('1550684848-fac1c5b4e853'),
+    '부산엑스더스카이': U('1444723121867-7a241cacace9'),
+    '리틀셰프 베이킹랩': U('1556909114-f6e7ad7d3136'),
+  };
+  for (const [name, url] of Object.entries(merchantImg)) {
+    await prisma.merchant.updateMany({ where: { name }, data: { thumbnailUrl: url } });
+  }
+  const productImg: Record<string, string> = {
+    '송정 입문 서핑 강습 (2시간)': U('1502680390469-be75c86b636f', 1200),
+    '광안리 선셋 요트투어 (60분)': U('1500514966906-fe245eea9344', 1200),
+    '해운대 리버크루즈 탑승권': U('1477959858617-67f85cf4f1df', 1200),
+    '송정 바다 PASS': U('1507525428034-b723cf961d3e', 1200),
+  };
+  for (const [name, url] of Object.entries(productImg)) {
+    await prisma.product.updateMany({ where: { name }, data: { imageUrl: url } });
+  }
+  const dropImg: Record<string, string> = {
+    '오늘 선셋 요트 10석 한정': U('1500514966906-fe245eea9344', 1200),
+    '평일 브런치 2인 세트 34% 할인': U('1533089860892-a7c6f0a88666', 1200),
+    '내일 오전 서핑 체험 특가': U('1502680390469-be75c86b636f', 1200),
+    '키즈 베이킹 클래스 오늘 15팀': U('1556909114-f6e7ad7d3136', 1200),
+    '[멤버 전용] 시그니처 칵테일 1+1': U('1514362545857-3bc16c4c7d1b', 1200),
+    '뮤지엄원 야간권 반값': U('1550684848-fac1c5b4e853', 1200),
+    '[승인대기] 주말 와인 테이스팅 세트': U('1510812431401-41d2bd2722f3', 1200),
+  };
+  for (const [title, url] of Object.entries(dropImg)) {
+    await prisma.drop.updateMany({ where: { title }, data: { imageUrl: url } });
+  }
+  console.log('[seed] images linked:', Object.keys(merchantImg).length + Object.keys(productImg).length + Object.keys(dropImg).length);
+
   console.log('[seed] done:', counts);
   console.log('[seed] admin login: admin@holicgem.com / admin1234');
   console.log(`[seed] demo user: KAKAO demo-user-1 (${demoUser.nickname})`);

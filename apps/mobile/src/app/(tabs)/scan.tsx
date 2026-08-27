@@ -30,7 +30,7 @@ export default function ScanScreen() {
         <View style={{ padding: 24 }}>
           <Card>
             <Text style={st.guide}>로그인 후 매장 QR을 스캔하면{'\n'}그 매장에서 쓸 수 있는 혜택이 바로 나옵니다.</Text>
-            <Btn title="로그인하러 가기" onPress={() => router.push('/my')} />
+            <Btn title="로그인하러 가기" onPress={() => router.push('/(tabs)/my')} />
           </Card>
         </View>
       </Screen>

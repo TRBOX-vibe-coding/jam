@@ -143,6 +143,18 @@ export default function MyScreen() {
               </>
             )}
 
+            {/* 바로가기 */}
+            <Text style={st.section}>바로가기</Text>
+            <Card>
+              <View style={st.rowBetween}>
+                <View>
+                  <Text style={st.planName}>내 혜택 전체 보기</Text>
+                  <Text style={st.planDesc}>매장별로 열려 있는 혜택 · 절약 내역</Text>
+                </View>
+                <Btn title='보기' small onPress={() => router.push('/benefits')} />
+              </View>
+            </Card>
+
             {/* 가맹점 모드 */}
             {me.ownedMerchant && (
               <>

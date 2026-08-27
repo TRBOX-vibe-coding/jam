@@ -35,6 +35,7 @@ export default function RootLayout() {
         >
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="drop/[id]" options={{ title: 'DROP' }} />
+          <Stack.Screen name="benefits" options={{ title: '내 혜택' }} />
           <Stack.Screen name="product/[id]" options={{ title: '상품' }} />
           <Stack.Screen name="use/[qr]" options={{ title: '매장에서 사용' }} />
           <Stack.Screen name="done" options={{ title: '사용 완료', headerBackVisible: false }} />

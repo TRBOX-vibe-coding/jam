@@ -5,10 +5,10 @@
 import { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
-import { api } from '../../lib/api';
-import { useAuth } from '../../lib/auth';
-import { C, won } from '../../lib/theme';
-import { Btn, Card, EmptyText, Loading, Screen, Tag } from '../../lib/ui';
+import { api } from '../lib/api';
+import { useAuth } from '../lib/auth';
+import { C, won } from '../lib/theme';
+import { Btn, Card, EmptyText, Loading, Screen, Tag } from '../lib/ui';
 
 type BenefitGroup = {
   merchant: { id: string; name: string; address: string | null; region: { name: string }; category: { name: string; emoji: string } };
@@ -41,7 +41,7 @@ export default function BenefitsScreen() {
       <Screen>
         <View style={{ padding: 24 }}>
           <EmptyText text="로그인하면 내 혜택이 여기에 모여요" />
-          <Btn title="로그인하러 가기" onPress={() => router.push('/my')} />
+          <Btn title="로그인하러 가기" onPress={() => router.push('/(tabs)/my')} />
         </View>
       </Screen>
     );
@@ -68,7 +68,7 @@ export default function BenefitsScreen() {
         {data && data.totalCount === 0 && (
           <View>
             <EmptyText text="아직 열린 혜택이 없어요. 멤버십을 시작하면 제휴 혜택이 한 번에 열립니다." />
-            <Btn title="멤버십 보러 가기" onPress={() => router.push('/my')} />
+            <Btn title="멤버십 보러 가기" onPress={() => router.push('/(tabs)/my')} />
           </View>
         )}
 

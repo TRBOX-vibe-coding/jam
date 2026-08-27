@@ -66,6 +66,7 @@ export class DropsController {
       kind: d.kind,
       title: d.title,
       description: d.description,
+      imageUrl: d.imageUrl,
       merchant: d.merchant,
       region: d.region,
       category: d.category,
