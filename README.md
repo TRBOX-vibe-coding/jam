@@ -32,7 +32,6 @@ holicgem/
 ```bash
 npm install                # 최초 1회, 루트에서
 
-아래 순서로 실행:
 
 # ① 개발 DB (내장 PostgreSQL — 별도 설치 불필요)
 npm run dev:db -w @holicgem/db
