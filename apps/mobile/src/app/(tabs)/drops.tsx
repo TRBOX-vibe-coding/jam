@@ -3,12 +3,13 @@
  */
 import { useCallback, useState } from 'react';
 import {
-  FlatList, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View,
+  FlatList, Image, Pressable, RefreshControl, StyleSheet, Text, View,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { api } from '../../lib/api';
 import { C, won } from '../../lib/theme';
 import { Chip, EmptyText, Loading, Screen, Tag } from '../../lib/ui';
+import { HScroll } from '../../lib/hscroll';
 
 type Region = { id: string; name: string };
 type Drop = {
@@ -49,12 +50,12 @@ export default function DropsScreen() {
   return (
     <Screen>
       <View style={{ paddingVertical: 10, backgroundColor: C.white }}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
+        <HScroll contentContainerStyle={{ paddingHorizontal: 16 }}>
           <Chip label="전체" active={!regionId} onPress={() => setRegionId(null)} />
           {regions.map((r) => (
             <Chip key={r.id} label={r.name} active={regionId === r.id} onPress={() => setRegionId(r.id)} />
           ))}
-        </ScrollView>
+        </HScroll>
       </View>
 
       {!drops ? (

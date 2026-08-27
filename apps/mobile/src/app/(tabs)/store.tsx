@@ -5,13 +5,14 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import {
-  FlatList, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View,
+  FlatList, Image, Pressable, RefreshControl, StyleSheet, Text, View,
 } from 'react-native';
 import { router } from 'expo-router';
 import { api } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { C } from '../../lib/theme';
 import { Chip, EmptyText, Loading, Screen } from '../../lib/ui';
+import { HScroll } from '../../lib/hscroll';
 
 type Region = { id: string; name: string };
 type Category = { id: string; code: string; name: string; emoji: string };
@@ -62,18 +63,18 @@ export default function StoreScreen() {
       )}
 
       <View style={{ backgroundColor: C.white, paddingBottom: 10 }}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 10 }}>
+        <HScroll contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 10 }}>
           <Chip label="전체 지역" active={!regionId} onPress={() => setRegionId(null)} />
           {regions.map((r) => (
             <Chip key={r.id} label={r.name} active={regionId === r.id} onPress={() => setRegionId(r.id)} />
           ))}
-        </ScrollView>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8 }}>
+        </HScroll>
+        <HScroll contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8 }}>
           <Chip label="전체" active={!categoryId} onPress={() => setCategoryId(null)} />
           {categories.map((c) => (
             <Chip key={c.id} label={`${c.emoji} ${c.name}`} active={categoryId === c.id} onPress={() => setCategoryId(c.id)} />
           ))}
-        </ScrollView>
+        </HScroll>
       </View>
 
       {!rows ? (

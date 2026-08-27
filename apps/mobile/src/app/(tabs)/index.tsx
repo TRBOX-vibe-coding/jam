@@ -16,6 +16,7 @@ import { api } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { C, won } from '../../lib/theme';
 import { Screen } from '../../lib/ui';
+import { HScroll } from '../../lib/hscroll';
 
 type Drop = {
   id: string; title: string; imageUrl: string | null;
@@ -139,7 +140,7 @@ export default function HomeScreen() {
             <Text style={st.more}>전체보기</Text>
           </Pressable>
         </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 10 }}>
+        <HScroll contentContainerStyle={{ paddingHorizontal: 16, gap: 10 }}>
           {drops.slice(0, 6).map((d) => (
             <Pressable key={d.id} style={st.dropCard} onPress={() => router.push(`/drop/${d.id}`)}>
               <View>
@@ -161,7 +162,7 @@ export default function HomeScreen() {
               </View>
             </Pressable>
           ))}
-        </ScrollView>
+        </HScroll>
 
         {/* ③ 액티비티 예약 */}
         <View style={st.sectionHead}>
@@ -170,7 +171,7 @@ export default function HomeScreen() {
             <Text style={st.sectionSub}>결제하면 예약까지 한 번에 끝나요</Text>
           </View>
         </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 14 }}>
+        <HScroll contentContainerStyle={{ paddingHorizontal: 16, gap: 14 }}>
           {CATS.map((c) => (
             <Pressable key={c.code} style={st.cat} onPress={() => router.push('/(tabs)/store')}>
               <LinearGradient
@@ -185,7 +186,7 @@ export default function HomeScreen() {
               <Text style={st.catLabel}>{c.label}</Text>
             </Pressable>
           ))}
-        </ScrollView>
+        </HScroll>
         <View style={{ paddingHorizontal: 16, marginTop: 12, gap: 12 }}>
           {products.slice(0, 3).map((p) => (
             <Pressable key={p.id} style={st.prodCard} onPress={() => router.push(`/product/${p.id}`)}>
