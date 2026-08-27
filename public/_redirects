@@ -1,0 +1,7 @@
+/*
+  SPA 라우팅: 존재하지 않는 경로도 index.html로 보냅니다.
+*/
+[[redirects]]
+from = "/*"
+to = "/index.html"
+status = 200
