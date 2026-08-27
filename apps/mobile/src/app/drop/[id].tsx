@@ -36,7 +36,7 @@ export default function DropDetail() {
     try {
       const r = await api<any>(`/drops/${id}/claim`, { method: 'POST', body: {} });
       notify(r.type === 'TICKET' ? '결제 완료' : '받았습니다!', r.message);
-      if (r.type === 'TICKET') router.push('/(tabs)/wallet');
+      if (r.type === 'TICKET') router.push('/wallet');
       else router.back();
     } catch (e: any) {
       notify('받을 수 없습니다', e.message);

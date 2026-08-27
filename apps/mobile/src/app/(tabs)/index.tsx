@@ -10,6 +10,7 @@ import {
   Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { C, won } from '../../lib/theme';
@@ -105,15 +106,15 @@ export default function HomeScreen() {
                 </View>
                 <View style={st.quickRow}>
                   <Pressable style={st.quick} onPress={() => router.push('/benefits')}>
-                    <Text style={st.quickIcon}>🎁</Text><Text style={st.quickLabel}>내 혜택</Text>
+                    <Ionicons name='gift-outline' size={19} color={C.brand} /><Text style={st.quickLabel}>내 혜택</Text>
                   </Pressable>
                   <View style={st.quickDiv} />
-                  <Pressable style={st.quick} onPress={() => router.push('/(tabs)/wallet')}>
-                    <Text style={st.quickIcon}>🎫</Text><Text style={st.quickLabel}>이용권</Text>
+                  <Pressable style={st.quick} onPress={() => router.push('/wallet')}>
+                    <Ionicons name='ticket-outline' size={19} color={C.brand} /><Text style={st.quickLabel}>이용권</Text>
                   </Pressable>
                   <View style={st.quickDiv} />
                   <Pressable style={st.quick} onPress={() => router.push('/(tabs)/scan')}>
-                    <Text style={st.quickIcon}>📷</Text><Text style={st.quickLabel}>매장 사용</Text>
+                    <Ionicons name='qr-code-outline' size={19} color={C.brand} /><Text style={st.quickLabel}>매장 사용</Text>
                   </Pressable>
                 </View>
               </>
@@ -169,7 +170,7 @@ export default function HomeScreen() {
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 14 }}>
           {CATS.map((c) => (
-            <Pressable key={c.code} style={st.cat} onPress={() => router.push('/(tabs)/drops')}>
+            <Pressable key={c.code} style={st.cat} onPress={() => router.push('/(tabs)/store')}>
               <View style={st.catCircle}><Text style={{ fontSize: 22 }}>{c.emoji}</Text></View>
               <Text style={st.catLabel}>{c.label}</Text>
             </Pressable>
@@ -216,7 +217,7 @@ export default function HomeScreen() {
             </View>
             <View style={{ paddingHorizontal: 16, gap: 8 }}>
               {benefits.slice(0, 4).map((g) => (
-                <Pressable key={g.merchant.id} style={st.benefitRow} onPress={() => router.push('/benefits')}>
+                <Pressable key={g.merchant.id} style={st.benefitRow} onPress={() => router.push(`/store/${g.merchant.id}`)}>
                   {g.merchant.thumbnailUrl ? (
                     <Image source={{ uri: g.merchant.thumbnailUrl }} style={st.benefitThumb} />
                   ) : (

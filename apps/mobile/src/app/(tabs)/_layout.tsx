@@ -1,9 +1,13 @@
 import { Tabs } from 'expo-router';
-import { Text } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { C } from '../../lib/theme';
 
-function Icon({ glyph, focused }: { glyph: string; focused: boolean }) {
-  return <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.4 }}>{glyph}</Text>;
+type IconName = keyof typeof Ionicons.glyphMap;
+
+function tabIcon(active: IconName, inactive: IconName) {
+  return ({ focused, color }: { focused: boolean; color: string }) => (
+    <Ionicons name={focused ? active : inactive} size={22} color={color} />
+  );
 }
 
 export default function TabsLayout() {
@@ -14,9 +18,9 @@ export default function TabsLayout() {
         headerShadowVisible: false,
         headerTitleStyle: { fontWeight: '800', fontSize: 17 },
         tabBarActiveTintColor: C.brand,
-        tabBarInactiveTintColor: C.ink3,
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '700' },
-        tabBarStyle: { backgroundColor: C.white, borderTopColor: C.line, height: 58, paddingTop: 4 },
+        tabBarInactiveTintColor: '#9AA7B3',
+        tabBarLabelStyle: { fontSize: 10.5, fontWeight: '700', marginTop: 1 },
+        tabBarStyle: { backgroundColor: C.white, borderTopColor: C.line, height: 60, paddingTop: 6 },
       }}
     >
       <Tabs.Screen
@@ -24,7 +28,7 @@ export default function TabsLayout() {
         options={{
           headerShown: false,
           tabBarLabel: '홈',
-          tabBarIcon: ({ focused }) => <Icon glyph="🏠" focused={focused} />,
+          tabBarIcon: tabIcon('home', 'home-outline'),
         }}
       />
       <Tabs.Screen
@@ -32,7 +36,15 @@ export default function TabsLayout() {
         options={{
           title: '오늘의 DROP',
           tabBarLabel: 'DROP',
-          tabBarIcon: ({ focused }) => <Icon glyph="⚡" focused={focused} />,
+          tabBarIcon: tabIcon('flash', 'flash-outline'),
+        }}
+      />
+      <Tabs.Screen
+        name="store"
+        options={{
+          title: '제휴 혜택',
+          tabBarLabel: '혜택',
+          tabBarIcon: tabIcon('pricetags', 'pricetags-outline'),
         }}
       />
       <Tabs.Screen
@@ -40,15 +52,7 @@ export default function TabsLayout() {
         options={{
           title: '매장에서 사용',
           tabBarLabel: '사용',
-          tabBarIcon: ({ focused }) => <Icon glyph="📷" focused={focused} />,
-        }}
-      />
-      <Tabs.Screen
-        name="wallet"
-        options={{
-          title: '이용권 · 예약',
-          tabBarLabel: '이용권',
-          tabBarIcon: ({ focused }) => <Icon glyph="🎫" focused={focused} />,
+          tabBarIcon: tabIcon('qr-code', 'qr-code-outline'),
         }}
       />
       <Tabs.Screen
@@ -56,7 +60,7 @@ export default function TabsLayout() {
         options={{
           title: 'MY',
           tabBarLabel: 'MY',
-          tabBarIcon: ({ focused }) => <Icon glyph="👤" focused={focused} />,
+          tabBarIcon: tabIcon('person', 'person-outline'),
         }}
       />
     </Tabs>

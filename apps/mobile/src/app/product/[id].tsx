@@ -44,7 +44,7 @@ export default function ProductDetail() {
         body: { slotId: slotId ?? undefined, headcount, contactName: me.nickname },
       });
       notify('완료', r.message);
-      router.push('/(tabs)/wallet');
+      router.push('/wallet');
     } catch (e: any) {
       notify('구매할 수 없습니다', e.message);
     } finally {

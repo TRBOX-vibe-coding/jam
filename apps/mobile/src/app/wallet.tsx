@@ -2,10 +2,10 @@
 import { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
-import { api } from '../../lib/api';
-import { useAuth } from '../../lib/auth';
-import { C, won } from '../../lib/theme';
-import { Btn, Card, EmptyText, Loading, Screen, Tag } from '../../lib/ui';
+import { api } from '../lib/api';
+import { useAuth } from '../lib/auth';
+import { C, won } from '../lib/theme';
+import { Btn, Card, EmptyText, Loading, Screen, Tag } from '../lib/ui';
 
 const VSTATUS: Record<string, { label: string; tone: 'ok' | 'brand' | 'bad' | 'warn' }> = {
   ISSUED: { label: '사용 가능', tone: 'ok' },
