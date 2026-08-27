@@ -176,6 +176,15 @@ export default function MyScreen() {
                 <Btn title='보기' small onPress={() => router.push('/benefits')} />
               </View>
             </Card>
+            <Card>
+              <View style={st.rowBetween}>
+                <View>
+                  <Text style={st.planName}>이용권 · 예약</Text>
+                  <Text style={st.planDesc}>구매한 티켓과 확정된 예약</Text>
+                </View>
+                <Btn title='보기' small onPress={() => router.push('/wallet')} />
+              </View>
+            </Card>
 
             {/* 가맹점 모드 */}
             {me.ownedMerchant && (

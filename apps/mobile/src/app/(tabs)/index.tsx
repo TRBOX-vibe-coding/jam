@@ -94,33 +94,19 @@ export default function HomeScreen() {
 
           <Pressable style={st.statusCard} onPress={() => router.push(me ? '/benefits' : '/(tabs)/my')}>
             {me ? (
-              <>
-                <View style={st.statusRow}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={st.statusPlan}>
-                      {me.membership ? `${me.membership.planName} 이용 중` : '멤버십을 시작해 보세요'}
-                    </Text>
-                    <Text style={st.statusSaving}>
-                      이번 달 <Text style={{ color: C.brand, fontWeight: '900' }}>{won(me.savings.thisMonth)}</Text> 아꼈어요
-                      {me.savings.recoveryRate != null ? ` · 회수율 ${me.savings.recoveryRate}%` : ''}
-                    </Text>
-                  </View>
-                  {me.membership && <Text style={st.statusBadge}>{me.membership.planName}</Text>}
+              <View style={st.statusRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={st.statusPlan}>
+                    {me.membership ? `${me.membership.planName} 이용 중` : '멤버십을 시작해 보세요'}
+                  </Text>
+                  <Text style={st.statusSaving}>
+                    이번 달 <Text style={{ color: C.brand, fontWeight: '900' }}>{won(me.savings.thisMonth)}</Text> 아꼈어요
+                    {me.savings.recoveryRate != null ? ` · 회수율 ${me.savings.recoveryRate}%` : ''}
+                  </Text>
                 </View>
-                <View style={st.quickRow}>
-                  <Pressable style={st.quick} onPress={() => router.push('/benefits')}>
-                    <Ionicons name='gift-outline' size={19} color={C.brand} /><Text style={st.quickLabel}>내 혜택</Text>
-                  </Pressable>
-                  <View style={st.quickDiv} />
-                  <Pressable style={st.quick} onPress={() => router.push('/wallet')}>
-                    <Ionicons name='ticket-outline' size={19} color={C.brand} /><Text style={st.quickLabel}>이용권</Text>
-                  </Pressable>
-                  <View style={st.quickDiv} />
-                  <Pressable style={st.quick} onPress={() => router.push('/(tabs)/scan')}>
-                    <Ionicons name='qr-code-outline' size={19} color={C.brand} /><Text style={st.quickLabel}>매장 사용</Text>
-                  </Pressable>
-                </View>
-              </>
+                {me.membership && <Text style={st.statusBadge}>{me.membership.planName}</Text>}
+                <Ionicons name="chevron-forward" size={18} color={C.ink3} />
+              </View>
             ) : (
               <View style={st.statusRow}>
                 <Text style={[st.statusPlan, { flex: 1 }]}>3초 간편가입하고 오늘 혜택 받기</Text>
@@ -262,11 +248,6 @@ const st = StyleSheet.create({
   statusSaving: { fontSize: 12.5, color: C.ink2, marginTop: 3 },
   statusBadge: { backgroundColor: C.gold, color: '#fff', fontSize: 11, fontWeight: '900', paddingHorizontal: 9, paddingVertical: 4, borderRadius: 999, overflow: 'hidden' },
   loginBtn: { backgroundColor: C.brand, color: '#fff', fontSize: 13, fontWeight: '800', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, overflow: 'hidden' },
-  quickRow: { flexDirection: 'row', marginTop: 12, backgroundColor: C.white, borderRadius: 12, paddingVertical: 10 },
-  quick: { flex: 1, alignItems: 'center', gap: 2 },
-  quickDiv: { width: 1, backgroundColor: C.line },
-  quickIcon: { fontSize: 17 },
-  quickLabel: { fontSize: 11.5, fontWeight: '700', color: C.ink2 },
 
   sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', paddingHorizontal: 16, marginTop: 24, marginBottom: 11 },
   sectionTitle: { fontSize: 17, fontWeight: '900', color: C.ink, letterSpacing: -0.3 },
