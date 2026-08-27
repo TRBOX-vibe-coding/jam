@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { api } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { C, won } from '../../lib/theme';
@@ -32,13 +33,14 @@ type BenefitGroup = {
   items: { title: string }[];
 };
 
-const CATS = [
-  { code: 'marine', emoji: '🌊', label: '해양레저' },
-  { code: 'food', emoji: '🍽️', label: '맛집' },
-  { code: 'cafe', emoji: '☕', label: '카페' },
-  { code: 'bar', emoji: '🍸', label: '펍·바' },
-  { code: 'exhibit', emoji: '🎨', label: '전시' },
-  { code: 'kids', emoji: '🧸', label: '키즈' },
+// 카테고리 타일 — 카테고리마다 고유 그라데이션 + 흰 라인 아이콘 (MZ 톤)
+const CATS: { code: string; label: string; icon: keyof typeof Ionicons.glyphMap; colors: [string, string] }[] = [
+  { code: 'marine', label: '해양레저', icon: 'boat-outline', colors: ['#38BDF8', '#2563EB'] },
+  { code: 'food', label: '맛집', icon: 'restaurant-outline', colors: ['#FB7185', '#E11D48'] },
+  { code: 'cafe', label: '카페', icon: 'cafe-outline', colors: ['#FBBF24', '#D97706'] },
+  { code: 'bar', label: '펍·바', icon: 'wine-outline', colors: ['#A78BFA', '#6D28D9'] },
+  { code: 'exhibit', label: '전시', icon: 'color-palette-outline', colors: ['#F472B6', '#C026D3'] },
+  { code: 'kids', label: '키즈', icon: 'happy-outline', colors: ['#4ADE80', '#16A34A'] },
 ];
 
 function hoursLeft(closeAt: string) {
@@ -171,7 +173,15 @@ export default function HomeScreen() {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 14 }}>
           {CATS.map((c) => (
             <Pressable key={c.code} style={st.cat} onPress={() => router.push('/(tabs)/store')}>
-              <View style={st.catCircle}><Text style={{ fontSize: 22 }}>{c.emoji}</Text></View>
+              <LinearGradient
+                colors={c.colors}
+                start={{ x: 0.1, y: 0 }}
+                end={{ x: 0.9, y: 1 }}
+                style={st.catTile}
+              >
+                <View style={st.catGloss} />
+                <Ionicons name={c.icon} size={24} color="#fff" />
+              </LinearGradient>
               <Text style={st.catLabel}>{c.label}</Text>
             </Pressable>
           ))}
@@ -274,9 +284,16 @@ const st = StyleSheet.create({
   dropRate: { fontSize: 14, fontWeight: '900', color: '#E8503A' },
   dropPrice: { fontSize: 14, fontWeight: '900', color: C.ink },
 
-  cat: { alignItems: 'center', gap: 6 },
-  catCircle: { width: 54, height: 54, borderRadius: 27, backgroundColor: C.white, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' },
-  catLabel: { fontSize: 11.5, fontWeight: '700', color: C.ink2 },
+  cat: { alignItems: 'center', gap: 7 },
+  catTile: {
+    width: 58, height: 58, borderRadius: 20,
+    alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+  },
+  catGloss: {
+    position: 'absolute', top: -14, left: -14, width: 46, height: 46, borderRadius: 23,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+  },
+  catLabel: { fontSize: 11.5, fontWeight: '800', color: C.ink2, letterSpacing: -0.2 },
 
   prodCard: { backgroundColor: C.white, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: C.line },
   prodImg: { width: '100%', height: 150 },
