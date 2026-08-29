@@ -17,6 +17,7 @@ import { useAuth } from '../../lib/auth';
 import { C, won } from '../../lib/theme';
 import { Screen } from '../../lib/ui';
 import { HScroll } from '../../lib/hscroll';
+import { Logo } from '../../lib/logo';
 
 type Drop = {
   id: string; title: string; imageUrl: string | null;
@@ -81,18 +82,33 @@ export default function HomeScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load().catch(() => {}); setRefreshing(false); }} />
         }
       >
-        {/* ① 인사 + 상태 카드 */}
-        <View style={st.hero}>
-          <View style={st.heroTop}>
-            <View>
-              <Text style={st.brand}>HOLIC GEM</Text>
-              <Text style={st.greet}>
-                {me ? `${greetName}, 오늘 부산은 어때요?` : '부산 놀러갈 땐, 홀릭잼 🌊'}
-              </Text>
-            </View>
-          </View>
+        {/* ① 딥오션 히어로 + 상태 카드 */}
+        <LinearGradient
+          colors={['#0A3D73', '#0E559A', '#1B86CD']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1.15, y: 1 }}
+          style={st.hero}
+        >
+          {/* 떠 있는 보석 장식 */}
+          <View style={[st.gemDeco, { top: 52, right: 18, width: 72, height: 72, opacity: 0.1, borderRadius: 18 }]} />
+          <View style={[st.gemDeco, { top: 116, right: 92, width: 26, height: 26, opacity: 0.16, borderRadius: 7 }]} />
+          <View style={[st.gemDeco, { top: 34, right: 128, width: 14, height: 14, opacity: 0.12, borderRadius: 4 }]} />
+          <Text style={st.decoSpark}>✦</Text>
 
-          <Pressable style={st.statusCard} onPress={() => router.push(me ? '/benefits' : '/(tabs)/my')}>
+          <Logo light size={27} />
+          <Text style={st.greet}>
+            {me ? (
+              <>
+                <Text style={st.greetName}>{greetName} 👋</Text>
+                {'\n'}오늘 부산은 어때요?
+              </>
+            ) : (
+              <>부산 놀러갈 땐,{'\n'}홀릭잼 🌊</>
+            )}
+          </Text>
+        </LinearGradient>
+
+        <Pressable style={st.statusCard} onPress={() => router.push(me ? '/benefits' : '/(tabs)/my')}>
             {me ? (
               <View style={st.statusRow}>
                 <View style={{ flex: 1 }}>
@@ -104,7 +120,13 @@ export default function HomeScreen() {
                     {me.savings.recoveryRate != null ? ` · 회수율 ${me.savings.recoveryRate}%` : ''}
                   </Text>
                 </View>
-                {me.membership && <Text style={st.statusBadge}>{me.membership.planName}</Text>}
+                {me.membership && (
+                  <View style={{ borderRadius: 999, overflow: 'hidden' }}>
+                    <LinearGradient colors={['#F7C64B', '#B07B1E']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+                      <Text style={st.statusBadge}>💎 {me.membership.planName}</Text>
+                    </LinearGradient>
+                  </View>
+                )}
                 <Ionicons name="chevron-forward" size={18} color={C.ink3} />
               </View>
             ) : (
@@ -113,8 +135,7 @@ export default function HomeScreen() {
                 <Text style={st.loginBtn}>시작하기</Text>
               </View>
             )}
-          </Pressable>
-        </View>
+        </Pressable>
 
         {/* ② 오늘 도착한 DROP */}
         <View style={st.sectionHead}>
@@ -238,15 +259,24 @@ export default function HomeScreen() {
 }
 
 const st = StyleSheet.create({
-  hero: { backgroundColor: C.white, paddingTop: 54, paddingBottom: 18, paddingHorizontal: 16, borderBottomLeftRadius: 22, borderBottomRightRadius: 22 },
-  heroTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  brand: { fontSize: 11, fontWeight: '900', letterSpacing: 2.5, color: C.brand },
-  greet: { fontSize: 21, fontWeight: '900', color: C.ink, marginTop: 5, letterSpacing: -0.3 },
-  statusCard: { backgroundColor: C.ground, borderRadius: 16, padding: 14, marginTop: 14 },
+  hero: {
+    paddingTop: 54, paddingBottom: 52, paddingHorizontal: 20,
+    borderBottomLeftRadius: 26, borderBottomRightRadius: 26, overflow: 'hidden',
+  },
+  gemDeco: { position: 'absolute', backgroundColor: '#fff', transform: [{ rotate: '45deg' }] },
+  decoSpark: { position: 'absolute', top: 96, right: 52, color: '#FFD983', fontSize: 15 },
+  greet: { fontSize: 24, fontWeight: '900', color: '#fff', marginTop: 14, letterSpacing: -0.3, lineHeight: 32 },
+  greetName: { fontSize: 15, fontWeight: '700', color: 'rgba(213,236,255,0.95)', letterSpacing: 0 },
+  statusCard: {
+    backgroundColor: C.white, borderRadius: 18, padding: 15,
+    marginTop: -32, marginHorizontal: 16,
+    shadowColor: '#0A3D73', shadowOpacity: 0.16, shadowRadius: 14, shadowOffset: { width: 0, height: 6 },
+    elevation: 6, borderWidth: 1, borderColor: '#EAF0F6',
+  },
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   statusPlan: { fontSize: 14.5, fontWeight: '800', color: C.ink },
   statusSaving: { fontSize: 12.5, color: C.ink2, marginTop: 3 },
-  statusBadge: { backgroundColor: C.gold, color: '#fff', fontSize: 11, fontWeight: '900', paddingHorizontal: 9, paddingVertical: 4, borderRadius: 999, overflow: 'hidden' },
+  statusBadge: { color: '#4A2E00', fontSize: 11, fontWeight: '900', paddingHorizontal: 10, paddingVertical: 4.5 },
   loginBtn: { backgroundColor: C.brand, color: '#fff', fontSize: 13, fontWeight: '800', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, overflow: 'hidden' },
 
   sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', paddingHorizontal: 16, marginTop: 24, marginBottom: 11 },
