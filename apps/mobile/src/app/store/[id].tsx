@@ -4,7 +4,7 @@
 import { useCallback, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { api } from '../../lib/api';
+import { api, img } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { C, won } from '../../lib/theme';
 import { Btn, Card, Loading, Screen, Tag } from '../../lib/ui';
@@ -26,7 +26,7 @@ export default function StoreDetail() {
   return (
     <Screen>
       <ScrollView contentContainerStyle={{ padding: 16 }}>
-        {m.thumbnailUrl && <Image source={{ uri: m.thumbnailUrl }} style={st.hero} />}
+        {m.thumbnailUrl && <Image source={{ uri: img(m.thumbnailUrl) }} style={st.hero} />}
 
         <Card>
           <View style={{ flexDirection: 'row', gap: 5, marginBottom: 7 }}>
@@ -70,7 +70,7 @@ export default function StoreDetail() {
             {m.drops.map((d: any) => (
               <Pressable key={d.id} onPress={() => router.push(`/drop/${d.id}`)}>
                 <Card style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
-                  {d.imageUrl && <Image source={{ uri: d.imageUrl }} style={st.dropThumb} />}
+                  {d.imageUrl && <Image source={{ uri: img(d.imageUrl) }} style={st.dropThumb} />}
                   <View style={{ flex: 1 }}>
                     <Text style={st.dropTitle} numberOfLines={1}>{d.title}</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: 4 }}>
@@ -92,7 +92,7 @@ export default function StoreDetail() {
             {m.products.map((p: any) => (
               <Pressable key={p.id} onPress={() => router.push(`/product/${p.id}`)}>
                 <Card style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
-                  {p.imageUrl && <Image source={{ uri: p.imageUrl }} style={st.dropThumb} />}
+                  {p.imageUrl && <Image source={{ uri: img(p.imageUrl) }} style={st.dropThumb} />}
                   <View style={{ flex: 1 }}>
                     <Text style={st.dropTitle} numberOfLines={1}>{p.name}</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>

@@ -1,7 +1,19 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
-import { api, dt, won } from '@/lib/api';
+import { API_BASE, api, dt, won } from '@/lib/api';
 import { Badge, Button, Card, CardHeader, Empty, Table, Td } from '@/components/ui';
+
+/** 점주 업로드 사진(/uploads/..)은 API 서버 주소를 붙여야 보인다 */
+const img = (u?: string | null) => (u ? (u.startsWith('/') ? API_BASE + u : u) : null);
+
+function Thumb({ src }: { src?: string | null }) {
+  const s = img(src);
+  return s ? (
+    <img src={s} alt="" className="h-10 w-14 shrink-0 rounded object-cover" />
+  ) : (
+    <div className="flex h-10 w-14 shrink-0 items-center justify-center rounded bg-ground text-[10px] text-ink-3">사진없음</div>
+  );
+}
 
 export default function DropsPage() {
   const [pending, setPending] = useState<any[]>([]);
@@ -43,9 +55,14 @@ export default function DropsPage() {
             {pending.map((d) => (
               <tr key={d.id}>
                 <Td className="whitespace-nowrap font-medium">{d.merchant.name}</Td>
-                <Td className="max-w-[260px]">
-                  <div className="truncate font-medium">{d.title}</div>
-                  <div className="truncate text-xs text-ink-3">{d.description}</div>
+                <Td className="max-w-[300px]">
+                  <div className="flex items-center gap-2.5">
+                    <Thumb src={d.imageUrl} />
+                    <div className="min-w-0">
+                      <div className="truncate font-medium">{d.title}</div>
+                      <div className="truncate text-xs text-ink-3">{d.description}</div>
+                    </div>
+                  </div>
                 </Td>
                 <Td className="whitespace-nowrap tabular-nums">
                   <span className="text-ink-3 line-through">{won(d.normalPrice)}</span>{' '}
@@ -74,7 +91,12 @@ export default function DropsPage() {
             <tr key={d.id}>
               <Td><Badge>{d.status}</Badge></Td>
               <Td className="whitespace-nowrap">{d.merchant.name}</Td>
-              <Td className="max-w-[280px] truncate font-medium">{d.title}</Td>
+              <Td className="max-w-[300px]">
+                <div className="flex items-center gap-2.5">
+                  <Thumb src={d.imageUrl} />
+                  <span className="truncate font-medium">{d.title}</span>
+                </div>
+              </Td>
               <Td className="whitespace-nowrap tabular-nums">
                 {won(d.dropPrice)}{' '}
                 <span className="text-xs text-ink-3">({Math.round((1 - d.dropPrice / d.normalPrice) * 100)}%↓)</span>

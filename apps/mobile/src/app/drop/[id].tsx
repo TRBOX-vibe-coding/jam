@@ -2,7 +2,7 @@
 import { useCallback, useState } from 'react';
 import { Alert, Image, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { api } from '../../lib/api';
+import { api, img } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { C, won } from '../../lib/theme';
 import { Btn, Card, Loading, Screen, Tag } from '../../lib/ui';
@@ -52,7 +52,7 @@ export default function DropDetail() {
   return (
     <Screen>
       <ScrollView contentContainerStyle={{ padding: 16 }}>
-        {d.imageUrl && <Image source={{ uri: d.imageUrl }} style={st.hero} />}
+        {d.imageUrl && <Image source={{ uri: img(d.imageUrl) }} style={st.hero} />}
         <Card>
           <View style={{ flexDirection: 'row', gap: 5, marginBottom: 8 }}>
             <Tag text={`${d.category.emoji} ${d.region.name}`} />

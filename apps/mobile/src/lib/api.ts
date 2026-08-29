@@ -23,6 +23,12 @@ function resolveBase(): string {
 
 export const API_BASE = resolveBase();
 
+/** 서버 상대경로(/uploads/..) 이미지를 절대 주소로 바꾼다. 외부 URL은 그대로. */
+export function img(u?: string | null): string | undefined {
+  if (!u) return undefined;
+  return u.startsWith('/') ? API_BASE + u : u;
+}
+
 const TOKEN_KEY = 'hg_token';
 let cachedToken: string | null | undefined;
 

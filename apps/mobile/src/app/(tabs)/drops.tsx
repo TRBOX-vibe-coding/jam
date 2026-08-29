@@ -6,7 +6,7 @@ import {
   FlatList, Image, Pressable, RefreshControl, StyleSheet, Text, View,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
-import { api } from '../../lib/api';
+import { api, img } from '../../lib/api';
 import { C, won } from '../../lib/theme';
 import { Chip, EmptyText, Loading, Screen, Tag } from '../../lib/ui';
 import { HScroll } from '../../lib/hscroll';
@@ -73,7 +73,7 @@ export default function DropsScreen() {
             <Pressable onPress={() => router.push(`/drop/${d.id}`)} style={st.card}>
               <View>
                 {d.imageUrl ? (
-                  <Image source={{ uri: d.imageUrl }} style={st.img} />
+                  <Image source={{ uri: img(d.imageUrl) }} style={st.img} />
                 ) : (
                   <View style={[st.img, { backgroundColor: C.brandSoft }]} />
                 )}
