@@ -111,7 +111,7 @@ export default function HomeScreen() {
       >
         {/* ① 딥오션 히어로 + 상태 카드 */}
         <LinearGradient
-          colors={['#0284C7', '#0EA5E9', '#38BDF8']}
+          colors={['#0A3D73', '#0E559A', '#1B86CD']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1.15, y: 1 }}
           style={st.hero}
@@ -297,7 +297,7 @@ const st = StyleSheet.create({
   statusCard: {
     backgroundColor: C.white, borderRadius: 18, padding: 15,
     marginTop: -32, marginHorizontal: 16,
-    shadowColor: '#0284C7', shadowOpacity: 0.16, shadowRadius: 14, shadowOffset: { width: 0, height: 6 },
+    shadowColor: '#0A3D73', shadowOpacity: 0.16, shadowRadius: 14, shadowOffset: { width: 0, height: 6 },
     elevation: 6, borderWidth: 1, borderColor: '#EAF0F6',
   },
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
