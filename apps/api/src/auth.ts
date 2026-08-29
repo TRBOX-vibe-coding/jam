@@ -150,9 +150,10 @@ export class AuthController {
       where: { id: admin.id },
       data: { lastLoginAt: new Date() },
     });
+    // 데모 기간 로그인 유지 30일. 실서비스 전환 시 짧은 만료 + 리프레시로 교체.
     const token = this.jwt.sign(
       { sub: admin.id, typ: 'admin', role: admin.role } satisfies AdminToken,
-      { expiresIn: '12h' },
+      { expiresIn: '30d' },
     );
     return { token, admin: { id: admin.id, name: admin.name, role: admin.role } };
   }

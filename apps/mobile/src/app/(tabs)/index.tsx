@@ -5,7 +5,7 @@
  *  ③ 액티비티 예약 (프립 스타일 — 원형 카테고리 + 대형 사진 카드)
  *  ④ 내 혜택 매장
  */
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View,
 } from 'react-native';
@@ -45,6 +45,32 @@ const CATS: { code: string; label: string; icon: keyof typeof Ionicons.glyphMap;
   { code: 'kids', label: '키즈', icon: 'happy-outline', colors: ['#4ADE80', '#16A34A'] },
 ];
 
+/**
+ * 시간대·요일에 따라 달라지는 환영 문구. 열 때마다 풀에서 랜덤으로 하나 뽑는다.
+ * "살아있는 서비스" 느낌 — 같은 앱을 두 번 열어도 인사가 조금씩 다르다.
+ */
+function pickGreeting(): string {
+  const now = new Date();
+  const h = now.getHours();
+  const day = now.getDay(); // 0=일 5=금 6=토
+  const pool: string[] = [];
+
+  if (h >= 5 && h < 11) {
+    pool.push('오늘 부산 날씨 최고예요 ☀️', '아침 10시, 새 DROP 도착했어요 ⚡', '오늘 부산은 어때요?');
+  } else if (h >= 11 && h < 17) {
+    pool.push('오후엔 바다 어때요? 🌊', '지금 마감 임박 딜이 있어요 ⏰', '오늘 부산은 어때요?');
+  } else if (h >= 17 && h < 23) {
+    pool.push('오늘 밤, 한 잔 어때요? 🍹', '저녁 한정 딜이 열렸어요 🌙');
+    if (day === 5) pool.push('불금이에요! 🔥 오늘 밤 딜 놓치지 마요');
+  } else {
+    pool.push('내일의 부산을 미리 찜해요 🌙', '못 자는 밤엔 딜 구경 어때요? ✨');
+  }
+  if ((day === 6 || day === 0) && h >= 8 && h < 20) {
+    pool.push('주말의 부산, 놓치지 마요 🏖️');
+  }
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
 function hoursLeft(closeAt: string) {
   const ms = new Date(closeAt).getTime() - Date.now();
   if (ms <= 0) return '마감';
@@ -73,6 +99,7 @@ export default function HomeScreen() {
   useFocusEffect(useCallback(() => { load().catch(() => {}); }, [load]));
 
   const greetName = me ? `${me.nickname}님` : '홀릭잼';
+  const greeting = useMemo(pickGreeting, []);
 
   return (
     <Screen>
@@ -100,7 +127,7 @@ export default function HomeScreen() {
             {me ? (
               <>
                 <Text style={st.greetName}>{greetName} 👋</Text>
-                {'\n'}오늘 부산은 어때요?
+                {'\n'}{greeting}
               </>
             ) : (
               <>부산 놀러갈 땐,{'\n'}홀릭잼 🌊</>
