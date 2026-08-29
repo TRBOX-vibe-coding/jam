@@ -191,7 +191,7 @@ export default function MerchantDropCreate() {
         </View>
         {rate != null && (
           <Text style={st.rateLine}>
-            할인율 <Text style={{ color: '#E8503A', fontWeight: '700' }}>{rate}%</Text>
+            할인율 <Text style={{ color: '#E8503A', fontWeight: '900' }}>{rate}%</Text>
             {maxDiscountTotal != null && (
               <Text style={{ color: C.ink3 }}>  ·  전량 판매 시 총 할인 {won(maxDiscountTotal)}</Text>
             )}
@@ -272,10 +272,10 @@ const st = StyleSheet.create({
     backgroundColor: C.white, alignItems: 'center', justifyContent: 'center', gap: 2,
   },
   photoAddIcon: { fontSize: 22 },
-  photoAddText: { fontSize: 13.5, fontWeight: '700', color: C.ink2 },
+  photoAddText: { fontSize: 13.5, fontWeight: '800', color: C.ink2 },
   photoAddHint: { fontSize: 11, color: C.ink3 },
   guide: { fontSize: 13.5, color: C.brand, fontWeight: '700', lineHeight: 20, textAlign: 'center' },
-  label: { fontSize: 12.5, fontWeight: '700', color: C.ink3, marginTop: 14, marginBottom: 6 },
+  label: { fontSize: 12.5, fontWeight: '800', color: C.ink3, marginTop: 14, marginBottom: 6 },
   input: {
     backgroundColor: C.white, borderWidth: 1, borderColor: C.line, borderRadius: 11,
     paddingHorizontal: 13, paddingVertical: 11, fontSize: 15, color: C.ink,
@@ -286,8 +286,8 @@ const st = StyleSheet.create({
     backgroundColor: C.white, borderWidth: 1, borderColor: C.line, borderRadius: 11,
     paddingHorizontal: 12, paddingVertical: 7,
   },
-  stepBtn: { fontSize: 22, fontWeight: '700', color: C.brand, paddingHorizontal: 8 },
-  stepVal: { fontSize: 15, fontWeight: '700', color: C.ink },
+  stepBtn: { fontSize: 22, fontWeight: '900', color: C.brand, paddingHorizontal: 8 },
+  stepVal: { fontSize: 15, fontWeight: '800', color: C.ink },
   presetRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   preset: {
     paddingHorizontal: 13, paddingVertical: 9, borderRadius: 10,

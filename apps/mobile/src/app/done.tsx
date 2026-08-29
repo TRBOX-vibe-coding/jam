@@ -67,11 +67,11 @@ export default function DoneScreen() {
 const st = StyleSheet.create({
   wrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 28 },
   badge: { backgroundColor: C.ok, borderRadius: 999, paddingHorizontal: 18, paddingVertical: 7 },
-  badgeText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  merchant: { fontSize: 22, fontWeight: '700', color: C.ink, marginTop: 18 },
+  badgeText: { color: '#fff', fontWeight: '900', fontSize: 15 },
+  merchant: { fontSize: 22, fontWeight: '900', color: C.ink, marginTop: 18 },
   item: { fontSize: 14, color: C.ink2, marginTop: 4, textAlign: 'center' },
   clock: {
-    fontSize: 44, fontWeight: '700', color: C.brand, marginTop: 20,
+    fontSize: 44, fontWeight: '900', color: C.brand, marginTop: 20,
     fontVariant: ['tabular-nums'], letterSpacing: 1,
   },
   pulseRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
@@ -82,7 +82,7 @@ const st = StyleSheet.create({
     borderRadius: 14, paddingHorizontal: 28, paddingVertical: 14, alignItems: 'center',
   },
   tokenLabel: { fontSize: 11, color: C.ink3, fontWeight: '700' },
-  token: { fontSize: 30, fontWeight: '700', color: C.ink, letterSpacing: 6, marginTop: 2 },
-  saved: { marginTop: 18, fontSize: 15, fontWeight: '700', color: C.ok },
+  token: { fontSize: 30, fontWeight: '900', color: C.ink, letterSpacing: 6, marginTop: 2 },
+  saved: { marginTop: 18, fontSize: 15, fontWeight: '800', color: C.ok },
   staffNote: { marginTop: 8, fontSize: 12, color: C.warn, fontWeight: '600', textAlign: 'center' },
 });

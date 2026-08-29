@@ -40,7 +40,7 @@ export function GemMark({ size = 30 }: { size?: number }) {
       <Text
         style={{
           position: 'absolute', top: -size * 0.06, right: -size * 0.02,
-          fontSize: size * 0.44, color: '#FF6B4A', fontWeight: '700',
+          fontSize: size * 0.44, color: '#FF6B4A', fontWeight: '900',
         }}
       >
         ✦
@@ -54,7 +54,7 @@ export function Wordmark({ light = false, size = 14 }: { light?: boolean; size?:
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
       <Text
         style={{
-          fontSize: size, fontWeight: '700', letterSpacing: 3,
+          fontSize: size, fontWeight: '900', letterSpacing: 3,
           color: light ? '#FFFFFF' : C.ink,
         }}
       >
@@ -68,7 +68,7 @@ export function Wordmark({ light = false, size = 14 }: { light?: boolean; size?:
         >
           <Text
             style={{
-              fontSize: size - 0.5, fontWeight: '700', letterSpacing: 2,
+              fontSize: size - 0.5, fontWeight: '900', letterSpacing: 2,
               color: light ? '#4A2E00' : '#FFFFFF',
               paddingHorizontal: 7, paddingVertical: 2.5,
             }}

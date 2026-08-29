@@ -56,7 +56,7 @@ export default function StoreScreen() {
       {!isMember && (
         <Pressable style={st.banner} onPress={() => router.push('/(tabs)/my')}>
           <Text style={st.bannerText}>
-            멤버십 하나로 아래 <Text style={{ fontWeight: '700' }}>모든 매장 혜택</Text>이 한 번에 열려요
+            멤버십 하나로 아래 <Text style={{ fontWeight: '900' }}>모든 매장 혜택</Text>이 한 번에 열려요
           </Text>
           <Text style={st.bannerCta}>4,900원부터 →</Text>
         </Pressable>
@@ -137,7 +137,7 @@ const st = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10,
   },
   bannerText: { color: '#DCE9F5', fontSize: 13, fontWeight: '600', flex: 1 },
-  bannerCta: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  bannerCta: { color: '#fff', fontSize: 13, fontWeight: '900' },
   card: {
     flexDirection: 'row', gap: 12, backgroundColor: C.white, borderRadius: 15,
     borderWidth: 1, borderColor: C.line, padding: 12, marginBottom: 10,
@@ -145,7 +145,7 @@ const st = StyleSheet.create({
   thumb: { width: 74, height: 74, borderRadius: 12 },
   thumbFallback: { backgroundColor: C.brandSoft, alignItems: 'center', justifyContent: 'center' },
   rowTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  name: { fontSize: 15.5, fontWeight: '700', color: C.ink, flexShrink: 1 },
+  name: { fontSize: 15.5, fontWeight: '900', color: C.ink, flexShrink: 1 },
   region: { fontSize: 11.5, color: C.ink3, fontWeight: '600', marginLeft: 'auto' },
   intro: { fontSize: 12, color: C.ink3, marginTop: 1, marginBottom: 6 },
   benefitLine: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 3 },
@@ -153,11 +153,11 @@ const st = StyleSheet.create({
   benefitText: { fontSize: 12.5, fontWeight: '700', color: C.ink2, flex: 1 },
   metaRow: { flexDirection: 'row', gap: 6, marginTop: 5, alignItems: 'center' },
   metaDrop: {
-    fontSize: 10.5, fontWeight: '700', color: '#E8503A',
+    fontSize: 10.5, fontWeight: '900', color: '#E8503A',
     backgroundColor: '#FBE9E6', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, overflow: 'hidden',
   },
   metaProduct: {
-    fontSize: 10.5, fontWeight: '700', color: C.brand,
+    fontSize: 10.5, fontWeight: '800', color: C.brand,
     backgroundColor: C.brandSoft, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, overflow: 'hidden',
   },
   metaLock: { fontSize: 10.5, color: C.ink3, marginLeft: 'auto' },
