@@ -20,7 +20,7 @@ export function GemMark({ size = 30 }: { size?: number }) {
         }}
       >
         <LinearGradient
-          colors={['#7DD3FC', '#38BDF8', '#0369A1']}
+          colors={['#4FC9F5', '#1D77C9', '#0B3E74']}
           start={{ x: 0.1, y: 0 }}
           end={{ x: 0.9, y: 1 }}
           style={{ flex: 1 }}
@@ -62,7 +62,7 @@ export function Wordmark({ light = false, size = 14 }: { light?: boolean; size?:
       </Text>
       <View style={{ borderRadius: 6, overflow: 'hidden' }}>
         <LinearGradient
-          colors={light ? ['#FFD983', '#F0A32B'] : ['#38BDF8', '#0284C7']}
+          colors={light ? ['#FFD983', '#F0A32B'] : ['#4FC9F5', '#0E4F8B']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
         >
