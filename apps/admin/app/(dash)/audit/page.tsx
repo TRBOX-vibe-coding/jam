@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { api, dt } from '@/lib/api';
-import { Card, CardHeader, Empty, Table, Td } from '@/components/ui';
+import { Card, CardHeader, Empty, Table, TableSkeleton, Td } from '@/components/ui';
 
 const ACTION_LABEL: Record<string, string> = {
   DROP_APPROVE: 'DROP 승인',
@@ -15,9 +15,9 @@ const ACTION_LABEL: Record<string, string> = {
 };
 
 export default function AuditPage() {
-  const [rows, setRows] = useState<any[]>([]);
+  const [rows, setRows] = useState<any[] | null>(null);
   useEffect(() => {
-    api<any[]>('/admin/audit').then(setRows).catch(() => {});
+    api<any[]>('/admin/audit').then(setRows).catch(() => setRows([]));
   }, []);
 
   return (
@@ -25,8 +25,10 @@ export default function AuditPage() {
       <h1 className="text-xl font-bold">감사 로그</h1>
       <p className="text-xs text-ink-3">상태를 바꾸는 모든 관리자 행동이 기록됩니다. 삭제할 수 없습니다.</p>
       <Card>
-        <CardHeader title={`최근 기록 (${rows.length})`} />
-        {rows.length === 0 ? (
+        <CardHeader title={`최근 기록 (${rows?.length ?? "…"})`} />
+        {rows === null ? (
+          <TableSkeleton rows={8} cols={5} />
+        ) : rows.length === 0 ? (
           <Empty text="기록이 없습니다" />
         ) : (
           <Table head={['시각', '관리자', '행동', '대상', '메모']}>

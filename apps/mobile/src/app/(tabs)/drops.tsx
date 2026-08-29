@@ -73,7 +73,7 @@ export default function DropsScreen() {
             <Pressable onPress={() => router.push(`/drop/${d.id}`)} style={st.card}>
               <View>
                 {d.imageUrl ? (
-                  <Image source={{ uri: img(d.imageUrl) }} style={st.img} />
+                  <Image source={{ uri: img(d.imageUrl, 480) }} style={st.img} />
                 ) : (
                   <View style={[st.img, { backgroundColor: C.brandSoft }]} />
                 )}
@@ -124,23 +124,23 @@ const st = StyleSheet.create({
   img: { width: '100%', height: 176 },
   overlayTop: { position: 'absolute', top: 10, left: 10, right: 10, flexDirection: 'row', justifyContent: 'space-between' },
   regionTag: { backgroundColor: 'rgba(255,255,255,0.94)', borderRadius: 7, paddingHorizontal: 8, paddingVertical: 4 },
-  regionTagText: { fontSize: 11, fontWeight: '800', color: C.ink },
+  regionTagText: { fontSize: 11, fontWeight: '700', color: C.ink },
   adTag: { backgroundColor: 'rgba(18,24,31,0.6)', borderRadius: 7, paddingHorizontal: 7, paddingVertical: 4 },
   adTagText: { fontSize: 10.5, fontWeight: '700', color: '#fff' },
   timerTag: { backgroundColor: 'rgba(232,80,58,0.95)', borderRadius: 7, paddingHorizontal: 8, paddingVertical: 4 },
-  timerText: { fontSize: 11, fontWeight: '800', color: '#fff' },
+  timerText: { fontSize: 11, fontWeight: '700', color: '#fff' },
   overlayBottom: { position: 'absolute', bottom: 10, left: 10, flexDirection: 'row', gap: 6 },
   qtyTag: { backgroundColor: 'rgba(18,24,31,0.78)', borderRadius: 7, paddingHorizontal: 8, paddingVertical: 4 },
-  qtyText: { fontSize: 11.5, fontWeight: '900', color: '#fff' },
+  qtyText: { fontSize: 11.5, fontWeight: '700', color: '#fff' },
   personTag: { backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 7, paddingHorizontal: 7, paddingVertical: 4 },
   personText: { fontSize: 10.5, fontWeight: '700', color: C.ink2 },
   lockOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(18,24,31,0.5)', alignItems: 'center', justifyContent: 'center', gap: 4 },
-  lockText: { color: '#fff', fontSize: 13, fontWeight: '800' },
+  lockText: { color: '#fff', fontSize: 13, fontWeight: '700' },
   body: { padding: 13 },
-  title: { fontSize: 16.5, fontWeight: '900', color: C.ink, letterSpacing: -0.2 },
+  title: { fontSize: 16.5, fontWeight: '700', color: C.ink, letterSpacing: -0.2 },
   merchant: { fontSize: 12.5, color: C.ink3, marginTop: 2 },
   priceRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 8 },
-  rate: { fontSize: 19, fontWeight: '900', color: '#E8503A' },
-  price: { fontSize: 18, fontWeight: '900', color: C.ink },
+  rate: { fontSize: 19, fontWeight: '700', color: '#E8503A' },
+  price: { fontSize: 18, fontWeight: '700', color: C.ink },
   normal: { fontSize: 13, color: C.ink3, textDecorationLine: 'line-through' },
 });

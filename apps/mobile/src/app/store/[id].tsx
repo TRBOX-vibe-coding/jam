@@ -26,7 +26,7 @@ export default function StoreDetail() {
   return (
     <Screen>
       <ScrollView contentContainerStyle={{ padding: 16 }}>
-        {m.thumbnailUrl && <Image source={{ uri: img(m.thumbnailUrl) }} style={st.hero} />}
+        {m.thumbnailUrl && <Image source={{ uri: img(m.thumbnailUrl, 960) }} style={st.hero} />}
 
         <Card>
           <View style={{ flexDirection: 'row', gap: 5, marginBottom: 7 }}>
@@ -70,7 +70,7 @@ export default function StoreDetail() {
             {m.drops.map((d: any) => (
               <Pressable key={d.id} onPress={() => router.push(`/drop/${d.id}`)}>
                 <Card style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
-                  {d.imageUrl && <Image source={{ uri: img(d.imageUrl) }} style={st.dropThumb} />}
+                  {d.imageUrl && <Image source={{ uri: img(d.imageUrl, 160) }} style={st.dropThumb} />}
                   <View style={{ flex: 1 }}>
                     <Text style={st.dropTitle} numberOfLines={1}>{d.title}</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: 4 }}>
@@ -92,7 +92,7 @@ export default function StoreDetail() {
             {m.products.map((p: any) => (
               <Pressable key={p.id} onPress={() => router.push(`/product/${p.id}`)}>
                 <Card style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
-                  {p.imageUrl && <Image source={{ uri: img(p.imageUrl) }} style={st.dropThumb} />}
+                  {p.imageUrl && <Image source={{ uri: img(p.imageUrl, 160) }} style={st.dropThumb} />}
                   <View style={{ flex: 1 }}>
                     <Text style={st.dropTitle} numberOfLines={1}>{p.name}</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
@@ -113,19 +113,19 @@ export default function StoreDetail() {
 
 const st = StyleSheet.create({
   hero: { width: '100%', height: 180, borderRadius: 16, marginBottom: 12 },
-  name: { fontSize: 21, fontWeight: '900', color: C.ink },
+  name: { fontSize: 21, fontWeight: '700', color: C.ink },
   intro: { fontSize: 13.5, color: C.ink2, marginTop: 4 },
   addr: { fontSize: 12, color: C.ink3, marginTop: 8 },
-  section: { fontSize: 13, fontWeight: '800', color: C.ink3, marginTop: 12, marginBottom: 8 },
+  section: { fontSize: 13, fontWeight: '700', color: C.ink3, marginTop: 12, marginBottom: 8 },
   emptyLine: { fontSize: 13, color: C.ink3, textAlign: 'center' },
-  benefitTitle: { fontSize: 15.5, fontWeight: '800', color: C.ink },
+  benefitTitle: { fontSize: 15.5, fontWeight: '700', color: C.ink },
   benefitCond: { fontSize: 12, color: C.ink3, marginTop: 3 },
   lockBar: { marginTop: 9, backgroundColor: C.ground, borderRadius: 9, padding: 9 },
   lockText: { fontSize: 12.5, fontWeight: '700', color: C.ink2, textAlign: 'center' },
   dropThumb: { width: 62, height: 62, borderRadius: 10 },
-  dropTitle: { fontSize: 14.5, fontWeight: '800', color: C.ink },
-  dropRate: { fontSize: 14, fontWeight: '900', color: '#E8503A' },
-  dropPrice: { fontSize: 14.5, fontWeight: '900', color: C.ink },
+  dropTitle: { fontSize: 14.5, fontWeight: '700', color: C.ink },
+  dropRate: { fontSize: 14, fontWeight: '700', color: '#E8503A' },
+  dropPrice: { fontSize: 14.5, fontWeight: '700', color: C.ink },
   dropQty: { fontSize: 11.5, fontWeight: '700', color: C.brand, marginLeft: 'auto' },
   normal: { fontSize: 12, color: C.ink3, textDecorationLine: 'line-through' },
 });

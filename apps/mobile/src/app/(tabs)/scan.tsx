@@ -76,7 +76,10 @@ export default function ScanScreen() {
             </View>
           </View>
         ) : (
-          <Btn title="📷  매장 QR 스캔하기" onPress={openScanner} />
+          <Pressable style={st.scanBtn} onPress={openScanner}>
+            <Ionicons name="scan-outline" size={20} color="#fff" />
+            <Text style={st.scanBtnText}>매장 QR 스캔하기</Text>
+          </Pressable>
         )}
 
         {scanError && (
@@ -85,19 +88,30 @@ export default function ScanScreen() {
           </Card>
         )}
 
-        <Card style={{ marginTop: 12 }}>
-          <Text style={st.manualLabel}>QR을 스캔할 수 없나요? 코드 직접 입력</Text>
-          <TextInput
-            value={manual}
-            onChangeText={setManual}
-            placeholder="예: HG-CASABUSANO-a1b2c3"
-            placeholderTextColor={C.ink3}
-            autoCapitalize="none"
-            style={st.input}
-            onSubmitEditing={() => go(manual)}
-          />
-          <Btn title="확인" small onPress={() => go(manual)} />
-        </Card>
+        {/* 수동 입력은 평소엔 텍스트 한 줄만. 누르면 입력창이 열린다 */}
+        {showManual ? (
+          <Card style={{ marginTop: 12 }}>
+            <Text style={st.manualLabel}>매장 QR 아래에 적힌 코드를 입력하세요</Text>
+            <TextInput
+              value={manual}
+              onChangeText={setManual}
+              placeholder="예: HG-CASABUSANO-a1b2c3"
+              placeholderTextColor={C.ink3}
+              autoCapitalize="none"
+              autoFocus
+              style={st.input}
+              onSubmitEditing={() => go(manual)}
+            />
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <View style={{ flex: 1 }}><Btn title="확인" small onPress={() => go(manual)} /></View>
+              <Btn title="닫기" small tone="ghost" onPress={() => setShowManual(false)} />
+            </View>
+          </Card>
+        ) : (
+          <Pressable style={st.manualLink} onPress={() => setShowManual(true)}>
+            <Text style={st.manualLinkText}>QR을 스캔할 수 없나요?</Text>
+          </Pressable>
+        )}
       </View>
     </Screen>
   );
@@ -105,10 +119,17 @@ export default function ScanScreen() {
 
 const st = StyleSheet.create({
   guide: { fontSize: 14, color: C.ink2, lineHeight: 21, marginBottom: 14, textAlign: 'center' },
-  stepTitle: { fontSize: 13, fontWeight: '800', color: C.brand, marginBottom: 6 },
+  stepTitle: { fontSize: 13, fontWeight: '700', color: C.brand, marginBottom: 6 },
   step: { fontSize: 13, color: C.ink2, lineHeight: 22 },
   cameraWrap: { flex: 1, borderRadius: 14, overflow: 'hidden', backgroundColor: '#000' },
   errorNote: { fontSize: 13, color: C.warn, textAlign: 'center' },
+  scanBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: C.brand, borderRadius: 13, paddingVertical: 15,
+  },
+  scanBtnText: { color: '#fff', fontSize: 15.5, fontWeight: '700' },
+  manualLink: { marginTop: 14, alignItems: 'center', paddingVertical: 6 },
+  manualLinkText: { fontSize: 13, color: C.ink3, textDecorationLine: 'underline' },
   manualLabel: { fontSize: 12, fontWeight: '700', color: C.ink3, marginBottom: 6 },
   input: {
     borderWidth: 1, borderColor: C.line, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10,

@@ -1,7 +1,7 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
 import { api, won } from '@/lib/api';
-import { Badge, Button, Card, CardHeader, Empty, Table, Td } from '@/components/ui';
+import { Badge, Button, Card, CardHeader, Empty, Table, TableSkeleton, Td } from '@/components/ui';
 
 function monthRange(offset = 0) {
   const now = new Date();
@@ -11,11 +11,11 @@ function monthRange(offset = 0) {
 }
 
 export default function SettlementsPage() {
-  const [rows, setRows] = useState<any[]>([]);
+  const [rows, setRows] = useState<any[] | null>(null);
   const [msg, setMsg] = useState('');
 
   const load = useCallback(() => {
-    api<any[]>('/admin/settlements').then(setRows).catch(() => {});
+    api<any[]>('/admin/settlements').then(setRows).catch(() => setRows([]));
   }, []);
   useEffect(load, [load]);
 
@@ -51,7 +51,9 @@ export default function SettlementsPage() {
 
       <Card>
         <CardHeader title="정산 내역" />
-        {rows.length === 0 ? (
+        {rows === null ? (
+          <TableSkeleton rows={5} cols={6} />
+        ) : rows.length === 0 ? (
           <Empty text="생성된 정산이 없습니다. '이번 달 정산 생성'을 눌러 보세요." />
         ) : (
           <Table head={['상태', '가맹점', '기간', '판매액', '수수료', '지급액', '처리']}>
