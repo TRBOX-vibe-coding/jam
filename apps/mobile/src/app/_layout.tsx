@@ -14,16 +14,22 @@ function useWebFont() {
   useEffect(() => {
     if (Platform.OS !== 'web' || typeof document === 'undefined') return;
     if (document.getElementById('hg-font')) return;
-    const link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = 'https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css';
-    document.head.appendChild(link);
     const style = document.createElement('style');
     style.id = 'hg-font';
+    // RN웹은 모든 텍스트에 font-family: System을 지정한다. 'System'이라는 이름의
+    // 폰트페이스를 Pretendard로 직접 정의해 매핑한다 — 이러면 아이콘 폰트(Ionicons)는
+    // 건드리지 않으면서 일반 텍스트만 Pretendard로 렌더된다.
     style.textContent = `
-      html, body, #root, #root * {
-        font-family: 'Pretendard Variable', Pretendard, -apple-system, 'Malgun Gothic',
-          'Apple SD Gothic Neo', system-ui, sans-serif !important;
+      @font-face {
+        font-family: 'System';
+        src: url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/woff2/PretendardVariable.woff2') format('woff2-variations');
+        font-weight: 45 920;
+        font-style: normal;
+        font-display: swap;
+      }
+      html, body {
+        font-family: 'System', Pretendard, -apple-system, 'Malgun Gothic',
+          'Apple SD Gothic Neo', system-ui, sans-serif;
       }
     `;
     document.head.appendChild(style);
