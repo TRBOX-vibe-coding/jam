@@ -6,6 +6,7 @@ import { useMemo, useState } from 'react';
 import { Alert, Image, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import { Ionicons } from '@expo/vector-icons';
 import { api } from '../lib/api';
 import { C, won } from '../lib/theme';
 import { Btn, Card, Screen } from '../lib/ui';
@@ -166,7 +167,7 @@ export default function MerchantDropCreate() {
           </View>
         ) : (
           <Pressable style={st.photoAdd} onPress={pickImage}>
-            <Text style={st.photoAddIcon}>📷</Text>
+            <Ionicons name='camera-outline' size={24} color={C.ink3} />
             <Text style={st.photoAddText}>사진 추가</Text>
             <Text style={st.photoAddHint}>사진 있는 딜이 훨씬 잘 팔려요</Text>
           </Pressable>
@@ -190,7 +191,7 @@ export default function MerchantDropCreate() {
         </View>
         {rate != null && (
           <Text style={st.rateLine}>
-            할인율 <Text style={{ color: '#E8503A', fontWeight: '900' }}>{rate}%</Text>
+            할인율 <Text style={{ color: '#E8503A', fontWeight: '700' }}>{rate}%</Text>
             {maxDiscountTotal != null && (
               <Text style={{ color: C.ink3 }}>  ·  전량 판매 시 총 할인 {won(maxDiscountTotal)}</Text>
             )}
@@ -271,10 +272,10 @@ const st = StyleSheet.create({
     backgroundColor: C.white, alignItems: 'center', justifyContent: 'center', gap: 2,
   },
   photoAddIcon: { fontSize: 22 },
-  photoAddText: { fontSize: 13.5, fontWeight: '800', color: C.ink2 },
+  photoAddText: { fontSize: 13.5, fontWeight: '700', color: C.ink2 },
   photoAddHint: { fontSize: 11, color: C.ink3 },
   guide: { fontSize: 13.5, color: C.brand, fontWeight: '700', lineHeight: 20, textAlign: 'center' },
-  label: { fontSize: 12.5, fontWeight: '800', color: C.ink3, marginTop: 14, marginBottom: 6 },
+  label: { fontSize: 12.5, fontWeight: '700', color: C.ink3, marginTop: 14, marginBottom: 6 },
   input: {
     backgroundColor: C.white, borderWidth: 1, borderColor: C.line, borderRadius: 11,
     paddingHorizontal: 13, paddingVertical: 11, fontSize: 15, color: C.ink,
@@ -285,8 +286,8 @@ const st = StyleSheet.create({
     backgroundColor: C.white, borderWidth: 1, borderColor: C.line, borderRadius: 11,
     paddingHorizontal: 12, paddingVertical: 7,
   },
-  stepBtn: { fontSize: 22, fontWeight: '900', color: C.brand, paddingHorizontal: 8 },
-  stepVal: { fontSize: 15, fontWeight: '800', color: C.ink },
+  stepBtn: { fontSize: 22, fontWeight: '700', color: C.brand, paddingHorizontal: 8 },
+  stepVal: { fontSize: 15, fontWeight: '700', color: C.ink },
   presetRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   preset: {
     paddingHorizontal: 13, paddingVertical: 9, borderRadius: 10,

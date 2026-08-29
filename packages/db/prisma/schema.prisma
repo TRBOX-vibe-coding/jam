@@ -836,3 +836,15 @@ model AuditLog {
   @@index([targetType, targetId])
   @@index([createdAt])
 }
+
+/// 관리자 비밀번호 재설정 토큰 (이메일 인증)
+model AdminPasswordReset {
+  id        String    @id @default(cuid())
+  adminId   String
+  token     String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([adminId])
+}

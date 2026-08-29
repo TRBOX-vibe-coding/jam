@@ -9,6 +9,7 @@ import { ScanModule } from './scan';
 import { MerchantModule } from './merchant';
 import { AdminModule } from './admin';
 import { StoreModule } from './store';
+import { UploadsController } from './uploads.controller';
 
 @Controller()
 class HealthController {
@@ -31,6 +32,6 @@ class HealthController {
     AdminModule,
     StoreModule,
   ],
-  controllers: [HealthController],
+  controllers: [HealthController, UploadsController],
 })
 export class AppModule {}

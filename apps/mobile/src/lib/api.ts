@@ -23,10 +23,14 @@ function resolveBase(): string {
 
 export const API_BASE = resolveBase();
 
-/** 서버 상대경로(/uploads/..) 이미지를 절대 주소로 바꾼다. 외부 URL은 그대로. */
-export function img(u?: string | null): string | undefined {
+/** 이미지 주소 변환: 업로드 파일은 서버 리사이즈(webp), 언스플래시는 폭 파라미터로 UI 크기에 맞는 용량만 받는다. */
+export function img(u?: string | null, w?: number): string | undefined {
   if (!u) return undefined;
-  return u.startsWith('/') ? API_BASE + u : u;
+  if (u.startsWith('/')) return API_BASE + u + (w ? `?w=${w}` : '');
+  if (w && u.includes('images.unsplash.com')) {
+    return u.replace(/([?&])w=\d+/, `$1w=${w}`);
+  }
+  return u;
 }
 
 const TOKEN_KEY = 'hg_token';

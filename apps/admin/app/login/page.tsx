@@ -60,7 +60,8 @@ export default function LoginPage() {
           {busy ? '확인 중…' : '로그인'}
         </button>
 
-        <p className="mt-4 text-center text-[11px] text-ink-3">개발용 계정 admin@holicgem.com / admin1234</p>
+        <p className="mt-4 text-center text-xs"><a href="/forgot" className="text-brand underline underline-offset-2">비밀번호를 잊으셨나요?</a></p>
+        <p className="mt-2 text-center text-[11px] text-ink-3">개발용 계정 admin@holicgem.com / admin1234</p>
       </form>
     </main>
   );

@@ -15,6 +15,9 @@ export const UPLOAD_DIR = path.join(
 );
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
+export const UPLOAD_CACHE_DIR = path.join(UPLOAD_DIR, '.cache');
+fs.mkdirSync(UPLOAD_CACHE_DIR, { recursive: true });
+
 const MAX_BYTES = 5 * 1024 * 1024;
 const EXT: Record<string, string> = {
   'image/jpeg': 'jpg',

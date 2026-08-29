@@ -1,7 +1,7 @@
 /** HOLIC GEM 브랜드 토큰 */
 export const C = {
-  brand: '#0E4F8B',
-  brandSoft: '#E3EDF6',
+  brand: '#0284C7',
+  brandSoft: '#E0F2FE',
   ink: '#12181F',
   ink2: '#3B4753',
   ink3: '#6D7A87',

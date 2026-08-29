@@ -52,7 +52,7 @@ export default function DropDetail() {
   return (
     <Screen>
       <ScrollView contentContainerStyle={{ padding: 16 }}>
-        {d.imageUrl && <Image source={{ uri: img(d.imageUrl) }} style={st.hero} />}
+        {d.imageUrl && <Image source={{ uri: img(d.imageUrl, 960) }} style={st.hero} />}
         <Card>
           <View style={{ flexDirection: 'row', gap: 5, marginBottom: 8 }}>
             <Tag text={`${d.category.emoji} ${d.region.name}`} />
@@ -108,12 +108,12 @@ export default function DropDetail() {
 
 const st = StyleSheet.create({
   hero: { width: '100%', height: 190, borderRadius: 16, marginBottom: 12 },
-  title: { fontSize: 20, fontWeight: '900', color: C.ink, lineHeight: 27 },
+  title: { fontSize: 20, fontWeight: '700', color: C.ink, lineHeight: 27 },
   merchant: { fontSize: 13, color: C.ink3, marginTop: 4 },
   desc: { fontSize: 14, color: C.ink2, marginTop: 10, lineHeight: 21 },
   priceRow: { flexDirection: 'row', alignItems: 'baseline', gap: 8, marginTop: 14 },
-  rate: { fontSize: 24, fontWeight: '900', color: C.bad },
-  price: { fontSize: 24, fontWeight: '900', color: C.ink },
+  rate: { fontSize: 24, fontWeight: '700', color: C.bad },
+  price: { fontSize: 24, fontWeight: '700', color: C.ink },
   normal: { fontSize: 14, color: C.ink3, textDecorationLine: 'line-through' },
   infoBox: { backgroundColor: C.ground, borderRadius: 10, padding: 12, marginTop: 14, gap: 3 },
   info: { fontSize: 12.5, color: C.ink2 },

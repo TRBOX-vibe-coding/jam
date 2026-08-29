@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api, dt, won } from '@/lib/api';
-import { Badge, Card, CardHeader, Empty, Stat, Table, Td } from '@/components/ui';
+import { Badge, Card, CardHeader, Empty, Stat, StatSkeleton, Table, TableSkeleton, Td } from '@/components/ui';
 
 type Stats = {
   users: number; activeMemberships: number; activeMerchants: number;
@@ -20,7 +20,20 @@ export default function Dashboard() {
     api<any[]>('/admin/redemptions?days=7').then(setRedemptions).catch(() => {});
   }, []);
 
-  if (!stats) return <p className="text-sm text-ink-3">불러오는 중…</p>;
+  if (!stats) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-xl font-bold">대시보드</h1>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <StatSkeleton /><StatSkeleton /><StatSkeleton /><StatSkeleton />
+        </div>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <StatSkeleton /><StatSkeleton /><StatSkeleton /><StatSkeleton />
+        </div>
+        <Card><CardHeader title="최근 현장 사용 (7일)" /><TableSkeleton rows={6} cols={6} /></Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

@@ -43,6 +43,12 @@ const badgeStyles: Record<string, string> = {
   CONFIRMED: 'bg-brand-soft text-brand',
   B2B_GRANT: 'bg-warn-soft text-warn',
   PURCHASE: 'bg-ok-soft text-ok',
+  정상: 'bg-ok-soft text-ok',
+  정지: 'bg-warn-soft text-warn',
+  탈퇴: 'bg-bad-soft text-bad',
+  NO_SHOW: 'bg-bad-soft text-bad',
+  COMPLETED: 'bg-ok-soft text-ok',
+  REQUESTED: 'bg-brand-soft text-brand',
 };
 
 export function Badge({ children }: { children: string }) {
@@ -105,4 +111,64 @@ export function Td({ children, className = '' }: { children: ReactNode; classNam
 
 export function Empty({ text }: { text: string }) {
   return <div className="px-5 py-10 text-center text-sm text-ink-3">{text}</div>;
+}
+
+/** 로딩 스켈레톤 — 데이터 도착 전 "없음" 대신 자리 표시자를 보여준다 */
+export function Skel({ className = '' }: { className?: string }) {
+  return <div className={`animate-pulse rounded bg-line/60 ${className}`} />;
+}
+
+export function TableSkeleton({ rows = 5, cols = 5 }: { rows?: number; cols?: number }) {
+  return (
+    <div className="space-y-0 divide-y divide-line">
+      {Array.from({ length: rows }).map((_, r) => (
+        <div key={r} className="flex items-center gap-4 px-4 py-3">
+          {Array.from({ length: cols }).map((__, c) => (
+            <Skel key={c} className={`h-4 ${c === 1 ? 'w-2/5' : 'w-1/6'}`} />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function StatSkeleton() {
+  return (
+    <Card className="px-5 py-4">
+      <Skel className="h-3 w-24" />
+      <Skel className="mt-2 h-7 w-32" />
+      <Skel className="mt-2 h-3 w-20" />
+    </Card>
+  );
+}
+
+/** 페이지네이션 — {page, pages} 기준 이전/다음 + 현재 위치 */
+export function Pagination({
+  page, pages, onPage,
+}: { page: number; pages: number; onPage: (p: number) => void }) {
+  if (pages <= 1) return null;
+  return (
+    <div className="flex items-center justify-center gap-3 border-t border-line px-4 py-3 text-sm">
+      <Button small variant="ghost" disabled={page <= 1} onClick={() => onPage(page - 1)}>← 이전</Button>
+      <span className="tabular-nums text-ink-2">{page} / {pages}</span>
+      <Button small variant="ghost" disabled={page >= pages} onClick={() => onPage(page + 1)}>다음 →</Button>
+    </div>
+  );
+}
+
+/** 공용 모달 래퍼 */
+export function Modal({ title, onClose, children, wide }: {
+  title: string; onClose: () => void; children: ReactNode; wide?: boolean;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div
+        className={`max-h-[85vh] w-full ${wide ? 'max-w-2xl' : 'max-w-md'} overflow-y-auto rounded-xl bg-white`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <CardHeader title={title} right={<Button small variant="ghost" onClick={onClose}>닫기</Button>} />
+        <div className="p-5">{children}</div>
+      </div>
+    </div>
+  );
 }

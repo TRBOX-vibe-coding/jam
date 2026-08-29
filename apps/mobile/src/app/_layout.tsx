@@ -1,8 +1,34 @@
+import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Platform, StyleSheet, View } from 'react-native';
 import { AuthProvider } from '../lib/auth';
 import { C } from '../lib/theme';
+
+/**
+ * 웹 전용 Pretendard 폰트 주입.
+ * RN 웹의 기본 font-family는 'System'이라 브라우저가 세리프(Times)로 폴백하는
+ * 환경이 있다 — 전역 스타일로 Pretendard를 강제한다.
+ */
+function useWebFont() {
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+    if (document.getElementById('hg-font')) return;
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css';
+    document.head.appendChild(link);
+    const style = document.createElement('style');
+    style.id = 'hg-font';
+    style.textContent = `
+      html, body, #root, #root * {
+        font-family: 'Pretendard Variable', Pretendard, -apple-system, 'Malgun Gothic',
+          'Apple SD Gothic Neo', system-ui, sans-serif !important;
+      }
+    `;
+    document.head.appendChild(style);
+  }, []);
+}
 
 /**
  * 웹 미리보기용 폰 프레임.
@@ -20,6 +46,7 @@ function PhoneFrame({ children }: { children: React.ReactNode }) {
 }
 
 export default function RootLayout() {
+  useWebFont();
   return (
     <AuthProvider>
       <StatusBar style="dark" />
