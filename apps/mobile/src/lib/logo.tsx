@@ -20,7 +20,7 @@ export function GemMark({ size = 30 }: { size?: number }) {
         }}
       >
         <LinearGradient
-          colors={['#4FC9F5', '#1D77C9', '#0B3E74']}
+          colors={['#7DD3FC', '#38BDF8', '#0369A1']}
           start={{ x: 0.1, y: 0 }}
           end={{ x: 0.9, y: 1 }}
           style={{ flex: 1 }}
@@ -40,7 +40,7 @@ export function GemMark({ size = 30 }: { size?: number }) {
       <Text
         style={{
           position: 'absolute', top: -size * 0.06, right: -size * 0.02,
-          fontSize: size * 0.44, color: '#FF6B4A', fontWeight: '900',
+          fontSize: size * 0.44, color: '#FF6B4A', fontWeight: '700',
         }}
       >
         ✦
@@ -54,7 +54,7 @@ export function Wordmark({ light = false, size = 14 }: { light?: boolean; size?:
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
       <Text
         style={{
-          fontSize: size, fontWeight: '900', letterSpacing: 3,
+          fontSize: size, fontWeight: '700', letterSpacing: 3,
           color: light ? '#FFFFFF' : C.ink,
         }}
       >
@@ -62,13 +62,13 @@ export function Wordmark({ light = false, size = 14 }: { light?: boolean; size?:
       </Text>
       <View style={{ borderRadius: 6, overflow: 'hidden' }}>
         <LinearGradient
-          colors={light ? ['#FFD983', '#F0A32B'] : ['#4FC9F5', '#0E4F8B']}
+          colors={light ? ['#FFD983', '#F0A32B'] : ['#38BDF8', '#0284C7']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
         >
           <Text
             style={{
-              fontSize: size - 0.5, fontWeight: '900', letterSpacing: 2,
+              fontSize: size - 0.5, fontWeight: '700', letterSpacing: 2,
               color: light ? '#4A2E00' : '#FFFFFF',
               paddingHorizontal: 7, paddingVertical: 2.5,
             }}
