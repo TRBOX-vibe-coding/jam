@@ -10,6 +10,7 @@ import {
 import { IsEmail, IsIn, IsInt, IsOptional, IsString, Matches, Max, Min, MinLength } from 'class-validator';
 import { Type } from 'class-transformer';
 import { PrismaService } from './prisma.service';
+import { saveImageDataUrl } from './uploads';
 import { AuthModule, UserGuard, UserId } from './auth';
 
 class CreateDropDto {
@@ -25,6 +26,8 @@ class CreateDropDto {
   @IsOptional() @Type(() => Number) @IsInt() usableFromMinute?: number;
   @IsOptional() @Type(() => Number) @IsInt() usableToMinute?: number;
   @IsOptional() @IsString() productId?: string;
+  /// 상품 사진(data URL). 손님 목록·상세와 본사 승인 화면에 그대로 노출된다.
+  @IsOptional() @IsString() imageBase64?: string;
 }
 
 class VerifyDto {
@@ -161,6 +164,8 @@ export class MerchantController {
     const closeAt = new Date(dto.closeAt);
     if (!(openAt < closeAt)) throw new BadRequestException('기간이 올바르지 않습니다');
 
+    const imageUrl = dto.imageBase64 ? saveImageDataUrl(dto.imageBase64, 'drop') : null;
+
     const merchant = await this.prisma.client.merchant.findUniqueOrThrow({
       where: { id: m.id }, select: { regionId: true, categoryId: true },
     });
@@ -175,6 +180,7 @@ export class MerchantController {
         status: 'PENDING',
         title: dto.title,
         description: dto.description,
+        imageUrl,
         normalPrice: dto.normalPrice,
         dropPrice: dto.dropPrice,
         totalQty: dto.totalQty,

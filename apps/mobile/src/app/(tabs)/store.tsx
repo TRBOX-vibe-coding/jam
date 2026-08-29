@@ -8,7 +8,7 @@ import {
   FlatList, Image, Pressable, RefreshControl, StyleSheet, Text, View,
 } from 'react-native';
 import { router } from 'expo-router';
-import { api } from '../../lib/api';
+import { api, img } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { C } from '../../lib/theme';
 import { Chip, EmptyText, Loading, Screen } from '../../lib/ui';
@@ -91,7 +91,7 @@ export default function StoreScreen() {
           renderItem={({ item: m }) => (
             <Pressable style={st.card} onPress={() => router.push(`/store/${m.id}`)}>
               {m.thumbnailUrl ? (
-                <Image source={{ uri: m.thumbnailUrl }} style={st.thumb} />
+                <Image source={{ uri: img(m.thumbnailUrl) }} style={st.thumb} />
               ) : (
                 <View style={[st.thumb, st.thumbFallback]}>
                   <Text style={{ fontSize: 24 }}>{m.category.emoji}</Text>

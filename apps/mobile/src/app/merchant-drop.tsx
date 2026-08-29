@@ -3,8 +3,9 @@
  * 날짜 선택기 대신 프리셋 버튼으로 30초 안에 등록을 끝낸다. 등록 즉시 본사 승인 대기.
  */
 import { useMemo, useState } from 'react';
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Image, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
 import { api } from '../lib/api';
 import { C, won } from '../lib/theme';
 import { Btn, Card, Screen } from '../lib/ui';
@@ -49,7 +50,30 @@ export default function MerchantDropCreate() {
   const [startKey, setStartKey] = useState('now');
   const [durKey, setDurKey] = useState('24h');
   const [useKey, setUseKey] = useState('all');
+  const [image, setImage] = useState<{ uri: string; dataUrl: string } | null>(null);
   const [busy, setBusy] = useState(false);
+
+  async function pickImage() {
+    const r = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.6,
+      base64: true,
+    });
+    if (r.canceled || !r.assets?.[0]) return;
+    const a = r.assets[0];
+    if (!a.base64) {
+      notify('사진을 불러올 수 없습니다', '다른 사진으로 시도해 주세요');
+      return;
+    }
+    const mime = a.mimeType && ['image/jpeg', 'image/png', 'image/webp'].includes(a.mimeType)
+      ? a.mimeType
+      : 'image/jpeg';
+    if (a.base64.length > 5 * 1024 * 1024 * 1.4) {
+      notify('사진이 너무 큽니다', '5MB 이하 사진으로 올려주세요');
+      return;
+    }
+    setImage({ uri: a.uri, dataUrl: `data:${mime};base64,${a.base64}` });
+  }
 
   const normal = Number(normalPrice.replace(/\D/g, '')) || 0;
   const drop = Number(dropPrice.replace(/\D/g, '')) || 0;
@@ -87,6 +111,7 @@ export default function MerchantDropCreate() {
           closeAt: close.toISOString(),
           usableFromMinute: use.from ?? undefined,
           usableToMinute: use.to ?? undefined,
+          imageBase64: image?.dataUrl,
         },
       });
       notify('등록 요청 완료', r.message);
@@ -125,6 +150,27 @@ export default function MerchantDropCreate() {
           placeholderTextColor={C.ink3}
           multiline
         />
+
+        <Text style={st.label}>상품 사진 (선택)</Text>
+        {image ? (
+          <View>
+            <Image source={{ uri: image.uri }} style={st.photo} />
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+              <Pressable style={st.photoBtn} onPress={pickImage}>
+                <Text style={st.photoBtnText}>사진 바꾸기</Text>
+              </Pressable>
+              <Pressable style={st.photoBtn} onPress={() => setImage(null)}>
+                <Text style={st.photoBtnText}>삭제</Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : (
+          <Pressable style={st.photoAdd} onPress={pickImage}>
+            <Text style={st.photoAddIcon}>📷</Text>
+            <Text style={st.photoAddText}>사진 추가</Text>
+            <Text style={st.photoAddHint}>사진 있는 딜이 훨씬 잘 팔려요</Text>
+          </Pressable>
+        )}
 
         <View style={{ flexDirection: 'row', gap: 10 }}>
           <View style={{ flex: 1 }}>
@@ -214,6 +260,19 @@ export default function MerchantDropCreate() {
 }
 
 const st = StyleSheet.create({
+  photo: { width: '100%', height: 160, borderRadius: 12, backgroundColor: C.line },
+  photoBtn: {
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 9,
+    backgroundColor: C.white, borderWidth: 1, borderColor: C.line,
+  },
+  photoBtnText: { fontSize: 12.5, fontWeight: '700', color: C.ink2 },
+  photoAdd: {
+    height: 96, borderRadius: 12, borderWidth: 1.5, borderColor: C.line, borderStyle: 'dashed',
+    backgroundColor: C.white, alignItems: 'center', justifyContent: 'center', gap: 2,
+  },
+  photoAddIcon: { fontSize: 22 },
+  photoAddText: { fontSize: 13.5, fontWeight: '800', color: C.ink2 },
+  photoAddHint: { fontSize: 11, color: C.ink3 },
   guide: { fontSize: 13.5, color: C.brand, fontWeight: '700', lineHeight: 20, textAlign: 'center' },
   label: { fontSize: 12.5, fontWeight: '800', color: C.ink3, marginTop: 14, marginBottom: 6 },
   input: {

@@ -4,7 +4,7 @@
 import { useCallback, useState } from 'react';
 import { Alert, Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { api } from '../../lib/api';
+import { api, img } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { C, won } from '../../lib/theme';
 import { Btn, Card, Loading, Screen, Tag } from '../../lib/ui';
@@ -60,7 +60,7 @@ export default function ProductDetail() {
   return (
     <Screen>
       <ScrollView contentContainerStyle={{ padding: 16 }}>
-        {p.imageUrl && <Image source={{ uri: p.imageUrl }} style={st.hero} />}
+        {p.imageUrl && <Image source={{ uri: img(p.imageUrl) }} style={st.hero} />}
         <Card>
           <View style={{ flexDirection: 'row', gap: 5, marginBottom: 8 }}>
             <Tag text={p.type === 'RESERVATION' ? '예약형' : p.type === 'PASS' ? 'PASS' : '티켓'} />

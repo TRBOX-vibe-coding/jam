@@ -12,7 +12,7 @@ import {
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { api } from '../../lib/api';
+import { api, img } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { C, won } from '../../lib/theme';
 import { Screen } from '../../lib/ui';
@@ -131,7 +131,7 @@ export default function HomeScreen() {
             <Pressable key={d.id} style={st.dropCard} onPress={() => router.push(`/drop/${d.id}`)}>
               <View>
                 {d.imageUrl ? (
-                  <Image source={{ uri: d.imageUrl }} style={st.dropImg} />
+                  <Image source={{ uri: img(d.imageUrl) }} style={st.dropImg} />
                 ) : (
                   <View style={[st.dropImg, { backgroundColor: C.brandSoft }]} />
                 )}
@@ -177,7 +177,7 @@ export default function HomeScreen() {
           {products.slice(0, 3).map((p) => (
             <Pressable key={p.id} style={st.prodCard} onPress={() => router.push(`/product/${p.id}`)}>
               {p.imageUrl ? (
-                <Image source={{ uri: p.imageUrl }} style={st.prodImg} />
+                <Image source={{ uri: img(p.imageUrl) }} style={st.prodImg} />
               ) : (
                 <View style={[st.prodImg, { backgroundColor: C.brandSoft }]} />
               )}
