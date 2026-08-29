@@ -153,21 +153,21 @@ export default function MerchantMode() {
 }
 
 const st = StyleSheet.create({
-  name: { fontSize: 19, fontWeight: '700', color: C.brand },
+  name: { fontSize: 19, fontWeight: '900', color: C.brand },
   sub: { fontSize: 12, color: C.ink2, marginTop: 3 },
   statRow: { flexDirection: 'row', gap: 10 },
   statCard: { flex: 1, alignItems: 'center' },
   statLabel: { fontSize: 12, color: C.ink3, fontWeight: '600' },
-  statValue: { fontSize: 22, fontWeight: '700', color: C.ink, marginTop: 2 },
-  section: { fontSize: 13, fontWeight: '700', color: C.ink3, marginTop: 14, marginBottom: 8 },
+  statValue: { fontSize: 22, fontWeight: '900', color: C.ink, marginTop: 2 },
+  section: { fontSize: 13, fontWeight: '800', color: C.ink3, marginTop: 14, marginBottom: 8 },
   hint: { fontSize: 12, color: C.ink3, lineHeight: 18, marginBottom: 8 },
   input: {
     flex: 1, borderWidth: 1, borderColor: C.line, borderRadius: 10,
-    paddingHorizontal: 12, paddingVertical: 9, fontSize: 16, fontWeight: '700',
+    paddingHorizontal: 12, paddingVertical: 9, fontSize: 16, fontWeight: '800',
     letterSpacing: 3, color: C.ink, backgroundColor: C.white,
   },
   verifyBox: { borderRadius: 10, padding: 12, marginTop: 10 },
-  verifyTitle: { fontSize: 14, fontWeight: '700' },
+  verifyTitle: { fontSize: 14, fontWeight: '800' },
   verifyDetail: { fontSize: 13, color: C.ink2, marginTop: 4 },
   qrLabel: { fontSize: 12, color: C.ink3, fontWeight: '700' },
   qrCode: { fontSize: 13, fontWeight: '700', color: C.ink, marginTop: 2 },

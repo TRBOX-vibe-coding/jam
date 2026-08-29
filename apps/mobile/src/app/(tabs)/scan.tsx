@@ -119,7 +119,7 @@ export default function ScanScreen() {
 
 const st = StyleSheet.create({
   guide: { fontSize: 14, color: C.ink2, lineHeight: 21, marginBottom: 14, textAlign: 'center' },
-  stepTitle: { fontSize: 13, fontWeight: '700', color: C.brand, marginBottom: 6 },
+  stepTitle: { fontSize: 13, fontWeight: '800', color: C.brand, marginBottom: 6 },
   step: { fontSize: 13, color: C.ink2, lineHeight: 22 },
   cameraWrap: { flex: 1, borderRadius: 14, overflow: 'hidden', backgroundColor: '#000' },
   errorNote: { fontSize: 13, color: C.warn, textAlign: 'center' },

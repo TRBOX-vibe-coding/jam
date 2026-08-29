@@ -99,7 +99,7 @@ export default function ApplyScreen() {
         <Card style={{ backgroundColor: C.brandSoft, borderColor: C.brandSoft }}>
           <Text style={st.guide}>
             가게 정보를 남겨주시면 본사 확인 후 연락드려요.{'\n'}
-            승인되면 이 계정에 바로 <Text style={{ fontWeight: '700' }}>가맹점 모드</Text>가 열립니다.
+            승인되면 이 계정에 바로 <Text style={{ fontWeight: '900' }}>가맹점 모드</Text>가 열립니다.
           </Text>
         </Card>
 
@@ -213,8 +213,8 @@ export default function ApplyScreen() {
 
 const st = StyleSheet.create({
   guide: { fontSize: 13.5, color: C.brand, fontWeight: '700', lineHeight: 20, textAlign: 'center' },
-  section: { fontSize: 14.5, fontWeight: '700', color: C.ink, marginTop: 22, marginBottom: 2 },
-  label: { fontSize: 12.5, fontWeight: '700', color: C.ink3, marginTop: 14, marginBottom: 6 },
+  section: { fontSize: 14.5, fontWeight: '900', color: C.ink, marginTop: 22, marginBottom: 2 },
+  label: { fontSize: 12.5, fontWeight: '800', color: C.ink3, marginTop: 14, marginBottom: 6 },
   input: {
     backgroundColor: C.white, borderWidth: 1, borderColor: C.line, borderRadius: 11,
     paddingHorizontal: 13, paddingVertical: 11, fontSize: 15, color: C.ink,

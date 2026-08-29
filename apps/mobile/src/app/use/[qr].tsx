@@ -143,9 +143,9 @@ export default function UseScreen() {
 }
 
 const st = StyleSheet.create({
-  merchantName: { fontSize: 18, fontWeight: '700', color: C.brand },
+  merchantName: { fontSize: 18, fontWeight: '900', color: C.brand },
   merchantSub: { fontSize: 12, color: C.ink2, marginTop: 2 },
-  section: { fontSize: 13, fontWeight: '700', color: C.ink3, marginTop: 10, marginBottom: 8 },
-  itemTitle: { fontSize: 15, fontWeight: '700', color: C.ink },
+  section: { fontSize: 13, fontWeight: '800', color: C.ink3, marginTop: 10, marginBottom: 8 },
+  itemTitle: { fontSize: 15, fontWeight: '800', color: C.ink },
   itemSub: { fontSize: 12, color: C.ink3, marginTop: 3, marginBottom: 10 },
 });

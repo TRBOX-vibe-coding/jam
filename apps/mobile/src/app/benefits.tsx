@@ -107,9 +107,9 @@ export default function BenefitsScreen() {
 const st = StyleSheet.create({
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   savingLabel: { color: '#CFE1F2', fontSize: 12, fontWeight: '700' },
-  savingValue: { color: '#FFFFFF', fontSize: 30, fontWeight: '700', marginTop: 3, letterSpacing: -0.5 },
+  savingValue: { color: '#FFFFFF', fontSize: 30, fontWeight: '900', marginTop: 3, letterSpacing: -0.5 },
   savingSub: { color: '#BCD6EC', fontSize: 12, fontWeight: '600' },
-  merchantName: { fontSize: 15, fontWeight: '700', color: C.ink },
+  merchantName: { fontSize: 15, fontWeight: '800', color: C.ink },
   region: { fontSize: 12, color: C.ink3 },
   benefitRow: {
     flexDirection: 'row', alignItems: 'center', gap: 8,

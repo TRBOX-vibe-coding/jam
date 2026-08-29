@@ -100,9 +100,9 @@ export default function WalletScreen() {
 }
 
 const st = StyleSheet.create({
-  section: { fontSize: 13, fontWeight: '700', color: C.ink3, marginBottom: 8 },
+  section: { fontSize: 13, fontWeight: '800', color: C.ink3, marginBottom: 8 },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
-  title: { fontSize: 15, fontWeight: '700', color: C.ink, flex: 1 },
+  title: { fontSize: 15, fontWeight: '800', color: C.ink, flex: 1 },
   sub: { fontSize: 13, color: C.ink2, marginTop: 4 },
   reserve: { fontSize: 13, color: C.brand, fontWeight: '700', marginTop: 6 },
   code: { fontSize: 11, color: C.ink3, marginTop: 6 },

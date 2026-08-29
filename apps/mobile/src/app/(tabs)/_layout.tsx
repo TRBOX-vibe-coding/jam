@@ -16,7 +16,7 @@ export default function TabsLayout() {
       screenOptions={{
         headerStyle: { backgroundColor: C.white },
         headerShadowVisible: false,
-        headerTitleStyle: { fontWeight: '700', fontSize: 17 },
+        headerTitleStyle: { fontWeight: '800', fontSize: 17 },
         tabBarActiveTintColor: C.brand,
         tabBarInactiveTintColor: '#9AA7B3',
         tabBarLabelStyle: { fontSize: 10.5, fontWeight: '700', marginTop: 1 },
