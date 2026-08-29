@@ -111,7 +111,7 @@ export default function HomeScreen() {
       >
         {/* ① 딥오션 히어로 + 상태 카드 */}
         <LinearGradient
-          colors={['#0A3D73', '#0E559A', '#1B86CD']}
+          colors={['#0284C7', '#0EA5E9', '#38BDF8']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1.15, y: 1 }}
           style={st.hero}
@@ -143,7 +143,7 @@ export default function HomeScreen() {
                     {me.membership ? `${me.membership.planName} 이용 중` : '멤버십을 시작해 보세요'}
                   </Text>
                   <Text style={st.statusSaving}>
-                    이번 달 <Text style={{ color: C.brand, fontWeight: '900' }}>{won(me.savings.thisMonth)}</Text> 아꼈어요
+                    이번 달 <Text style={{ color: C.brand, fontWeight: '700' }}>{won(me.savings.thisMonth)}</Text> 아꼈어요
                     {me.savings.recoveryRate != null ? ` · 회수율 ${me.savings.recoveryRate}%` : ''}
                   </Text>
                 </View>
@@ -292,36 +292,36 @@ const st = StyleSheet.create({
   },
   gemDeco: { position: 'absolute', backgroundColor: '#fff', transform: [{ rotate: '45deg' }] },
   decoSpark: { position: 'absolute', top: 96, right: 52, color: '#FFD983', fontSize: 15 },
-  greet: { fontSize: 24, fontWeight: '900', color: '#fff', marginTop: 14, letterSpacing: -0.3, lineHeight: 32 },
+  greet: { fontSize: 24, fontWeight: '700', color: '#fff', marginTop: 14, letterSpacing: -0.3, lineHeight: 32 },
   greetName: { fontSize: 15, fontWeight: '700', color: 'rgba(213,236,255,0.95)', letterSpacing: 0 },
   statusCard: {
     backgroundColor: C.white, borderRadius: 18, padding: 15,
     marginTop: -32, marginHorizontal: 16,
-    shadowColor: '#0A3D73', shadowOpacity: 0.16, shadowRadius: 14, shadowOffset: { width: 0, height: 6 },
+    shadowColor: '#0284C7', shadowOpacity: 0.16, shadowRadius: 14, shadowOffset: { width: 0, height: 6 },
     elevation: 6, borderWidth: 1, borderColor: '#EAF0F6',
   },
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  statusPlan: { fontSize: 14.5, fontWeight: '800', color: C.ink },
+  statusPlan: { fontSize: 14.5, fontWeight: '700', color: C.ink },
   statusSaving: { fontSize: 12.5, color: C.ink2, marginTop: 3 },
-  statusBadge: { color: '#4A2E00', fontSize: 11, fontWeight: '900', paddingHorizontal: 10, paddingVertical: 4.5 },
-  loginBtn: { backgroundColor: C.brand, color: '#fff', fontSize: 13, fontWeight: '800', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, overflow: 'hidden' },
+  statusBadge: { color: '#4A2E00', fontSize: 11, fontWeight: '700', paddingHorizontal: 10, paddingVertical: 4.5 },
+  loginBtn: { backgroundColor: C.brand, color: '#fff', fontSize: 13, fontWeight: '700', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, overflow: 'hidden' },
 
   sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', paddingHorizontal: 16, marginTop: 24, marginBottom: 11 },
-  sectionTitle: { fontSize: 17, fontWeight: '900', color: C.ink, letterSpacing: -0.3 },
+  sectionTitle: { fontSize: 17, fontWeight: '700', color: C.ink, letterSpacing: -0.3 },
   sectionSub: { fontSize: 12, color: C.ink3, marginTop: 2 },
   more: { fontSize: 12.5, fontWeight: '700', color: C.brand },
 
   dropCard: { width: 168, backgroundColor: C.white, borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: C.line },
   dropImg: { width: '100%', height: 108 },
   dropQty: { position: 'absolute', left: 8, bottom: 8, backgroundColor: 'rgba(18,24,31,0.78)', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3 },
-  dropQtyText: { color: '#fff', fontSize: 10.5, fontWeight: '800' },
+  dropQtyText: { color: '#fff', fontSize: 10.5, fontWeight: '700' },
   lockOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(18,24,31,0.45)', alignItems: 'center', justifyContent: 'center' },
   lockEmoji: { fontSize: 26 },
-  dropTitle: { fontSize: 13.5, fontWeight: '800', color: C.ink },
+  dropTitle: { fontSize: 13.5, fontWeight: '700', color: C.ink },
   dropMerchant: { fontSize: 11, color: C.ink3, marginTop: 2 },
   dropPriceRow: { flexDirection: 'row', alignItems: 'baseline', gap: 5, marginTop: 5 },
-  dropRate: { fontSize: 14, fontWeight: '900', color: '#E8503A' },
-  dropPrice: { fontSize: 14, fontWeight: '900', color: C.ink },
+  dropRate: { fontSize: 14, fontWeight: '700', color: '#E8503A' },
+  dropPrice: { fontSize: 14, fontWeight: '700', color: C.ink },
 
   cat: { alignItems: 'center', gap: 7 },
   catTile: {
@@ -332,20 +332,20 @@ const st = StyleSheet.create({
     position: 'absolute', top: -14, left: -14, width: 46, height: 46, borderRadius: 23,
     backgroundColor: 'rgba(255,255,255,0.22)',
   },
-  catLabel: { fontSize: 11.5, fontWeight: '800', color: C.ink2, letterSpacing: -0.2 },
+  catLabel: { fontSize: 11.5, fontWeight: '700', color: C.ink2, letterSpacing: -0.2 },
 
   prodCard: { backgroundColor: C.white, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: C.line },
   prodImg: { width: '100%', height: 150 },
   prodBody: { padding: 12 },
-  prodName: { fontSize: 15.5, fontWeight: '800', color: C.ink },
+  prodName: { fontSize: 15.5, fontWeight: '700', color: C.ink },
   prodMerchant: { fontSize: 12, color: C.ink3, marginTop: 2 },
-  prodPrice: { fontSize: 15, fontWeight: '900', color: C.ink },
+  prodPrice: { fontSize: 15, fontWeight: '700', color: C.ink },
   prodNormal: { fontSize: 12, color: C.ink3, textDecorationLine: 'line-through' },
-  memberTag: { fontSize: 10.5, fontWeight: '900', color: C.gold, backgroundColor: '#F6EBD4', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, overflow: 'hidden' },
+  memberTag: { fontSize: 10.5, fontWeight: '700', color: C.gold, backgroundColor: '#F6EBD4', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, overflow: 'hidden' },
 
   benefitRow: { flexDirection: 'row', alignItems: 'center', gap: 11, backgroundColor: C.white, borderRadius: 13, borderWidth: 1, borderColor: C.line, padding: 10 },
   benefitThumb: { width: 46, height: 46, borderRadius: 10 },
-  benefitName: { fontSize: 14, fontWeight: '800', color: C.ink },
+  benefitName: { fontSize: 14, fontWeight: '700', color: C.ink },
   benefitDesc: { fontSize: 12, color: C.ink2, marginTop: 1 },
   benefitRegion: { fontSize: 11.5, color: C.ink3, fontWeight: '600' },
 });
