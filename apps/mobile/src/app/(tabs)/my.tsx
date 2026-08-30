@@ -12,6 +12,9 @@ import { Btn, Card, Loading, Screen, Tag } from '../../lib/ui';
 
 type Plan = { code: string; name: string; description: string; price: number; durationDays: number };
 
+/** 당분간 프로덕션에서도 임시(시연) 계정 로그인을 연다. 실서비스 전환 시 false로. */
+const DEMO_MODE = true;
+
 const SOCIALS = [
   { provider: 'KAKAO', label: '카카오로 시작', bg: '#FEE500', fg: '#191600' },
   { provider: 'NAVER', label: '네이버로 시작', bg: '#03C75A', fg: '#fff' },
@@ -103,8 +106,8 @@ export default function MyScreen() {
                   </Text>
                 </View>
               ))}
-              <Text style={st.devNote}>개발 모드: 데모 계정으로 로그인됩니다</Text>
-              {__DEV__ && (
+              <Text style={st.devNote}>데모 기간: 임시 계정으로 로그인됩니다 (소셜 연동 전)</Text>
+              {DEMO_MODE && (
                 <View style={st.devOwnerRow}>
                   <Text style={st.devOwner} onPress={() => !busy && doOwnerLogin('demo-owner-2')}>
                     [시연용] 승인된 점주 화면 체험 (서프홀릭)
