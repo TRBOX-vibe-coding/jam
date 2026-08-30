@@ -24,6 +24,22 @@ function resolveBase(): string {
 export const API_BASE = resolveBase();
 
 /** 이미지 주소 변환: 업로드 파일은 서버 리사이즈(webp), 언스플래시는 폭 파라미터로 UI 크기에 맞는 용량만 받는다. */
+/**
+ * 로컬 캐시 — 직전에 받아둔 목록을 폰에 저장해두고, 다음 방문 때 화면부터 먼저 채운다.
+ * 네트워크 응답이 도착하면 최신으로 조용히 갱신된다 (stale-while-revalidate).
+ */
+export async function cacheGet<T>(key: string): Promise<T | null> {
+  try {
+    const s = await AsyncStorage.getItem('hg_cache_' + key);
+    return s ? (JSON.parse(s) as T) : null;
+  } catch {
+    return null;
+  }
+}
+export function cacheSet(key: string, value: unknown) {
+  AsyncStorage.setItem('hg_cache_' + key, JSON.stringify(value)).catch(() => {});
+}
+
 export function img(u?: string | null, w?: number): string | undefined {
   if (!u) return undefined;
   if (u.startsWith('/')) return API_BASE + u + (w ? `?w=${w}` : '');
