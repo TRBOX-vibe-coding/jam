@@ -12,7 +12,7 @@ import {
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { api, img } from '../../lib/api';
+import { api, cacheGet, cacheSet, img } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { C, won } from '../../lib/theme';
 import { Screen } from '../../lib/ui';
@@ -80,15 +80,25 @@ function hoursLeft(closeAt: string) {
 
 export default function HomeScreen() {
   const { me } = useAuth();
-  const [drops, setDrops] = useState<Drop[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
+  // null = 아직 로딩(스켈레톤 표시), [] = 진짜 없음
+  const [drops, setDrops] = useState<Drop[] | null>(null);
+  const [products, setProducts] = useState<Product[] | null>(null);
   const [benefits, setBenefits] = useState<BenefitGroup[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
+  const sortProducts = (p: Product[]) =>
+    p.filter((x) => x.type !== 'PASS').concat(p.filter((x) => x.type === 'PASS'));
+
   const load = useCallback(async () => {
-    const [d, p] = await Promise.all([api<Drop[]>('/drops'), api<Product[]>('/products')]);
-    setDrops(d);
-    setProducts(p.filter((x) => x.type !== 'PASS').concat(p.filter((x) => x.type === 'PASS')));
+    // ① 직전 캐시로 화면부터 채우고 ② 네트워크 도착분으로 갱신 — 섹션별 독립 로딩
+    cacheGet<Drop[]>('drops').then((c) => { if (c) setDrops((prev) => prev ?? c); });
+    cacheGet<Product[]>('products').then((c) => { if (c) setProducts((prev) => prev ?? sortProducts(c)); });
+    api<Drop[]>('/drops')
+      .then((d) => { setDrops(d); cacheSet('drops', d); })
+      .catch(() => setDrops((prev) => prev ?? []));
+    api<Product[]>('/products')
+      .then((p) => { setProducts(sortProducts(p)); cacheSet('products', p); })
+      .catch(() => setProducts((prev) => prev ?? []));
     if (me) {
       api<{ merchants: BenefitGroup[] }>('/me/benefits')
         .then((b) => setBenefits(b.merchants))
@@ -175,7 +185,17 @@ export default function HomeScreen() {
           </Pressable>
         </View>
         <HScroll contentContainerStyle={{ paddingHorizontal: 16, gap: 10 }}>
-          {drops.slice(0, 6).map((d) => (
+          {drops === null && [1, 2, 3].map((k) => (
+            <View key={k} style={st.dropCard}>
+              <View style={[st.dropImg, st.skel]} />
+              <View style={{ padding: 10, gap: 7 }}>
+                <View style={[st.skel, { height: 14, width: '85%' }]} />
+                <View style={[st.skel, { height: 11, width: '60%' }]} />
+                <View style={[st.skel, { height: 15, width: '45%' }]} />
+              </View>
+            </View>
+          ))}
+          {(drops ?? []).slice(0, 6).map((d) => (
             <Pressable key={d.id} style={st.dropCard} onPress={() => router.push(`/drop/${d.id}`)}>
               <View>
                 {d.imageUrl ? (
@@ -222,7 +242,17 @@ export default function HomeScreen() {
           ))}
         </HScroll>
         <View style={{ paddingHorizontal: 16, marginTop: 12, gap: 12 }}>
-          {products.slice(0, 3).map((p) => (
+          {products === null && [1, 2].map((k) => (
+            <View key={k} style={st.prodCard}>
+              <View style={[st.prodImg, st.skel]} />
+              <View style={[st.prodBody, { gap: 8 }]}>
+                <View style={[st.skel, { height: 15, width: '70%' }]} />
+                <View style={[st.skel, { height: 12, width: '45%' }]} />
+                <View style={[st.skel, { height: 16, width: '55%' }]} />
+              </View>
+            </View>
+          ))}
+          {(products ?? []).slice(0, 3).map((p) => (
             <Pressable key={p.id} style={st.prodCard} onPress={() => router.push(`/product/${p.id}`)}>
               {p.imageUrl ? (
                 <Image source={{ uri: img(p.imageUrl, 640) }} style={st.prodImg} />
@@ -286,6 +316,7 @@ export default function HomeScreen() {
 }
 
 const st = StyleSheet.create({
+  skel: { backgroundColor: C.line, borderRadius: 7, opacity: 0.6 },
   hero: {
     paddingTop: 54, paddingBottom: 52, paddingHorizontal: 20,
     borderBottomLeftRadius: 26, borderBottomRightRadius: 26, overflow: 'hidden',
