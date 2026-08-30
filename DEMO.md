@@ -4,7 +4,7 @@
 |---|---|
 | 📱 유저 앱 (폰/PC 브라우저) | https://jam-5dw.pages.dev |
 | 🖥 관리자 웹 | https://holicgem-admin.vercel.app |
-| ⚙️ API 서버 | https://observed-avoid-grows-depth.trycloudflare.com |
+| ⚙️ API 서버 | https://modification-knowing-discs-accept.trycloudflare.com |
 
 ## 계정
 - 관리자: admin@holicgem.com / admin1234
