@@ -37,6 +37,36 @@ function useWebFont() {
 }
 
 /**
+ * 웹 전용 자동 업데이트.
+ * 새 버전을 배포해도 이미 열려 있는 탭은 옛 화면을 계속 쓴다 —
+ * 탭에 다시 돌아왔을 때(또는 5분마다) 배포된 번들이 바뀌었으면 스스로 새로고침한다.
+ */
+function useWebAutoUpdate() {
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+    const cur = (document.querySelector('script[src*="/_expo/static/js/web/entry-"]') as any)?.src as string | undefined;
+    if (!cur) return;
+    let busy = false;
+    const check = async () => {
+      if (busy || document.visibilityState !== 'visible') return;
+      busy = true;
+      try {
+        const html = await fetch('/', { cache: 'no-cache' }).then((r) => r.text());
+        const m = html.match(/\/_expo\/static\/js\/web\/entry-[a-f0-9]+\.js/);
+        if (m && !cur.includes(m[0])) window.location.reload();
+      } catch {
+        /* 오프라인 등 — 다음 기회에 다시 확인 */
+      }
+      busy = false;
+    };
+    const onVis = () => { if (document.visibilityState === 'visible') check(); };
+    document.addEventListener('visibilitychange', onVis);
+    const timer = setInterval(check, 5 * 60_000);
+    return () => { document.removeEventListener('visibilitychange', onVis); clearInterval(timer); };
+  }, []);
+}
+
+/**
  * 웹 미리보기용 폰 프레임.
  * 실제 제품은 폰 앱이므로, 데스크톱 브라우저에서 볼 때도
  * 폰 폭(420px)으로 가운데 고정해 실제 앱과 같은 비율로 보이게 한다.
@@ -53,6 +83,7 @@ function PhoneFrame({ children }: { children: React.ReactNode }) {
 
 export default function RootLayout() {
   useWebFont();
+  useWebAutoUpdate();
   return (
     <AuthProvider>
       <StatusBar style="dark" />

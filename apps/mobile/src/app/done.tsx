@@ -69,7 +69,8 @@ export default function DoneScreen() {
         )}
 
         <View style={{ marginTop: 28, width: '100%' }}>
-          <Btn title="확인" onPress={() => router.replace('/(tabs)')} />
+          {/* 확인 후엔 홈이 아니라 [사용] 탭으로 — 사용 흐름의 제자리로 돌아간다 */}
+          <Btn title="확인" onPress={() => router.replace('/(tabs)/scan')} />
         </View>
       </View>
     </Screen>
