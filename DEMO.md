@@ -4,7 +4,7 @@
 |---|---|
 | 📱 유저 앱 (폰/PC 브라우저) | https://jam-5dw.pages.dev |
 | 🖥 관리자 웹 | https://holicgem-admin.vercel.app |
-| ⚙️ API 서버 | https://passengers-pearl-kenny-unsubscribe.trycloudflare.com |
+| ⚙️ API 서버 | https://activists-judicial-thumbs-telescope.trycloudflare.com |
 
 ## 계정 (프로덕션에서도 임시계정 사용 가능 — 데모 기간 한정)
 - 관리자: admin@holicgem.com / admin1234
