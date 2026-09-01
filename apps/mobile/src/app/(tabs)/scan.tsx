@@ -66,13 +66,23 @@ export default function ScanScreen() {
 
         {scanning ? (
           <View style={st.cameraWrap}>
-            <QrScanner
-              onScan={go}
-              onError={(msg) => {
-                setScanning(false);
-                setScanError(msg);
-              }}
-            />
+            <View style={{ flex: 1 }}>
+              <QrScanner
+                onScan={go}
+                onError={(msg) => {
+                  setScanning(false);
+                  setScanError(msg);
+                }}
+              />
+              {/* 스캔 가이드 — 셔터 버튼을 찾지 않도록 "자동 인식"임을 화면에서 알려준다 */}
+              <View pointerEvents="none" style={st.scanOverlay}>
+                <View style={st.scanFrame} />
+                <View style={st.scanGuideBox}>
+                  <Text style={st.scanGuide}>매장 QR을 틀 안에 비춰주세요</Text>
+                  <Text style={st.scanGuideSub}>버튼을 누를 필요 없이 자동으로 인식됩니다</Text>
+                </View>
+              </View>
+            </View>
             <View style={{ padding: 12 }}>
               <Btn title="닫기" tone="ghost" onPress={() => setScanning(false)} />
             </View>
@@ -124,6 +134,18 @@ const st = StyleSheet.create({
   stepTitle: { fontSize: 13, fontWeight: '700', color: C.brand, marginBottom: 6 },
   step: { fontSize: 13, color: C.ink2, lineHeight: 22 },
   cameraWrap: { flex: 1, borderRadius: 14, overflow: 'hidden', backgroundColor: '#000' },
+  scanOverlay: {
+    ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', gap: 16,
+  },
+  scanFrame: {
+    width: 208, height: 208, borderRadius: 20, borderWidth: 3, borderColor: 'rgba(255,255,255,0.92)',
+  },
+  scanGuideBox: {
+    backgroundColor: 'rgba(18,24,31,0.72)', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 9,
+    alignItems: 'center', gap: 2,
+  },
+  scanGuide: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  scanGuideSub: { color: '#CFE8F8', fontSize: 12, fontWeight: '600' },
   errorNote: { fontSize: 13, color: C.warn, textAlign: 'center' },
   scanBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
