@@ -70,6 +70,61 @@ export default function MerchantMode() {
           </View>
         )}
 
+        {/* 현장 운영(사용 확인)이 등록보다 먼저 — 손님이 "사용 처리했어요" 하면 바로 봐야 한다 */}
+        <Text style={st.section}>최근 사용내역 (7일)</Text>
+        {!reds ? <Loading /> : reds.length === 0 ? (
+          <EmptyText text="아직 사용내역이 없습니다" />
+        ) : (
+          reds.map((r) => (
+            <Card key={r.id}>
+              <View style={st.rowBetween}>
+                <Text style={st.redTitle}>
+                  {r.userBenefit?.benefit.title ?? r.dropClaim?.drop.title ?? r.voucher?.product.name}
+                </Text>
+                <Tag text={r.status === 'DONE' ? '정상' : '취소'} tone={r.status === 'DONE' ? 'ok' : 'bad'} />
+              </View>
+              <Text style={st.redSub}>
+                {new Date(r.createdAt).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                {' · '}{r.user.nickname} · {r.headcount}명
+                {r.savedAmount > 0 ? ` · 할인 ${won(r.savedAmount)}` : ''}
+              </Text>
+            </Card>
+          ))
+        )}
+
+        <Text style={st.section}>직원 확인 코드 조회</Text>
+        <Card>
+          <Text style={st.hint}>고가 상품은 손님 완료화면의 6자리 코드를 여기에 입력해 확인하세요. (90초 유효)</Text>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <TextInput
+              value={token}
+              onChangeText={(t) => setToken(t.toUpperCase())}
+              placeholder="예: PJ5VMM"
+              placeholderTextColor={C.ink3}
+              autoCapitalize="characters"
+              maxLength={6}
+              style={st.input}
+            />
+            <Btn title="확인" small onPress={verify} disabled={token.length < 4} />
+          </View>
+          {verifyResult && (
+            <View style={[st.verifyBox, { backgroundColor: verifyResult.valid ? C.okSoft : C.badSoft }]}>
+              {verifyResult.valid ? (
+                <>
+                  <Text style={[st.verifyTitle, { color: C.ok }]}>✓ 정상 사용 건입니다</Text>
+                  <Text style={st.verifyDetail}>
+                    {verifyResult.item} · {verifyResult.customer} · {verifyResult.headcount}명
+                  </Text>
+                </>
+              ) : (
+                <Text style={[st.verifyTitle, { color: C.bad }]}>
+                  ✕ {verifyResult.expired ? '만료된 코드입니다' : verifyResult.error ?? '확인할 수 없는 코드입니다'}
+                </Text>
+              )}
+            </View>
+          )}
+        </Card>
+
         <Text style={st.section}>내 DROP</Text>
         <Card>
           <Btn title="＋ 한정 딜 등록하기" onPress={() => router.push('/merchant-drop')} />
@@ -140,39 +195,6 @@ export default function MerchantMode() {
           );
         })}
 
-        <Text style={st.section}>직원 확인 코드 조회</Text>
-        <Card>
-          <Text style={st.hint}>고가 상품은 손님 완료화면의 6자리 코드를 여기에 입력해 확인하세요. (90초 유효)</Text>
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            <TextInput
-              value={token}
-              onChangeText={(t) => setToken(t.toUpperCase())}
-              placeholder="예: PJ5VMM"
-              placeholderTextColor={C.ink3}
-              autoCapitalize="characters"
-              maxLength={6}
-              style={st.input}
-            />
-            <Btn title="확인" small onPress={verify} disabled={token.length < 4} />
-          </View>
-          {verifyResult && (
-            <View style={[st.verifyBox, { backgroundColor: verifyResult.valid ? C.okSoft : C.badSoft }]}>
-              {verifyResult.valid ? (
-                <>
-                  <Text style={[st.verifyTitle, { color: C.ok }]}>✓ 정상 사용 건입니다</Text>
-                  <Text style={st.verifyDetail}>
-                    {verifyResult.item} · {verifyResult.customer} · {verifyResult.headcount}명
-                  </Text>
-                </>
-              ) : (
-                <Text style={[st.verifyTitle, { color: C.bad }]}>
-                  ✕ {verifyResult.expired ? '만료된 코드입니다' : verifyResult.error ?? '확인할 수 없는 코드입니다'}
-                </Text>
-              )}
-            </View>
-          )}
-        </Card>
-
         <Text style={st.section}>내 매장 QR</Text>
         <Card>
           {my.qrCodes.length === 0 ? (
@@ -188,26 +210,6 @@ export default function MerchantMode() {
           <Text style={st.hint}>손님이 이 QR을 스캔하면 이 매장에서 쓸 수 있는 혜택만 자동으로 보입니다.</Text>
         </Card>
 
-        <Text style={st.section}>최근 사용내역 (7일)</Text>
-        {!reds ? <Loading /> : reds.length === 0 ? (
-          <EmptyText text="아직 사용내역이 없습니다" />
-        ) : (
-          reds.map((r) => (
-            <Card key={r.id}>
-              <View style={st.rowBetween}>
-                <Text style={st.redTitle}>
-                  {r.userBenefit?.benefit.title ?? r.dropClaim?.drop.title ?? r.voucher?.product.name}
-                </Text>
-                <Tag text={r.status === 'DONE' ? '정상' : '취소'} tone={r.status === 'DONE' ? 'ok' : 'bad'} />
-              </View>
-              <Text style={st.redSub}>
-                {new Date(r.createdAt).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                {' · '}{r.user.nickname} · {r.headcount}명
-                {r.savedAmount > 0 ? ` · 할인 ${won(r.savedAmount)}` : ''}
-              </Text>
-            </Card>
-          ))
-        )}
       </ScrollView>
     </Screen>
   );
