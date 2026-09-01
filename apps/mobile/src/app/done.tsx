@@ -44,10 +44,13 @@ export default function DoneScreen() {
           <Text style={st.live}>실시간 화면 · {left}초</Text>
         </View>
 
-        <View style={st.tokenBox}>
-          <Text style={st.tokenLabel}>직원 확인 코드</Text>
-          <Text style={st.token}>{p.verifyToken}</Text>
-        </View>
+        {/* 6자리 코드는 직원 확인(고가) 상품에만 노출 — 일반 혜택은 흐르는 시계 확인만으로 끝 */}
+        {p.staff === '1' && (
+          <View style={st.tokenBox}>
+            <Text style={st.tokenLabel}>직원 확인 코드</Text>
+            <Text style={st.token}>{p.verifyToken}</Text>
+          </View>
+        )}
 
         {saved > 0 && (
           <Text style={st.saved}>이번에 {won(saved)} 아꼈어요 🎉</Text>
