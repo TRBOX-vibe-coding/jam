@@ -46,6 +46,25 @@ export default function MerchantMode() {
     }
   }
 
+  /** 사용내역 한 줄 카드 — 목록·스크롤 박스 양쪽에서 같은 모양으로 쓴다 */
+  function renderRedemption(r: any) {
+    return (
+      <Card key={r.id}>
+        <View style={st.rowBetween}>
+          <Text style={st.redTitle}>
+            {r.userBenefit?.benefit.title ?? r.dropClaim?.drop.title ?? r.voucher?.product.name}
+          </Text>
+          <Tag text={r.status === 'DONE' ? '정상' : '취소'} tone={r.status === 'DONE' ? 'ok' : 'bad'} />
+        </View>
+        <Text style={st.redSub}>
+          {new Date(r.createdAt).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+          {' · '}{r.user.nickname} · {r.headcount}명
+          {r.savedAmount > 0 ? ` · 할인 ${won(r.savedAmount)}` : ''}
+        </Text>
+      </Card>
+    );
+  }
+
   if (error) return <Screen><EmptyText text={error} /></Screen>;
   if (!my) return <Screen><Loading /></Screen>;
 
@@ -71,25 +90,21 @@ export default function MerchantMode() {
         )}
 
         {/* 현장 운영(사용 확인)이 등록보다 먼저 — 손님이 "사용 처리했어요" 하면 바로 봐야 한다 */}
-        <Text style={st.section}>최근 사용내역 (7일)</Text>
+        <Text style={st.section}>최근 사용내역 (7일{reds && reds.length > 0 ? ` · ${reds.length}건` : ''})</Text>
         {!reds ? <Loading /> : reds.length === 0 ? (
           <EmptyText text="아직 사용내역이 없습니다" />
+        ) : reds.length <= 3 ? (
+          reds.map(renderRedemption)
         ) : (
-          reds.map((r) => (
-            <Card key={r.id}>
-              <View style={st.rowBetween}>
-                <Text style={st.redTitle}>
-                  {r.userBenefit?.benefit.title ?? r.dropClaim?.drop.title ?? r.voucher?.product.name}
-                </Text>
-                <Tag text={r.status === 'DONE' ? '정상' : '취소'} tone={r.status === 'DONE' ? 'ok' : 'bad'} />
-              </View>
-              <Text style={st.redSub}>
-                {new Date(r.createdAt).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                {' · '}{r.user.nickname} · {r.headcount}명
-                {r.savedAmount > 0 ? ` · 할인 ${won(r.savedAmount)}` : ''}
-              </Text>
-            </Card>
-          ))
+          // 내역이 쌓여도 화면을 다 밀어내지 않도록, 4건부터는 안에서 스크롤한다
+          <View>
+            <View style={st.redScrollBox}>
+              <ScrollView nestedScrollEnabled showsVerticalScrollIndicator>
+                {reds.map(renderRedemption)}
+              </ScrollView>
+            </View>
+            <Text style={st.redMoreHint}>목록 안에서 위아래로 밀면 {reds.length}건 모두 볼 수 있어요</Text>
+          </View>
         )}
 
         <Text style={st.section}>직원 확인 코드 조회</Text>
@@ -238,4 +253,9 @@ const st = StyleSheet.create({
   redTitle: { fontSize: 14, fontWeight: '700', color: C.ink, flex: 1 },
   redSub: { fontSize: 12, color: C.ink3, marginTop: 4 },
   rejectReason: { fontSize: 12, color: C.bad, marginTop: 4, fontWeight: '600' },
+  redScrollBox: {
+    maxHeight: 318, borderWidth: 1, borderColor: C.line, borderRadius: 14,
+    backgroundColor: C.ground, paddingHorizontal: 8, paddingTop: 8,
+  },
+  redMoreHint: { fontSize: 11, color: C.ink3, textAlign: 'center', marginTop: 6 },
 });
