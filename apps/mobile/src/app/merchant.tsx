@@ -9,10 +9,10 @@ import { C, won } from '../lib/theme';
 import { Btn, Card, EmptyText, Loading, Screen, Tag } from '../lib/ui';
 
 /** 승인 상태 → 라벨·색. 상품/혜택 공용 */
-function approvalTag(item: { approval: string; isActive: boolean }) {
+function approvalTag(item: { approval: string; isActive: boolean }, activeLabel = '판매 중') {
   if (item.approval === 'PENDING') return { text: '승인 대기', tone: 'warn' as const };
   if (item.approval === 'REJECTED') return { text: '반려됨', tone: 'bad' as const };
-  return item.isActive ? { text: '판매 중', tone: 'ok' as const } : { text: '중지됨', tone: 'bad' as const };
+  return item.isActive ? { text: activeLabel, tone: 'ok' as const } : { text: '중지됨', tone: 'bad' as const };
 }
 
 export default function MerchantMode() {
@@ -121,7 +121,7 @@ export default function MerchantMode() {
           <Text style={st.hint}>멤버십 회원에게 상시로 열리는 할인·증정. 본사 승인 후 적용됩니다.</Text>
         </Card>
         {benefits?.map((b) => {
-          const t = approvalTag(b);
+          const t = approvalTag(b, '적용 중');
           return (
             <Card key={b.id}>
               <View style={st.rowBetween}>
