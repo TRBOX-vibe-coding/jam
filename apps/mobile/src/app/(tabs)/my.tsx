@@ -223,7 +223,10 @@ export default function MyScreen() {
           </>
         )}
 
-        <Text style={st.foot}>결제는 PG 연동 전까지 모의결제로 동작합니다 · v0.1</Text>
+        <Text style={st.foot}>
+          결제는 PG 연동 전까지 모의결제로 동작합니다{'\n'}
+          빌드 {process.env.EXPO_PUBLIC_BUILD ?? '개발 모드'}
+        </Text>
       </ScrollView>
     </Screen>
   );
