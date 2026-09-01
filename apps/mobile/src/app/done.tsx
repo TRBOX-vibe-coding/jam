@@ -6,10 +6,12 @@
 import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useAuth } from '../lib/auth';
 import { C, won } from '../lib/theme';
 import { Btn, Screen } from '../lib/ui';
 
 export default function DoneScreen() {
+  const { me } = useAuth();
   const p = useLocalSearchParams<{
     merchantName: string; itemTitle: string; savedAmount: string; verifyToken: string; staff: string;
   }>();
@@ -36,6 +38,13 @@ export default function DoneScreen() {
 
         <Text style={st.merchant}>{p.merchantName}</Text>
         <Text style={st.item}>{p.itemTitle}</Text>
+
+        {/* 닉네임 — 직원이 사용내역 맨 윗줄과 눈으로 대조하는 기준 (사이렌 오더 방식) */}
+        {!!me?.nickname && (
+          <View style={st.nickPill}>
+            <Text style={st.nick}>{me.nickname} 님</Text>
+          </View>
+        )}
 
         {/* 실시간 시계 — 캡처와 구분되는 핵심 요소 */}
         <Text style={st.clock}>{clock}</Text>
@@ -73,6 +82,11 @@ const st = StyleSheet.create({
   badgeText: { color: '#fff', fontWeight: '700', fontSize: 15 },
   merchant: { fontSize: 22, fontWeight: '700', color: C.ink, marginTop: 18 },
   item: { fontSize: 14, color: C.ink2, marginTop: 4, textAlign: 'center' },
+  nickPill: {
+    marginTop: 12, backgroundColor: C.brandSoft, borderRadius: 999,
+    paddingHorizontal: 18, paddingVertical: 8,
+  },
+  nick: { color: C.brand, fontSize: 16, fontWeight: '700' },
   clock: {
     fontSize: 44, fontWeight: '700', color: C.brand, marginTop: 20,
     fontVariant: ['tabular-nums'], letterSpacing: 1,
