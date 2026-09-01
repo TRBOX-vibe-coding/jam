@@ -102,6 +102,19 @@ export default function ProductsPage() {
     load();
   }
 
+  async function approveProduct(p: any) {
+    await api(`/admin/products/${p.id}/approve`, { method: 'POST' });
+    setMsg(`'${p.name}' 승인 — 판매가 시작됩니다`);
+    load();
+  }
+  async function rejectProduct(p: any) {
+    const reason = prompt('반려 사유를 입력하세요 (점주에게 표시됩니다)');
+    if (!reason) return;
+    await api(`/admin/products/${p.id}/reject`, { method: 'POST', body: { reason } });
+    setMsg('반려 처리했습니다');
+    load();
+  }
+
   async function changeImage(p: any, e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
@@ -204,6 +217,37 @@ export default function ProductsPage() {
 
       {tab === 'products' && (
         <>
+          {(rows ?? []).some((p) => p.approval === 'PENDING') && (
+            <Card>
+              <CardHeader title={`점주 등록 승인 대기 (${(rows ?? []).filter((p) => p.approval === 'PENDING').length})`} />
+              <Table head={['가맹점', '상품', '유형', '정상가', '멤버십가', '처리']}>
+                {(rows ?? []).filter((p) => p.approval === 'PENDING').map((p) => (
+                  <tr key={p.id}>
+                    <Td className="whitespace-nowrap font-medium">{p.merchant.name}</Td>
+                    <Td className="max-w-[260px]">
+                      <div className="flex items-center gap-2.5">
+                        <Thumb src={p.imageUrl} />
+                        <div className="min-w-0">
+                          <div className="truncate font-medium">{p.name}</div>
+                          <div className="truncate text-xs text-ink-3">{p.description}</div>
+                        </div>
+                      </div>
+                    </Td>
+                    <Td><Badge>{TYPE_LABEL[p.type] ?? p.type}</Badge></Td>
+                    <Td className="tabular-nums">{won(p.basePrice)}</Td>
+                    <Td className="tabular-nums">{p.memberPrice != null ? won(p.memberPrice) : '—'}</Td>
+                    <Td>
+                      <div className="flex gap-1.5">
+                        <Button small onClick={() => approveProduct(p)}>승인</Button>
+                        <Button small variant="danger" onClick={() => rejectProduct(p)}>반려</Button>
+                      </div>
+                    </Td>
+                  </tr>
+                ))}
+              </Table>
+            </Card>
+          )}
+
           {showCreate && (
             <Card className="p-5">
               <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
@@ -244,8 +288,13 @@ export default function ProductsPage() {
             ) : (
               <Table head={['상태', '가맹점', '상품명', '유형', '정상가', '멤버십가', '검증', '회차', '관리']}>
                 {rows.map((p) => (
-                  <tr key={p.id}>
-                    <Td><Badge>{p.isActive ? 'ACTIVE' : 'CLOSED'}</Badge></Td>
+                  <tr key={p.id} className={p.approval === 'REJECTED' ? 'opacity-60' : ''}>
+                    <Td>
+                      <Badge>{p.approval === 'PENDING' ? 'PENDING' : p.approval === 'REJECTED' ? 'REJECTED' : p.isActive ? 'ACTIVE' : 'CLOSED'}</Badge>
+                      {p.approval === 'REJECTED' && p.rejectReason && (
+                        <div className="mt-1 max-w-[120px] text-[11px] text-bad">반려: {p.rejectReason}</div>
+                      )}
+                    </Td>
                     <Td className="whitespace-nowrap">{p.merchant.name}</Td>
                     <Td className="max-w-[240px]">
                       <div className="flex items-center gap-2.5">
@@ -269,9 +318,15 @@ export default function ProductsPage() {
                           <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => changeImage(p, e)} />
                           <span className="inline-block rounded-md border border-line bg-white px-2.5 py-1 text-xs font-semibold text-ink-2 hover:bg-ground">사진</span>
                         </label>
-                        <Button small variant={p.isActive ? 'danger' : 'primary'} onClick={() => toggleActive(p)}>
-                          {p.isActive ? '중지' : '재개'}
-                        </Button>
+                        {p.approval === 'PENDING' ? (
+                          <Button small onClick={() => approveProduct(p)}>승인</Button>
+                        ) : p.approval === 'REJECTED' ? (
+                          <Button small onClick={() => approveProduct(p)}>재승인</Button>
+                        ) : (
+                          <Button small variant={p.isActive ? 'danger' : 'primary'} onClick={() => toggleActive(p)}>
+                            {p.isActive ? '중지' : '재개'}
+                          </Button>
+                        )}
                       </div>
                     </Td>
                   </tr>

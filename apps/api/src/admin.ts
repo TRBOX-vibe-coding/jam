@@ -19,6 +19,42 @@ import { AdminGuard, AdminId, AuthModule } from './auth';
 class RejectDto {
   @IsString() @MinLength(2) reason!: string;
 }
+class CreateBenefitDto {
+  @IsString() merchantId!: string;
+  @IsString() @MinLength(2) title!: string;
+  @IsIn(['PERCENT', 'AMOUNT', 'FREEBIE']) type!: 'PERCENT' | 'AMOUNT' | 'FREEBIE';
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) value?: number;
+  @IsOptional() @IsString() freebieName?: string;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(20) companionLimit?: number;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) maxUsePerUser?: number;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) maxUsePerDay?: number;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(0) minOrderAmount?: number;
+  @IsOptional() @IsString() conditions?: string;
+}
+class PatchBenefitDto {
+  @IsOptional() @IsString() @MinLength(2) title?: string;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) value?: number;
+  @IsOptional() @IsString() freebieName?: string;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(20) companionLimit?: number;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) maxUsePerUser?: number;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) maxUsePerDay?: number;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(0) minOrderAmount?: number;
+  @IsOptional() @IsString() conditions?: string;
+  @IsOptional() isActive?: boolean;
+}
+
+/** 혜택 유형별 필수 값 검증 */
+function validateBenefitValue(dto: { type: string; value?: number; freebieName?: string }) {
+  if (dto.type === 'PERCENT' && (!dto.value || dto.value < 1 || dto.value > 100)) {
+    throw new BadRequestException('할인율은 1~100 사이여야 합니다');
+  }
+  if (dto.type === 'AMOUNT' && (!dto.value || dto.value < 500)) {
+    throw new BadRequestException('할인 금액은 500원 이상이어야 합니다');
+  }
+  if (dto.type === 'FREEBIE' && !dto.freebieName?.trim()) {
+    throw new BadRequestException('증정품 이름을 입력해 주세요');
+  }
+}
 class CreateMerchantDto {
   @IsString() @MinLength(2) name!: string;
   @IsString() categoryId!: string;
@@ -618,6 +654,174 @@ export class AdminController {
     await this.prisma.client.productSlot.delete({ where: { id } });
     await this.audit(adminId, 'SLOT_DELETE', 'ProductSlot', id);
     return { ok: true };
+  }
+
+  /** 점주가 제출한 상품 승인 → 판매 시작 */
+  @Post('products/:id/approve')
+  async approveProduct(@AdminId() adminId: string, @Param('id') id: string) {
+    const p = await this.prisma.client.product.findUnique({ where: { id }, include: { merchant: { select: { name: true } } } });
+    if (!p) throw new NotFoundException();
+    const updated = await this.prisma.client.product.update({
+      where: { id },
+      data: { approval: 'ACTIVE', isActive: true, rejectReason: null },
+    });
+    await this.audit(adminId, 'PRODUCT_APPROVE', 'Product', id, `${p.merchant.name} / ${p.name}`);
+    return { ok: true, status: updated.approval };
+  }
+
+  /** 점주가 제출한 상품 반려 */
+  @Post('products/:id/reject')
+  async rejectProduct(@AdminId() adminId: string, @Param('id') id: string, @Body() dto: RejectDto) {
+    const p = await this.prisma.client.product.update({
+      where: { id },
+      data: { approval: 'REJECTED', isActive: false, rejectReason: dto.reason },
+    });
+    await this.audit(adminId, 'PRODUCT_REJECT', 'Product', id, dto.reason);
+    return { ok: true, status: p.approval };
+  }
+
+  // ---------------- 혜택(상시 할인쿠폰) ----------------
+
+  /**
+   * 혜택을 멤버십 회원에게 여는 공통 처리.
+   * ① 모든 멤버십 플랜에 지급 규칙을 걸고 ② 이미 유효한 멤버십 보유자에게도 즉시 지급한다.
+   * (규칙은 원래 구매 시점에만 실행되므로, 나중에 만든 혜택은 기존 회원에게 여기서 열어준다)
+   */
+  private async openBenefitToMembers(benefitId: string) {
+    const db = this.prisma.client;
+    const now = new Date();
+    const plans = await db.membershipPlan.findMany({ where: { isActive: true }, select: { id: true } });
+    for (const plan of plans) {
+      const exists = await db.benefitGrantRule.findFirst({
+        where: { benefitId, trigger: 'MEMBERSHIP_PLAN', membershipPlanId: plan.id },
+      });
+      if (!exists) {
+        await db.benefitGrantRule.create({
+          data: { benefitId, trigger: 'MEMBERSHIP_PLAN', membershipPlanId: plan.id },
+        });
+      }
+    }
+    const activeMemberships = await db.userMembership.findMany({
+      where: { endAt: { gt: now } },
+      select: { id: true, userId: true, endAt: true },
+    });
+    for (const ms of activeMemberships) {
+      await db.userBenefit.upsert({
+        where: {
+          userId_benefitId_sourceType_sourceId: {
+            userId: ms.userId, benefitId, sourceType: 'MEMBERSHIP_PLAN', sourceId: ms.id,
+          },
+        },
+        update: {},
+        create: {
+          userId: ms.userId, benefitId, sourceType: 'MEMBERSHIP_PLAN', sourceId: ms.id,
+          validFrom: now, validTo: ms.endAt,
+        },
+      });
+    }
+    return activeMemberships.length;
+  }
+
+  @Get('benefits')
+  benefits(@Query('status') status?: string) {
+    return this.prisma.client.benefit.findMany({
+      where: status ? { approval: status as never } : undefined,
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+      include: {
+        merchant: { select: { id: true, name: true } },
+        _count: { select: { userBenefits: true } },
+      },
+    });
+  }
+
+  /** 본사 직접 등록 — 즉시 활성화되고 유효한 멤버십 보유자에게 바로 열린다 */
+  @Post('benefits')
+  async createBenefit(@AdminId() adminId: string, @Body() dto: CreateBenefitDto) {
+    const merchant = await this.prisma.client.merchant.findUnique({
+      where: { id: dto.merchantId }, select: { name: true },
+    });
+    if (!merchant) throw new NotFoundException('가맹점을 찾을 수 없습니다');
+    validateBenefitValue(dto);
+    const b = await this.prisma.client.benefit.create({
+      data: {
+        merchantId: dto.merchantId,
+        title: dto.title.trim(),
+        type: dto.type as never,
+        value: dto.type === 'FREEBIE' ? 0 : dto.value!,
+        freebieName: dto.type === 'FREEBIE' ? dto.freebieName!.trim() : null,
+        companionLimit: dto.companionLimit ?? null,
+        maxUsePerUser: dto.maxUsePerUser ?? null,
+        maxUsePerDay: dto.maxUsePerDay ?? null,
+        minOrderAmount: dto.minOrderAmount ?? null,
+        conditions: dto.conditions?.trim() || null,
+        approval: 'ACTIVE',
+        isActive: true,
+      },
+    });
+    const granted = await this.openBenefitToMembers(b.id);
+    await this.audit(adminId, 'BENEFIT_CREATE', 'Benefit', b.id, `${merchant.name} / ${dto.title} (기존 회원 ${granted}명에게 지급)`);
+    return { ...b, grantedMembers: granted };
+  }
+
+  /** 점주 제출 혜택 승인 → 멤버십 회원에게 즉시 오픈 */
+  @Post('benefits/:id/approve')
+  async approveBenefit(@AdminId() adminId: string, @Param('id') id: string) {
+    const b = await this.prisma.client.benefit.findUnique({ where: { id }, include: { merchant: { select: { name: true } } } });
+    if (!b) throw new NotFoundException();
+    await this.prisma.client.benefit.update({
+      where: { id },
+      data: { approval: 'ACTIVE', isActive: true, rejectReason: null },
+    });
+    const granted = await this.openBenefitToMembers(id);
+    await this.audit(adminId, 'BENEFIT_APPROVE', 'Benefit', id, `${b.merchant.name} / ${b.title} (기존 회원 ${granted}명에게 지급)`);
+    return { ok: true, grantedMembers: granted };
+  }
+
+  /** 점주 제출 혜택 반려 */
+  @Post('benefits/:id/reject')
+  async rejectBenefit(@AdminId() adminId: string, @Param('id') id: string, @Body() dto: RejectDto) {
+    await this.prisma.client.benefit.update({
+      where: { id },
+      data: { approval: 'REJECTED', isActive: false, rejectReason: dto.reason },
+    });
+    await this.audit(adminId, 'BENEFIT_REJECT', 'Benefit', id, dto.reason);
+    return { ok: true };
+  }
+
+  @Patch('benefits/:id')
+  async patchBenefit(@AdminId() adminId: string, @Param('id') id: string, @Body() dto: PatchBenefitDto) {
+    const data: Record<string, unknown> = {};
+    if (dto.title) data.title = dto.title.trim();
+    if (dto.value != null) data.value = dto.value;
+    if (dto.freebieName !== undefined) data.freebieName = dto.freebieName?.trim() || null;
+    if (dto.companionLimit !== undefined) data.companionLimit = dto.companionLimit;
+    if (dto.maxUsePerUser !== undefined) data.maxUsePerUser = dto.maxUsePerUser;
+    if (dto.maxUsePerDay !== undefined) data.maxUsePerDay = dto.maxUsePerDay;
+    if (dto.minOrderAmount !== undefined) data.minOrderAmount = dto.minOrderAmount;
+    if (dto.conditions !== undefined) data.conditions = dto.conditions?.trim() || null;
+    if (dto.isActive != null) data.isActive = dto.isActive;
+    const b = await this.prisma.client.benefit.update({ where: { id }, data: data as never });
+    await this.audit(adminId, 'BENEFIT_UPDATE', 'Benefit', id, JSON.stringify(dto));
+    return b;
+  }
+
+  /** 혜택 삭제 — 지급 이력이 있으면 중지 처리로 전환 */
+  @Delete('benefits/:id')
+  async deleteBenefit(@AdminId() adminId: string, @Param('id') id: string) {
+    const b = await this.prisma.client.benefit.findUnique({
+      where: { id },
+      include: { _count: { select: { userBenefits: true } } },
+    });
+    if (!b) throw new NotFoundException();
+    if (b._count.userBenefits > 0) {
+      await this.prisma.client.benefit.update({ where: { id }, data: { isActive: false } });
+      await this.audit(adminId, 'BENEFIT_DEACTIVATE', 'Benefit', id, `지급 ${b._count.userBenefits}건 존재 → 중지 처리`);
+      return { ok: true, mode: 'deactivated', message: '이미 지급된 회원이 있어 중지 처리했습니다' };
+    }
+    await this.prisma.client.benefit.delete({ where: { id } });
+    await this.audit(adminId, 'BENEFIT_DELETE', 'Benefit', id, b.title);
+    return { ok: true, mode: 'deleted' };
   }
 
   // ---------------- 감사 로그 ----------------

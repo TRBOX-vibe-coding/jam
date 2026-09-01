@@ -9,6 +9,7 @@ const MENU = [
   { href: '/drops', label: 'DROP 관리', icon: '⚡' },
   { href: '/merchants', label: '가맹점', icon: '🏪' },
   { href: '/products', label: '상품·예약', icon: '🎟️' },
+  { href: '/benefits', label: '혜택', icon: '🎁' },
   { href: '/users', label: '회원', icon: '👥' },
   { href: '/settlements', label: '정산', icon: '💰' },
   { href: '/audit', label: '감사 로그', icon: '🧾' },

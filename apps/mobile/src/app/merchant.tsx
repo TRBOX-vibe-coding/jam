@@ -8,10 +8,19 @@ import { api } from '../lib/api';
 import { C, won } from '../lib/theme';
 import { Btn, Card, EmptyText, Loading, Screen, Tag } from '../lib/ui';
 
+/** 승인 상태 → 라벨·색. 상품/혜택 공용 */
+function approvalTag(item: { approval: string; isActive: boolean }) {
+  if (item.approval === 'PENDING') return { text: '승인 대기', tone: 'warn' as const };
+  if (item.approval === 'REJECTED') return { text: '반려됨', tone: 'bad' as const };
+  return item.isActive ? { text: '판매 중', tone: 'ok' as const } : { text: '중지됨', tone: 'bad' as const };
+}
+
 export default function MerchantMode() {
   const [my, setMy] = useState<any | null>(null);
   const [summary, setSummary] = useState<any | null>(null);
   const [reds, setReds] = useState<any[] | null>(null);
+  const [products, setProducts] = useState<any[] | null>(null);
+  const [benefits, setBenefits] = useState<any[] | null>(null);
   const [error, setError] = useState('');
   const [token, setToken] = useState('');
   const [verifyResult, setVerifyResult] = useState<any | null>(null);
@@ -22,6 +31,8 @@ export default function MerchantMode() {
       api<any>('/merchant/my').then(setMy).catch((e) => setError(e.message));
       api<any>('/merchant/my/summary').then(setSummary).catch(() => {});
       api<any[]>('/merchant/my/redemptions?days=7').then(setReds).catch(() => {});
+      api<any[]>('/merchant/my/products').then(setProducts).catch(() => {});
+      api<any[]>('/merchant/my/benefits').then(setBenefits).catch(() => {});
     }, []),
   );
 
@@ -78,6 +89,56 @@ export default function MerchantMode() {
             </Text>
           </Card>
         ))}
+
+        <Text style={st.section}>내 상품 (티켓·예약)</Text>
+        <Card>
+          <Btn title="＋ 상품 등록하기" onPress={() => router.push('/merchant-product')} />
+          <Text style={st.hint}>입장권·체험권·예약 클래스 등 정식 상품. 본사 승인 후 판매됩니다.</Text>
+        </Card>
+        {products?.map((p) => {
+          const t = approvalTag(p);
+          return (
+            <Card key={p.id}>
+              <View style={st.rowBetween}>
+                <Text style={st.redTitle} numberOfLines={1}>{p.name}</Text>
+                <Tag text={t.text} tone={t.tone} />
+              </View>
+              <Text style={st.redSub}>
+                {{ TICKET: '티켓', RESERVATION: '예약형', PASS: 'PASS' }[p.type as string] ?? p.type}
+                {' · '}정상가 {won(p.basePrice)}
+                {p.memberPrice != null ? ` · 멤버십가 ${won(p.memberPrice)}` : ''}
+              </Text>
+              {p.approval === 'REJECTED' && p.rejectReason && (
+                <Text style={st.rejectReason}>반려 사유: {p.rejectReason}</Text>
+              )}
+            </Card>
+          );
+        })}
+
+        <Text style={st.section}>내 혜택 (멤버십 할인쿠폰)</Text>
+        <Card>
+          <Btn title="＋ 혜택 등록하기" onPress={() => router.push('/merchant-benefit')} />
+          <Text style={st.hint}>멤버십 회원에게 상시로 열리는 할인·증정. 본사 승인 후 적용됩니다.</Text>
+        </Card>
+        {benefits?.map((b) => {
+          const t = approvalTag(b);
+          return (
+            <Card key={b.id}>
+              <View style={st.rowBetween}>
+                <Text style={st.redTitle} numberOfLines={1}>{b.title}</Text>
+                <Tag text={t.text} tone={t.tone} />
+              </View>
+              <Text style={st.redSub}>
+                {b.type === 'PERCENT' ? `${b.value}% 할인` : b.type === 'AMOUNT' ? `${won(b.value)} 할인` : `${b.freebieName} 증정`}
+                {b.companionLimit ? ` · 동반 ${b.companionLimit}인까지` : ''}
+                {b.maxUsePerDay ? ` · 하루 ${b.maxUsePerDay}회` : ''}
+              </Text>
+              {b.approval === 'REJECTED' && b.rejectReason && (
+                <Text style={st.rejectReason}>반려 사유: {b.rejectReason}</Text>
+              )}
+            </Card>
+          );
+        })}
 
         <Text style={st.section}>직원 확인 코드 조회</Text>
         <Card>
@@ -174,4 +235,5 @@ const st = StyleSheet.create({
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
   redTitle: { fontSize: 14, fontWeight: '700', color: C.ink, flex: 1 },
   redSub: { fontSize: 12, color: C.ink3, marginTop: 4 },
+  rejectReason: { fontSize: 12, color: C.bad, marginTop: 4, fontWeight: '600' },
 });

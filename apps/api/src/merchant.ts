@@ -34,6 +34,42 @@ class VerifyDto {
   @IsString() @MinLength(4) token!: string;
 }
 
+class CreateMerchantProductDto {
+  @IsIn(['TICKET', 'RESERVATION']) type!: 'TICKET' | 'RESERVATION';
+  @IsString() @MinLength(2) name!: string;
+  @IsOptional() @IsString() description?: string;
+  @Type(() => Number) @IsInt() @Min(1000) basePrice!: number;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(100) memberPrice?: number;
+  @IsOptional() @IsIn(['QR_ONLY', 'QR_PIN']) verification?: string;
+  @IsOptional() @IsString() cancelPolicy?: string;
+  @IsOptional() @IsString() imageBase64?: string;
+}
+
+class CreateMerchantBenefitDto {
+  @IsString() @MinLength(2) title!: string;
+  @IsIn(['PERCENT', 'AMOUNT', 'FREEBIE']) type!: 'PERCENT' | 'AMOUNT' | 'FREEBIE';
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) value?: number;
+  @IsOptional() @IsString() freebieName?: string;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(20) companionLimit?: number;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) maxUsePerUser?: number;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) maxUsePerDay?: number;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(0) minOrderAmount?: number;
+  @IsOptional() @IsString() conditions?: string;
+}
+
+/** 혜택 입력값 공통 검증 — 유형별 필수 값을 확인한다 */
+function validateBenefitInput(dto: { type: string; value?: number; freebieName?: string }) {
+  if (dto.type === 'PERCENT' && (!dto.value || dto.value < 1 || dto.value > 100)) {
+    throw new BadRequestException('할인율은 1~100 사이여야 합니다');
+  }
+  if (dto.type === 'AMOUNT' && (!dto.value || dto.value < 500)) {
+    throw new BadRequestException('할인 금액은 500원 이상이어야 합니다');
+  }
+  if (dto.type === 'FREEBIE' && !dto.freebieName?.trim()) {
+    throw new BadRequestException('증정품 이름을 입력해 주세요');
+  }
+}
+
 class ApplyDto {
   @IsString() @MinLength(2) name!: string;
   @IsString() regionId!: string;
@@ -198,6 +234,83 @@ export class MerchantController {
   async myDrops(@UserId() userId: string) {
     const m = await this.myMerchant(userId);
     return this.prisma.client.drop.findMany({
+      where: { merchantId: m.id },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+  }
+
+  /**
+   * 상품 등록 요청 (티켓·예약형) → 본사 승인 후 판매 시작.
+   * 야놀자·여기어때처럼 점주 셀프 등록이 기본이고, 품질은 승인 단계에서 거른다.
+   */
+  @Post('my/products')
+  async createProduct(@UserId() userId: string, @Body() dto: CreateMerchantProductDto) {
+    const m = await this.myMerchant(userId);
+    if (dto.memberPrice != null && dto.memberPrice >= dto.basePrice) {
+      throw new BadRequestException('멤버십가는 정상가보다 낮아야 합니다');
+    }
+    const imageUrl = dto.imageBase64 ? saveImageDataUrl(dto.imageBase64, 'product') : null;
+    const p = await this.prisma.client.product.create({
+      data: {
+        merchantId: m.id,
+        categoryId: m.categoryId,
+        type: dto.type,
+        name: dto.name.trim(),
+        description: dto.description?.trim() || null,
+        basePrice: dto.basePrice,
+        memberPrice: dto.memberPrice ?? null,
+        verification: (dto.verification ?? 'QR_ONLY') as never,
+        cancelPolicy: dto.cancelPolicy?.trim() || null,
+        imageUrl,
+        approval: 'PENDING',
+        isActive: false,
+      },
+    });
+    return { ok: true, productId: p.id, message: '등록 요청 완료. 본사 승인 후 판매가 시작됩니다.' };
+  }
+
+  /** 내가 등록한 상품 (승인 대기·반려 포함) */
+  @Get('my/products')
+  async myProducts(@UserId() userId: string) {
+    const m = await this.myMerchant(userId);
+    return this.prisma.client.product.findMany({
+      where: { merchantId: m.id },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+      include: { _count: { select: { slots: true } } },
+    });
+  }
+
+  /** 혜택(할인쿠폰) 등록 요청 → 본사 승인 후 멤버십 회원에게 열린다 */
+  @Post('my/benefits')
+  async createBenefit(@UserId() userId: string, @Body() dto: CreateMerchantBenefitDto) {
+    const m = await this.myMerchant(userId);
+    validateBenefitInput(dto);
+    const b = await this.prisma.client.benefit.create({
+      data: {
+        merchantId: m.id,
+        title: dto.title.trim(),
+        type: dto.type,
+        value: dto.type === 'FREEBIE' ? 0 : dto.value!,
+        freebieName: dto.type === 'FREEBIE' ? dto.freebieName!.trim() : null,
+        companionLimit: dto.companionLimit ?? null,
+        maxUsePerUser: dto.maxUsePerUser ?? null,
+        maxUsePerDay: dto.maxUsePerDay ?? null,
+        minOrderAmount: dto.minOrderAmount ?? null,
+        conditions: dto.conditions?.trim() || null,
+        approval: 'PENDING',
+        isActive: false,
+      },
+    });
+    return { ok: true, benefitId: b.id, message: '등록 요청 완료. 본사 승인 후 멤버십 회원에게 열립니다.' };
+  }
+
+  /** 내가 등록한 혜택 (승인 대기·반려 포함) */
+  @Get('my/benefits')
+  async myBenefits(@UserId() userId: string) {
+    const m = await this.myMerchant(userId);
+    return this.prisma.client.benefit.findMany({
       where: { merchantId: m.id },
       orderBy: { createdAt: 'desc' },
       take: 50,
