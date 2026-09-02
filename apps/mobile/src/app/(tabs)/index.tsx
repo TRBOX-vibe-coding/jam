@@ -5,9 +5,9 @@
  *  ③ 액티비티 예약 (프립 스타일 — 원형 카테고리 + 대형 사진 카드)
  *  ④ 내 혜택 매장
  */
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View,
+  Alert, Image, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -34,6 +34,27 @@ type BenefitGroup = {
   merchant: { id: string; name: string; thumbnailUrl: string | null; region: { name: string }; category: { emoji: string } };
   items: { title: string }[];
 };
+type CouponSlot = { time: string; opensAt: string; closesAt: string; state: 'upcoming' | 'open' | 'soldout' | 'ended'; remaining: number; total: number };
+type CouponDrop = {
+  id: string; validHours: number;
+  benefit: { title: string; type: string; value: number; freebieName: string | null; merchantName: string; regionName: string };
+  slots: CouponSlot[];
+};
+
+function notifyHome(title: string, msg: string) {
+  if (Platform.OS === 'web') window.alert(`${title}\n${msg}`);
+  else Alert.alert(title, msg);
+}
+
+/** 다음 오픈까지 남은 시간 문구 */
+function untilText(opensAt: string, now: number) {
+  const ms = new Date(opensAt).getTime() - now;
+  if (ms <= 0) return '';
+  const h = Math.floor(ms / 3600_000);
+  const m = Math.floor((ms % 3600_000) / 60_000);
+  const s = Math.floor((ms % 60_000) / 1000);
+  return h > 0 ? `${h}시간 ${m}분 후 오픈` : `${m}분 ${String(s).padStart(2, '0')}초 후 오픈`;
+}
 
 // 카테고리 타일 — 카테고리마다 고유 그라데이션 + 흰 라인 아이콘 (MZ 톤)
 const CATS: { code: string; label: string; icon: keyof typeof Ionicons.glyphMap; colors: [string, string] }[] = [
@@ -84,7 +105,17 @@ export default function HomeScreen() {
   const [drops, setDrops] = useState<Drop[] | null>(null);
   const [products, setProducts] = useState<Product[] | null>(null);
   const [benefits, setBenefits] = useState<BenefitGroup[]>([]);
+  const [coupons, setCoupons] = useState<CouponDrop[]>([]);
+  const [couponBusy, setCouponBusy] = useState(false);
+  const [nowTick, setNowTick] = useState(Date.now());
   const [refreshing, setRefreshing] = useState(false);
+
+  // 쿠폰 카운트다운용 1초 시계 — 쿠폰 섹션이 있을 때만 돈다
+  useEffect(() => {
+    if (coupons.length === 0) return;
+    const t = setInterval(() => setNowTick(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [coupons.length]);
 
   const sortProducts = (p: Product[]) =>
     p.filter((x) => x.type !== 'PASS').concat(p.filter((x) => x.type === 'PASS'));
@@ -104,6 +135,12 @@ export default function HomeScreen() {
         .then((b) => setBenefits(b.merchants))
         .catch(() => setBenefits([]));
     } else setBenefits([]);
+    // 타임 쿠폰 — 멤버십 회원에겐 안 보여주므로 비멤버/비로그인일 때만 조회
+    if (!me?.membership) {
+      api<{ drops: CouponDrop[] }>('/coupon-drops/today')
+        .then((r) => setCoupons(r.drops))
+        .catch(() => setCoupons([]));
+    } else setCoupons([]);
   }, [me]);
 
   useFocusEffect(useCallback(() => { load().catch(() => {}); }, [load]));
@@ -173,6 +210,69 @@ export default function HomeScreen() {
               </View>
             )}
         </Pressable>
+
+        {/* ①-b 오늘의 무료 쿠폰 — 비멤버 전용. 시간 한정·선착순으로 멤버십 전환을 유도한다 */}
+        {!me?.membership && coupons.length > 0 && (
+          <View style={st.couponWrap}>
+            <View style={st.sectionHead}>
+              <View>
+                <Text style={st.sectionTitle}>오늘의 무료 쿠폰 ⏰</Text>
+                <Text style={st.sectionSub}>정해진 시간에 선착순으로 열려요</Text>
+              </View>
+            </View>
+            {coupons.map((cd) => {
+              const open = cd.slots.find((s) => s.state === 'open');
+              const upcoming = cd.slots.find((s) => s.state === 'upcoming');
+              const soldout = !open && cd.slots.find((s) => s.state === 'soldout');
+              const timesLabel = cd.slots.map((s) => s.time).join(' · ');
+              return (
+                <View key={cd.id} style={st.couponCard}>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={st.couponTitle} numberOfLines={1}>{cd.benefit.title}</Text>
+                    <Text style={st.couponSub} numberOfLines={1}>
+                      {cd.benefit.merchantName} · 매일 {timesLabel} · 받으면 {cd.validHours}시간 유효
+                    </Text>
+                  </View>
+                  {open ? (
+                    <Pressable
+                      style={st.couponBtn}
+                      onPress={async () => {
+                        if (!me) { router.push('/(tabs)/my'); return; }
+                        if (couponBusy) return;
+                        setCouponBusy(true);
+                        try {
+                          const r = await api<any>(`/coupon-drops/${cd.id}/claim`, { method: 'POST', body: {} });
+                          notifyHome('쿠폰 도착 🎉', r.message);
+                          load().catch(() => {});
+                        } catch (e: any) {
+                          notifyHome('받을 수 없어요', e.message);
+                        } finally {
+                          setCouponBusy(false);
+                        }
+                      }}
+                    >
+                      <Text style={st.couponBtnText}>받기</Text>
+                      <Text style={st.couponBtnSub}>{open.remaining}장 남음</Text>
+                    </Pressable>
+                  ) : upcoming ? (
+                    <View style={st.couponWait}>
+                      <Text style={st.couponWaitTime}>{upcoming.time} 오픈</Text>
+                      <Text style={st.couponWaitSub}>{untilText(upcoming.opensAt, nowTick)}</Text>
+                    </View>
+                  ) : (
+                    <View style={st.couponWait}>
+                      <Text style={st.couponWaitTime}>{soldout ? '소진 완료' : '오늘 마감'}</Text>
+                      <Text style={st.couponWaitSub}>내일 {cd.slots[0]?.time}에 다시</Text>
+                    </View>
+                  )}
+                </View>
+              );
+            })}
+            <Pressable onPress={() => router.push('/(tabs)/my')}>
+              <Text style={st.couponUpsell}>멤버십은 기다림 없이 모든 혜택 상시 오픈 →</Text>
+            </Pressable>
+          </View>
+        )}
 
         {/* ② 오늘 도착한 DROP */}
         <View style={st.sectionHead}>
@@ -338,6 +438,27 @@ const st = StyleSheet.create({
   loginBtn: { backgroundColor: C.brand, color: '#fff', fontSize: 13, fontWeight: '700', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, overflow: 'hidden' },
 
   sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', paddingHorizontal: 16, marginTop: 24, marginBottom: 11 },
+  couponWrap: { marginTop: 2 },
+  couponCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: C.white, borderWidth: 1.5, borderColor: C.brandSoft, borderRadius: 14,
+    paddingHorizontal: 14, paddingVertical: 12, marginHorizontal: 16, marginBottom: 8,
+  },
+  couponTitle: { fontSize: 14.5, fontWeight: '700', color: C.ink },
+  couponSub: { fontSize: 11.5, color: C.ink3, marginTop: 3 },
+  couponBtn: {
+    backgroundColor: C.brand, borderRadius: 11, paddingHorizontal: 16, paddingVertical: 8,
+    alignItems: 'center', minWidth: 76,
+  },
+  couponBtnText: { color: '#fff', fontSize: 14.5, fontWeight: '700' },
+  couponBtnSub: { color: '#CFE8F8', fontSize: 10.5, fontWeight: '700', marginTop: 1 },
+  couponWait: { alignItems: 'flex-end', minWidth: 96 },
+  couponWaitTime: { fontSize: 13.5, fontWeight: '700', color: C.brand },
+  couponWaitSub: { fontSize: 10.5, color: C.ink3, marginTop: 2, fontVariant: ['tabular-nums'] },
+  couponUpsell: {
+    fontSize: 12, fontWeight: '700', color: C.brand, textAlign: 'center',
+    marginTop: 2, marginBottom: 2, textDecorationLine: 'underline',
+  },
   sectionTitle: { fontSize: 17, fontWeight: '700', color: C.ink, letterSpacing: -0.3 },
   sectionSub: { fontSize: 12, color: C.ink3, marginTop: 2 },
   more: { fontSize: 12.5, fontWeight: '700', color: C.brand },

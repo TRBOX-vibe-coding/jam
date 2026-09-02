@@ -43,6 +43,21 @@ class PatchBenefitDto {
   @IsOptional() isActive?: boolean;
 }
 
+class CreateCouponDropDto {
+  @IsString() benefitId!: string;
+  @IsString({ each: true }) times!: string[];
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(1000) qtyPerSlot?: number;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(168) validHours?: number;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(5) @Max(1440) claimWindowMinutes?: number;
+}
+class PatchCouponDropDto {
+  @IsOptional() @IsString({ each: true }) times?: string[];
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(1000) qtyPerSlot?: number;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(168) validHours?: number;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(5) @Max(1440) claimWindowMinutes?: number;
+  @IsOptional() isActive?: boolean;
+}
+
 /** 혜택 유형별 필수 값 검증 */
 function validateBenefitValue(dto: { type: string; value?: number; freebieName?: string }) {
   if (dto.type === 'PERCENT' && (!dto.value || dto.value < 1 || dto.value > 100)) {
@@ -822,6 +837,80 @@ export class AdminController {
     await this.prisma.client.benefit.delete({ where: { id } });
     await this.audit(adminId, 'BENEFIT_DELETE', 'Benefit', id, b.title);
     return { ok: true, mode: 'deleted' };
+  }
+
+  // ---------------- 타임 쿠폰 드롭 ----------------
+
+  @Get('coupon-drops')
+  async couponDrops() {
+    const db = this.prisma.client;
+    const rows = await db.couponDrop.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        benefit: { select: { id: true, title: true, merchant: { select: { name: true } } } },
+        _count: { select: { claims: true } },
+      },
+    });
+    const t0 = new Date(); t0.setHours(0, 0, 0, 0);
+    const out = [];
+    for (const r of rows) {
+      const todayClaims = await db.couponClaim.count({
+        where: { couponDropId: r.id, createdAt: { gte: t0 } },
+      });
+      out.push({ ...r, todayClaims });
+    }
+    return out;
+  }
+
+  @Post('coupon-drops')
+  async createCouponDrop(@AdminId() adminId: string, @Body() dto: CreateCouponDropDto) {
+    const benefit = await this.prisma.client.benefit.findUnique({
+      where: { id: dto.benefitId },
+      select: { title: true, merchant: { select: { name: true } } },
+    });
+    if (!benefit) throw new NotFoundException('혜택을 찾을 수 없습니다');
+    for (const t of dto.times) {
+      if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(t)) throw new BadRequestException(`시각 형식이 올바르지 않습니다: ${t} (예: 09:00)`);
+    }
+    const d = await this.prisma.client.couponDrop.create({
+      data: {
+        benefitId: dto.benefitId,
+        times: dto.times,
+        qtyPerSlot: dto.qtyPerSlot ?? 30,
+        validHours: dto.validHours ?? 24,
+        claimWindowMinutes: dto.claimWindowMinutes ?? 60,
+      },
+    });
+    await this.audit(adminId, 'COUPON_DROP_CREATE', 'CouponDrop', d.id, `${benefit.merchant.name} / ${benefit.title} @ ${dto.times.join(',')}`);
+    return d;
+  }
+
+  @Patch('coupon-drops/:id')
+  async patchCouponDrop(@AdminId() adminId: string, @Param('id') id: string, @Body() dto: PatchCouponDropDto) {
+    if (dto.times) {
+      for (const t of dto.times) {
+        if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(t)) throw new BadRequestException(`시각 형식이 올바르지 않습니다: ${t}`);
+      }
+    }
+    const d = await this.prisma.client.couponDrop.update({
+      where: { id },
+      data: {
+        ...(dto.times ? { times: dto.times } : {}),
+        ...(dto.qtyPerSlot != null ? { qtyPerSlot: dto.qtyPerSlot } : {}),
+        ...(dto.validHours != null ? { validHours: dto.validHours } : {}),
+        ...(dto.claimWindowMinutes != null ? { claimWindowMinutes: dto.claimWindowMinutes } : {}),
+        ...(dto.isActive != null ? { isActive: dto.isActive } : {}),
+      },
+    });
+    await this.audit(adminId, 'COUPON_DROP_UPDATE', 'CouponDrop', id, JSON.stringify(dto));
+    return d;
+  }
+
+  @Delete('coupon-drops/:id')
+  async deleteCouponDrop(@AdminId() adminId: string, @Param('id') id: string) {
+    await this.prisma.client.couponDrop.delete({ where: { id } });
+    await this.audit(adminId, 'COUPON_DROP_DELETE', 'CouponDrop', id);
+    return { ok: true };
   }
 
   // ---------------- 감사 로그 ----------------
