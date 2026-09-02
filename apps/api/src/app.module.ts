@@ -9,6 +9,7 @@ import { ScanModule } from './scan';
 import { MerchantModule } from './merchant';
 import { AdminModule } from './admin';
 import { StoreModule } from './store';
+import { CouponModule } from './coupon';
 import { UploadsController } from './uploads.controller';
 
 @Controller()
@@ -31,6 +32,7 @@ class HealthController {
     MerchantModule,
     AdminModule,
     StoreModule,
+    CouponModule,
   ],
   controllers: [HealthController, UploadsController],
 })

@@ -28,19 +28,56 @@ function approvalBadge(b: any): string {
 }
 
 export default function BenefitsPage() {
+  const [tab, setTab] = useState<'benefits' | 'coupons'>('benefits');
   const [rows, setRows] = useState<any[] | null>(null);
   const [merchants, setMerchants] = useState<any[]>([]);
   const [msg, setMsg] = useState('');
   const [editing, setEditing] = useState<any | 'new' | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
 
+  // 타임 쿠폰 드롭
+  const [cdRows, setCdRows] = useState<any[] | null>(null);
+  const [cdForm, setCdForm] = useState({ benefitId: '', times: '09:00, 17:00', qtyPerSlot: '30', validHours: '24' });
+
   const load = useCallback(() => {
     api<any[]>('/admin/benefits').then(setRows).catch(() => setRows([]));
+    api<any[]>('/admin/coupon-drops').then(setCdRows).catch(() => setCdRows([]));
   }, []);
   useEffect(() => {
     load();
     api<any[]>('/admin/merchants?status=ACTIVE').then(setMerchants).catch(() => {});
   }, [load]);
+
+  async function createCouponDrop() {
+    try {
+      const times = cdForm.times.split(',').map((t) => t.trim()).filter(Boolean);
+      await api('/admin/coupon-drops', {
+        method: 'POST',
+        body: {
+          benefitId: cdForm.benefitId,
+          times,
+          qtyPerSlot: Number(cdForm.qtyPerSlot) || 30,
+          validHours: Number(cdForm.validHours) || 24,
+        },
+      });
+      setMsg('타임 쿠폰 배포를 등록했습니다');
+      setCdForm({ benefitId: '', times: '09:00, 17:00', qtyPerSlot: '30', validHours: '24' });
+      load();
+    } catch (e: any) {
+      alert(e.message);
+    }
+  }
+  async function toggleCouponDrop(d: any) {
+    await api(`/admin/coupon-drops/${d.id}`, { method: 'PATCH', body: { isActive: !d.isActive } });
+    setMsg(`'${d.benefit.title}' 배포 → ${d.isActive ? '중지' : '재개'}`);
+    load();
+  }
+  async function removeCouponDrop(d: any) {
+    if (!confirm(`'${d.benefit.title}' 타임 배포를 삭제할까요? (이미 지급된 쿠폰은 유지됩니다)`)) return;
+    await api(`/admin/coupon-drops/${d.id}`, { method: 'DELETE' });
+    setMsg('배포를 삭제했습니다');
+    load();
+  }
 
   const pending = (rows ?? []).filter((b) => b.approval === 'PENDING');
 
@@ -130,6 +167,81 @@ export default function BenefitsPage() {
         </div>
       </div>
 
+      {/* 탭 */}
+      <div className="flex gap-1 border-b border-line">
+        {([['benefits', '혜택 관리'], ['coupons', '⏰ 타임 쿠폰 배포']] as const).map(([key, label]) => (
+          <button
+            key={key}
+            onClick={() => setTab(key)}
+            className={`-mb-px border-b-2 px-4 py-2 text-sm font-semibold ${
+              tab === key ? 'border-brand text-brand' : 'border-transparent text-ink-3 hover:text-ink-2'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'coupons' && (
+        <>
+          <p className="text-xs text-ink-3">
+            정해진 시각(예: 09:00·17:00)마다 <b>무료 회원에게 선착순 쿠폰</b>을 뿌립니다.
+            멤버십 회원은 이미 전 혜택이 상시 오픈이라 대상이 아니며, 무료 회원의 앱 홈에 카운트다운과 [받기] 버튼이 표시됩니다.
+          </p>
+          <Card className="p-5">
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+              <select className={inputCls + ' lg:col-span-2'} value={cdForm.benefitId} onChange={(e) => setCdForm({ ...cdForm, benefitId: e.target.value })}>
+                <option value="">배포할 혜택 선택</option>
+                {(rows ?? []).filter((b) => b.approval === 'ACTIVE' && b.isActive).map((b) => (
+                  <option key={b.id} value={b.id}>{b.merchant.name} — {b.title}</option>
+                ))}
+              </select>
+              <input className={inputCls} placeholder="배포 시각 (09:00, 17:00)" value={cdForm.times} onChange={(e) => setCdForm({ ...cdForm, times: e.target.value })} />
+              <input className={inputCls} placeholder="회차당 수량" value={cdForm.qtyPerSlot} onChange={(e) => setCdForm({ ...cdForm, qtyPerSlot: e.target.value.replace(/\D/g, '') })} />
+              <div className="flex gap-2">
+                <input className={inputCls} placeholder="유효(시간)" value={cdForm.validHours} onChange={(e) => setCdForm({ ...cdForm, validHours: e.target.value.replace(/\D/g, '') })} />
+                <Button onClick={createCouponDrop} disabled={!cdForm.benefitId || !cdForm.times.trim()}>등록</Button>
+              </div>
+            </div>
+            <p className="mt-2 text-[11px] text-ink-3">배포 시각은 쉼표로 여러 개 지정할 수 있습니다. 각 회차는 시작 후 60분 동안(또는 소진 시까지) 받을 수 있습니다.</p>
+          </Card>
+          <Card>
+            <CardHeader title={`배포 목록 (${cdRows?.length ?? '…'})`} />
+            {cdRows === null ? (
+              <TableSkeleton rows={3} cols={6} />
+            ) : cdRows.length === 0 ? (
+              <Empty text="등록된 타임 배포가 없습니다. 위에서 혜택을 골라 등록해 보세요." />
+            ) : (
+              <Table head={['상태', '혜택', '배포 시각', '회차당 수량', '유효', '오늘/누적 수령', '관리']}>
+                {cdRows.map((d) => (
+                  <tr key={d.id} className={d.isActive ? '' : 'opacity-60'}>
+                    <Td><Badge>{d.isActive ? 'ACTIVE' : 'CLOSED'}</Badge></Td>
+                    <Td className="max-w-[260px]">
+                      <div className="truncate font-medium">{d.benefit.title}</div>
+                      <div className="text-xs text-ink-3">{d.benefit.merchant.name}</div>
+                    </Td>
+                    <Td className="whitespace-nowrap font-medium text-brand">{d.times.join(' · ')}</Td>
+                    <Td className="tabular-nums">{d.qtyPerSlot}장</Td>
+                    <Td className="tabular-nums">{d.validHours}시간</Td>
+                    <Td className="tabular-nums text-xs text-ink-3">{d.todayClaims} / {d._count.claims}장</Td>
+                    <Td>
+                      <div className="flex gap-1.5">
+                        <Button small variant={d.isActive ? 'danger' : 'primary'} onClick={() => toggleCouponDrop(d)}>
+                          {d.isActive ? '중지' : '재개'}
+                        </Button>
+                        <Button small variant="danger" onClick={() => removeCouponDrop(d)}>삭제</Button>
+                      </div>
+                    </Td>
+                  </tr>
+                ))}
+              </Table>
+            )}
+          </Card>
+        </>
+      )}
+
+      {tab === 'benefits' && (
+      <>
       <p className="text-xs text-ink-3">
         멤버십 회원에게 상시로 열리는 할인·증정입니다. 점주가 앱에서 제출하면 여기서 승인하고,
         승인 즉시 <b>유효한 멤버십 보유자 전원의 혜택함</b>에 자동 지급됩니다.
@@ -211,6 +323,9 @@ export default function BenefitsPage() {
           </Table>
         )}
       </Card>
+
+      </>
+      )}
 
       {editing && (
         <Modal title={isNew ? '혜택 직접 등록' : `혜택 수정 — ${(editing as any).title}`} onClose={() => setEditing(null)} wide>

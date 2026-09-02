@@ -107,6 +107,7 @@ model User {
   redemptions        Redemption[]
   ownedMerchants     Merchant[]             @relation("MerchantOwner")
   devices            UserDevice[]
+  couponClaims       CouponClaim[]
 
   @@unique([provider, providerId])
   @@index([status])
@@ -314,8 +315,50 @@ model Benefit {
 
   grantRules   BenefitGrantRule[]
   userBenefits UserBenefit[]
+  couponDrops  CouponDrop[]
 
   @@index([merchantId, isActive])
+}
+
+/**
+ * 타임 쿠폰 드롭 — 무료 유저에게 정해진 시각(예: 09:00·17:00)마다
+ * 선착순 무료 쿠폰을 뿌리는 배포 설정. 멤버십 전환 유도용.
+ */
+model CouponDrop {
+  id        String  @id @default(cuid())
+  benefitId String
+  benefit   Benefit @relation(fields: [benefitId], references: [id], onDelete: Cascade)
+
+  /// 배포 시각 "HH:mm" 목록 (매일 반복)
+  times      String[]
+  /// 회차당 선착순 수량
+  qtyPerSlot Int     @default(30)
+  /// 받은 뒤 유효 시간(시간 단위)
+  validHours Int     @default(24)
+  /// 배포 시각부터 받을 수 있는 시간(분) — 지나면 마감
+  claimWindowMinutes Int @default(60)
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  claims CouponClaim[]
+
+  @@index([isActive])
+}
+
+/// 회차별 수령 기록 — 선착순 카운트 + 1인 1회 보장
+model CouponClaim {
+  id           String     @id @default(cuid())
+  couponDropId String
+  couponDrop   CouponDrop @relation(fields: [couponDropId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// 어느 날 어느 회차인지 (예: "2026-09-02 09:00")
+  slotKey      String
+  createdAt    DateTime   @default(now())
+
+  @@unique([couponDropId, userId, slotKey])
+  @@index([couponDropId, slotKey])
 }
 
 enum GrantTrigger {
