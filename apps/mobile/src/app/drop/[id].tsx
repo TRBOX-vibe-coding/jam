@@ -19,14 +19,14 @@ const fmtMin = (m: number) =>
 export default function DropDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { me } = useAuth();
-  const { t, won, locale } = useI18n();
+  const { t, won, locale, lang } = useI18n();
   const [d, setD] = useState<any | null>(null);
   const [busy, setBusy] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
       api<any>(`/drops/${id}`).then(setD).catch(() => {});
-    }, [id]),
+    }, [id, lang]),
   );
 
   async function claim() {

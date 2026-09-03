@@ -13,13 +13,13 @@ import { Btn, Card, Loading, Screen, Tag } from '../../lib/ui';
 export default function StoreDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { me } = useAuth();
-  const { t, won } = useI18n();
+  const { t, won, lang } = useI18n();
   const [m, setM] = useState<any | null>(null);
 
   useFocusEffect(
     useCallback(() => {
       api<any>(`/merchants/${id}`).then(setM).catch(() => {});
-    }, [id]),
+    }, [id, lang]),
   );
 
   if (!m) return <Screen><Loading /></Screen>;

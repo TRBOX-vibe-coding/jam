@@ -26,7 +26,7 @@ export class MembershipController {
     return this.prisma.client.membershipPlan.findMany({
       where: { isActive: true },
       orderBy: { sortOrder: 'asc' },
-      select: { id: true, code: true, name: true, description: true, price: true, durationDays: true },
+      select: { id: true, code: true, name: true, description: true, price: true, durationDays: true, i18n: true },
     });
   }
 

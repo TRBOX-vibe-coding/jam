@@ -23,9 +23,9 @@ export class BenefitsController {
           include: {
             merchant: {
               select: {
-                id: true, name: true, address: true, thumbnailUrl: true,
-                region: { select: { name: true } },
-                category: { select: { name: true, emoji: true } },
+                id: true, name: true, address: true, thumbnailUrl: true, i18n: true,
+                region: { select: { name: true, i18n: true } },
+                category: { select: { name: true, emoji: true, i18n: true } },
               },
             },
           },
@@ -50,7 +50,8 @@ export class BenefitsController {
         freebieName: ub.benefit.freebieName,
         validTo: ub.validTo,
         sourceType: ub.sourceType,
-      });
+        i18n: (ub.benefit as any).i18n,
+      } as any);
     }
 
     return {

@@ -99,14 +99,14 @@ export default function HomeScreen() {
     p.filter((x) => x.type !== 'PASS').concat(p.filter((x) => x.type === 'PASS'));
 
   const load = useCallback(async () => {
-    // ① 직전 캐시로 화면부터 채우고 ② 네트워크 도착분으로 갱신 — 섹션별 독립 로딩
-    cacheGet<Drop[]>('drops').then((c) => { if (c) setDrops((prev) => prev ?? c); });
-    cacheGet<Product[]>('products').then((c) => { if (c) setProducts((prev) => prev ?? sortProducts(c)); });
+    // ① 직전 캐시로 화면부터 채우고 ② 네트워크 도착분으로 갱신 — 섹션별 독립 로딩 (언어별 캐시)
+    cacheGet<Drop[]>(`drops:${lang}`).then((c) => { if (c) setDrops((prev) => prev ?? c); });
+    cacheGet<Product[]>(`products:${lang}`).then((c) => { if (c) setProducts((prev) => prev ?? sortProducts(c)); });
     api<Drop[]>('/drops')
-      .then((d) => { setDrops(d); cacheSet('drops', d); })
+      .then((d) => { setDrops(d); cacheSet(`drops:${lang}`, d); })
       .catch(() => setDrops((prev) => prev ?? []));
     api<Product[]>('/products')
-      .then((p) => { setProducts(sortProducts(p)); cacheSet('products', p); })
+      .then((p) => { setProducts(sortProducts(p)); cacheSet(`products:${lang}`, p); })
       .catch(() => setProducts((prev) => prev ?? []));
     if (me) {
       api<{ merchants: BenefitGroup[] }>('/me/benefits')
@@ -119,7 +119,7 @@ export default function HomeScreen() {
         .then((r) => setCoupons(r.drops))
         .catch(() => setCoupons([]));
     } else setCoupons([]);
-  }, [me]);
+  }, [me, lang]);
 
   useFocusEffect(useCallback(() => { load().catch(() => {}); }, [load]));
 

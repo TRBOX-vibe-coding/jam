@@ -1,4 +1,6 @@
 import { Controller, Get, Module } from '@nestjs/common';
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import { I18nInterceptor } from './i18n.util';
 import { AuthModule } from './auth';
 import { CatalogModule } from './catalog';
 import { MembershipModule } from './membership';
@@ -35,5 +37,6 @@ class HealthController {
     CouponModule,
   ],
   controllers: [HealthController, UploadsController],
+  providers: [{ provide: APP_INTERCEPTOR, useClass: I18nInterceptor }],
 })
 export class AppModule {}
