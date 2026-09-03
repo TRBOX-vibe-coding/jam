@@ -5,7 +5,8 @@ import { useCallback, useState } from 'react';
 import { Alert, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { api } from '../../lib/api';
-import { C, won } from '../../lib/theme';
+import { useI18n } from '../../lib/i18n';
+import { C } from '../../lib/theme';
 import { Btn, Card, EmptyText, Loading, Screen, Tag } from '../../lib/ui';
 
 type ScanResult = {
@@ -18,6 +19,7 @@ type ScanResult = {
 
 export default function UseScreen() {
   const { qr } = useLocalSearchParams<{ qr: string }>();
+  const { t, won, locale } = useI18n();
   const [data, setData] = useState<ScanResult | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -51,18 +53,18 @@ export default function UseScreen() {
         });
       } catch (e: any) {
         if (Platform.OS === 'web') window.alert(e.message);
-        else Alert.alert('사용할 수 없습니다', e.message);
+        else Alert.alert(t('cantUse'), e.message);
       } finally {
         setBusy(false);
       }
     };
 
     if (Platform.OS === 'web') {
-      if (window.confirm(`"${title}"을(를) 지금 사용할까요?\n직원 앞에서 눌러주세요.`)) await run();
+      if (window.confirm(t('useConfirmWeb', { title }))) await run();
     } else {
-      Alert.alert('지금 사용할까요?', `"${title}"\n직원 앞에서 눌러주세요.`, [
-        { text: '취소', style: 'cancel' },
-        { text: '사용하기', style: 'destructive', onPress: run },
+      Alert.alert(t('useConfirmTitle'), `"${title}"\n${t('pressBeforeStaff')}`, [
+        { text: t('cancel'), style: 'cancel' },
+        { text: t('useNow'), style: 'destructive', onPress: run },
       ]);
     }
   }
@@ -72,7 +74,7 @@ export default function UseScreen() {
       <Screen>
         <View style={{ padding: 24 }}>
           <EmptyText text={error} />
-          <Btn title="다시 스캔" tone="ghost" onPress={() => router.back()} />
+          <Btn title={t('rescan')} tone="ghost" onPress={() => router.back()} />
         </View>
       </Screen>
     );
@@ -88,26 +90,25 @@ export default function UseScreen() {
         </Card>
 
         {data.empty && (
-          <EmptyText text="이 매장에서 지금 쓸 수 있는 혜택이 없어요.
-멤버십을 시작하거나 DROP을 받아보세요." />
+          <EmptyText text={t('nothingHere')} />
         )}
 
-        {data.vouchers.length > 0 && <Text style={st.section}>구매한 이용권</Text>}
+        {data.vouchers.length > 0 && <Text style={st.section}>{t('myVouchers')}</Text>}
         {data.vouchers.map((v) => (
           <Card key={v.id}>
             <Text style={st.itemTitle}>{v.productName}</Text>
             <Text style={st.itemSub}>
-              {v.headcount}명 · 코드 {v.code}
-              {v.reservedAt ? ` · 예약 ${new Date(v.reservedAt).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}` : ''}
+              {t('voucherMeta', { n: v.headcount, code: v.code })}
+              {v.reservedAt ? t('reservedMeta', { date: new Date(v.reservedAt).toLocaleString(locale, { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) }) : ''}
             </Text>
             {v.verification !== 'QR_ONLY' && (
-              <View style={{ marginBottom: 8 }}><Tag text="직원 확인 상품" tone="warn" /></View>
+              <View style={{ marginBottom: 8 }}><Tag text={t('staffItem')} tone="warn" /></View>
             )}
-            <Btn title="사용하기" small onPress={() => redeem('VOUCHER', v.id, v.productName)} disabled={busy} />
+            <Btn title={t('useNow')} small onPress={() => redeem('VOUCHER', v.id, v.productName)} disabled={busy} />
           </Card>
         ))}
 
-        {data.dropClaims.length > 0 && <Text style={st.section}>받은 DROP 딜</Text>}
+        {data.dropClaims.length > 0 && <Text style={st.section}>{t('claimedDeals')}</Text>}
         {data.dropClaims.map((d) => (
           <Card key={d.id}>
             <Text style={st.itemTitle}>{d.title}</Text>
@@ -117,23 +118,23 @@ export default function UseScreen() {
             {d.blocked ? (
               <Tag text={d.blocked} tone="bad" />
             ) : (
-              <Btn title="사용하기" small onPress={() => redeem('DROP', d.id, d.title)} disabled={busy} />
+              <Btn title={t('useNow')} small onPress={() => redeem('DROP', d.id, d.title)} disabled={busy} />
             )}
           </Card>
         ))}
 
-        {data.benefits.length > 0 && <Text style={st.section}>상시 혜택</Text>}
+        {data.benefits.length > 0 && <Text style={st.section}>{t('alwaysBenefits')}</Text>}
         {data.benefits.map((b) => (
           <Card key={b.id}>
             <Text style={st.itemTitle}>{b.title}</Text>
             <Text style={st.itemSub}>
-              {b.companionLimit == null ? '동반 인원 제한 없음' : `동반 ${b.companionLimit}인까지`}
+              {b.companionLimit == null ? t('noCompanionLimit') : t('companionUpTo', { n: b.companionLimit })}
               {b.conditions ? ` · ${b.conditions}` : ''}
             </Text>
             {b.blocked ? (
               <Tag text={b.blocked} tone="bad" />
             ) : (
-              <Btn title="사용하기" small onPress={() => redeem('BENEFIT', b.id, b.title)} disabled={busy} />
+              <Btn title={t('useNow')} small onPress={() => redeem('BENEFIT', b.id, b.title)} disabled={busy} />
             )}
           </Card>
         ))}

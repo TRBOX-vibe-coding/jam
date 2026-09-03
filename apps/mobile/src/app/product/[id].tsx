@@ -6,7 +6,8 @@ import { Alert, Image, Platform, Pressable, ScrollView, StyleSheet, Text, View }
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { api, img } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
-import { C, won } from '../../lib/theme';
+import { useI18n } from '../../lib/i18n';
+import { C } from '../../lib/theme';
 import { Btn, Card, Loading, Screen, Tag } from '../../lib/ui';
 
 function notify(title: string, msg: string) {
@@ -17,6 +18,7 @@ function notify(title: string, msg: string) {
 export default function ProductDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { me } = useAuth();
+  const { t, won, locale } = useI18n();
   const [p, setP] = useState<any | null>(null);
   const [slotId, setSlotId] = useState<string | null>(null);
   const [headcount, setHeadcount] = useState(1);
@@ -34,7 +36,7 @@ export default function ProductDetail() {
       return;
     }
     if (p.type === 'RESERVATION' && !slotId) {
-      notify('예약 시간', '이용할 시간을 선택해 주세요');
+      notify(t('resvTimeTitle'), t('pickTimeFirst'));
       return;
     }
     setBusy(true);
@@ -43,10 +45,10 @@ export default function ProductDetail() {
         method: 'POST',
         body: { slotId: slotId ?? undefined, headcount, contactName: me.nickname },
       });
-      notify('완료', r.message);
+      notify(t('doneTitle'), r.message);
       router.push('/wallet');
     } catch (e: any) {
-      notify('구매할 수 없습니다', e.message);
+      notify(t('cantBuy'), e.message);
     } finally {
       setBusy(false);
     }
@@ -63,9 +65,9 @@ export default function ProductDetail() {
         {p.imageUrl && <Image source={{ uri: img(p.imageUrl, 960) }} style={st.hero} />}
         <Card>
           <View style={{ flexDirection: 'row', gap: 5, marginBottom: 8 }}>
-            <Tag text={p.type === 'RESERVATION' ? '예약형' : p.type === 'PASS' ? 'PASS' : '티켓'} />
-            {p.weatherDependent && <Tag text="기상 영향" tone="warn" />}
-            {p.verification !== 'QR_ONLY' && <Tag text="직원 확인" tone="warn" />}
+            <Tag text={p.type === 'RESERVATION' ? t('typeReservation') : p.type === 'PASS' ? 'PASS' : t('typeTicket')} />
+            {p.weatherDependent && <Tag text={t('weather')} tone="warn" />}
+            {p.verification !== 'QR_ONLY' && <Tag text={t('staffVerify')} tone="warn" />}
           </View>
           <Text style={st.title}>{p.name}</Text>
           <Text style={st.merchant}>{p.merchant.name} · {p.merchant.address ?? ''}</Text>
@@ -74,7 +76,7 @@ export default function ProductDetail() {
           <View style={st.priceRow}>
             {me?.membership && p.memberPrice != null ? (
               <>
-                <Tag text="멤버십가" tone="gold" />
+                <Tag text={t('memberPrice')} tone="gold" />
                 <Text style={st.price}>{won(p.memberPrice)}</Text>
                 <Text style={st.normal}>{won(p.basePrice)}</Text>
               </>
@@ -82,7 +84,7 @@ export default function ProductDetail() {
               <>
                 <Text style={st.price}>{won(p.basePrice)}</Text>
                 {p.memberPrice != null && (
-                  <Text style={st.memberHint}>멤버십 회원은 {won(p.memberPrice)}</Text>
+                  <Text style={st.memberHint}>{t('memberPriceHint', { price: won(p.memberPrice) })}</Text>
                 )}
               </>
             )}
@@ -92,10 +94,10 @@ export default function ProductDetail() {
 
         {p.type === 'RESERVATION' && (
           <>
-            <Text style={st.section}>시간 선택</Text>
-            {p.slots.length === 0 && <Card><Text style={st.noSlot}>예약 가능한 시간이 없습니다</Text></Card>}
+            <Text style={st.section}>{t('pickTime')}</Text>
+            {p.slots.length === 0 && <Card><Text style={st.noSlot}>{t('noSlots')}</Text></Card>}
             {p.slots.map((s: any) => {
-              const label = new Date(s.startAt).toLocaleString('ko-KR', {
+              const label = new Date(s.startAt).toLocaleString(locale, {
                 month: 'numeric', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit',
               });
               const disabled = s.remaining < headcount;
@@ -105,7 +107,7 @@ export default function ProductDetail() {
                     <View style={st.rowBetween}>
                       <Text style={[st.slotLabel, disabled && { color: C.ink3 }]}>{label}</Text>
                       <Text style={[st.slotRemain, disabled && { color: C.bad }]}>
-                        {disabled ? '마감' : `${s.remaining}자리`}
+                        {disabled ? t('closedNow') : t('seatsLeft', { n: s.remaining })}
                       </Text>
                     </View>
                   </Card>
@@ -113,13 +115,13 @@ export default function ProductDetail() {
               );
             })}
 
-            <Text style={st.section}>인원</Text>
+            <Text style={st.section}>{t('headcount')}</Text>
             <Card>
               <View style={[st.rowBetween, { justifyContent: 'center', gap: 26 }]}>
                 <Pressable onPress={() => setHeadcount((h) => Math.max(1, h - 1))}>
                   <Text style={st.stepBtn}>−</Text>
                 </Pressable>
-                <Text style={st.headcount}>{headcount}명</Text>
+                <Text style={st.headcount}>{t('people', { n: headcount })}</Text>
                 <Pressable onPress={() => setHeadcount((h) => Math.min(10, h + 1))}>
                   <Text style={st.stepBtn}>＋</Text>
                 </Pressable>
@@ -130,16 +132,12 @@ export default function ProductDetail() {
 
         <View style={{ marginTop: 8 }}>
           <Btn
-            title={`${won(total)} 결제하기${p.type === 'RESERVATION' ? ' · 예약 확정' : ''}`}
+            title={p.type === 'RESERVATION' ? t('payTotalReserve', { price: won(total) }) : t('payTotal', { price: won(total) })}
             onPress={purchase}
             disabled={busy}
           />
           <Text style={st.note}>
-            {p.type === 'RESERVATION'
-              ? '결제와 동시에 예약이 확정됩니다. 전화 예약이 필요 없어요.'
-              : p.type === 'PASS'
-                ? '결제하면 이용권과 함께 지역 로컬 혜택이 자동으로 열립니다.'
-                : '결제하면 이용권이 발급됩니다. 매장에서 QR 스캔으로 사용하세요.'}
+            {p.type === 'RESERVATION' ? t('resvNote') : p.type === 'PASS' ? t('passNote') : t('ticketNote')}
           </Text>
         </View>
       </ScrollView>

@@ -7,7 +7,8 @@ import {
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { api, img } from '../../lib/api';
-import { C, won } from '../../lib/theme';
+import { useI18n } from '../../lib/i18n';
+import { C } from '../../lib/theme';
 import { Chip, EmptyText, Loading, Screen, Tag } from '../../lib/ui';
 import { HScroll } from '../../lib/hscroll';
 
@@ -20,17 +21,18 @@ type Drop = {
   closeAt: string; isSponsored: boolean; memberOnly: boolean; locked: boolean; preOpen: boolean;
 };
 
-function timeLeft(closeAt: string): string {
+function timeLeft(t: (k: string, v?: Record<string, string | number>) => string, closeAt: string): string {
   const ms = new Date(closeAt).getTime() - Date.now();
-  if (ms <= 0) return '마감';
+  if (ms <= 0) return t('closedNow');
   const h = Math.floor(ms / 3600_000);
   const m = Math.floor((ms % 3600_000) / 60_000);
-  if (h >= 24) return `${Math.floor(h / 24)}일 남음`;
-  if (h > 0) return `${h}시간 ${m}분 남음`;
-  return `${m}분 남음`;
+  if (h >= 24) return t('daysLeft', { d: Math.floor(h / 24) });
+  if (h > 0) return t('hoursMinLeft', { h, m });
+  return t('minLeft', { m });
 }
 
 export default function DropsScreen() {
+  const { t, won } = useI18n();
   const [regions, setRegions] = useState<Region[]>([]);
   const [regionId, setRegionId] = useState<string | null>(null);
   const [drops, setDrops] = useState<Drop[] | null>(null);
@@ -51,7 +53,7 @@ export default function DropsScreen() {
     <Screen>
       <View style={{ paddingVertical: 10, backgroundColor: C.white }}>
         <HScroll contentContainerStyle={{ paddingHorizontal: 16 }}>
-          <Chip label="전체" active={!regionId} onPress={() => setRegionId(null)} />
+          <Chip label={t('all')} active={!regionId} onPress={() => setRegionId(null)} />
           {regions.map((r) => (
             <Chip key={r.id} label={r.name} active={regionId === r.id} onPress={() => setRegionId(r.id)} />
           ))}
@@ -68,7 +70,7 @@ export default function DropsScreen() {
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load().catch(() => {}); setRefreshing(false); }} />
           }
-          ListEmptyComponent={<EmptyText text="이 지역에는 아직 오픈된 DROP이 없어요" />}
+          ListEmptyComponent={<EmptyText text={t('noDropsRegion')} />}
           renderItem={({ item: d }) => (
             <Pressable onPress={() => router.push(`/drop/${d.id}`)} style={st.card}>
               <View>
@@ -81,22 +83,22 @@ export default function DropsScreen() {
                 <View style={st.overlayTop}>
                   <View style={{ flexDirection: 'row', gap: 5 }}>
                     <View style={st.regionTag}><Text style={st.regionTagText}>{d.category.emoji} {d.region.name}</Text></View>
-                    {d.isSponsored && <View style={st.adTag}><Text style={st.adTagText}>광고</Text></View>}
+                    {d.isSponsored && <View style={st.adTag}><Text style={st.adTagText}>{t('ad')}</Text></View>}
                   </View>
-                  <View style={st.timerTag}><Text style={st.timerText}>⏰ {timeLeft(d.closeAt)}</Text></View>
+                  <View style={st.timerTag}><Text style={st.timerText}>⏰ {timeLeft(t, d.closeAt)}</Text></View>
                 </View>
                 <View style={st.overlayBottom}>
                   <View style={[st.qtyTag, d.remainingQty <= 5 && { backgroundColor: '#E8503A' }]}>
-                    <Text style={st.qtyText}>{d.remainingQty}개 남음</Text>
+                    <Text style={st.qtyText}>{t('qtyLeft', { n: d.remainingQty })}</Text>
                   </View>
                   {d.personsPerUnit > 1 && (
-                    <View style={st.personTag}><Text style={st.personText}>1개={d.personsPerUnit}인</Text></View>
+                    <View style={st.personTag}><Text style={st.personText}>{t('onePerN', { n: d.personsPerUnit })}</Text></View>
                   )}
                 </View>
                 {d.locked && (
                   <View style={st.lockOverlay}>
                     <Text style={{ fontSize: 30 }}>🔒</Text>
-                    <Text style={st.lockText}>멤버십 전용</Text>
+                    <Text style={st.lockText}>{t('membershipOnly')}</Text>
                   </View>
                 )}
               </View>
@@ -108,7 +110,7 @@ export default function DropsScreen() {
                   <Text style={st.rate}>{d.discountRate}%</Text>
                   <Text style={st.price}>{won(d.dropPrice)}</Text>
                   <Text style={st.normal}>{won(d.normalPrice)}</Text>
-                  {d.memberOnly && <View style={{ marginLeft: 'auto' }}><Tag text="멤버 전용" tone="gold" /></View>}
+                  {d.memberOnly && <View style={{ marginLeft: 'auto' }}><Tag text={t('memberOnly')} tone="gold" /></View>}
                 </View>
               </View>
             </Pressable>

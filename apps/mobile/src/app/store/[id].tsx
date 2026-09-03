@@ -6,12 +6,14 @@ import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { api, img } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
-import { C, won } from '../../lib/theme';
+import { useI18n } from '../../lib/i18n';
+import { C } from '../../lib/theme';
 import { Btn, Card, Loading, Screen, Tag } from '../../lib/ui';
 
 export default function StoreDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { me } = useAuth();
+  const { t, won } = useI18n();
   const [m, setM] = useState<any | null>(null);
 
   useFocusEffect(
@@ -39,25 +41,25 @@ export default function StoreDetail() {
         </Card>
 
         {/* 상시 혜택 — 기존 홀릭잼 서비스 */}
-        <Text style={st.section}>멤버십 상시 혜택</Text>
+        <Text style={st.section}>{t('storeBenefitSection')}</Text>
         {m.benefits.length === 0 && (
-          <Card><Text style={st.emptyLine}>등록된 상시 혜택이 없습니다</Text></Card>
+          <Card><Text style={st.emptyLine}>{t('noStoreBenefits')}</Text></Card>
         )}
         {m.benefits.map((b: any) => (
           <Card key={b.id}>
             <Text style={st.benefitTitle}>{b.title}</Text>
             <Text style={st.benefitCond}>
-              {b.companionLimit == null ? '동반 인원 제한 없음' : `동반 ${b.companionLimit}인까지`}
-              {b.maxUsePerDay ? ` · 하루 ${b.maxUsePerDay}회` : ''}
+              {b.companionLimit == null ? t('noCompanionLimit') : t('companionUpTo', { n: b.companionLimit })}
+              {b.maxUsePerDay ? t('perDay', { n: b.maxUsePerDay }) : ''}
               {b.conditions ? ` · ${b.conditions}` : ''}
             </Text>
             {isMember ? (
               <View style={{ marginTop: 9 }}>
-                <Btn title="매장에서 사용하기" small onPress={() => router.push('/(tabs)/scan')} />
+                <Btn title={t('useAtStore')} small onPress={() => router.push('/(tabs)/scan')} />
               </View>
             ) : (
               <Pressable style={st.lockBar} onPress={() => router.push('/(tabs)/my')}>
-                <Text style={st.lockText}>🔒 멤버십을 시작하면 바로 사용할 수 있어요 →</Text>
+                <Text style={st.lockText}>{t('lockStart')}</Text>
               </Pressable>
             )}
           </Card>
@@ -66,7 +68,7 @@ export default function StoreDetail() {
         {/* 진행 중 DROP */}
         {m.drops.length > 0 && (
           <>
-            <Text style={st.section}>진행 중 DROP</Text>
+            <Text style={st.section}>{t('ongoingDrops')}</Text>
             {m.drops.map((d: any) => (
               <Pressable key={d.id} onPress={() => router.push(`/drop/${d.id}`)}>
                 <Card style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
@@ -76,7 +78,7 @@ export default function StoreDetail() {
                     <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: 4 }}>
                       <Text style={st.dropRate}>{Math.round((1 - d.dropPrice / d.normalPrice) * 100)}%</Text>
                       <Text style={st.dropPrice}>{won(d.dropPrice)}</Text>
-                      <Text style={st.dropQty}>{d.remainingQty}개 남음</Text>
+                      <Text style={st.dropQty}>{t('qtyLeft', { n: d.remainingQty })}</Text>
                     </View>
                   </View>
                 </Card>
@@ -88,7 +90,7 @@ export default function StoreDetail() {
         {/* 예약 상품 */}
         {m.products.length > 0 && (
           <>
-            <Text style={st.section}>예약 · 이용권</Text>
+            <Text style={st.section}>{t('bookAndTickets')}</Text>
             {m.products.map((p: any) => (
               <Pressable key={p.id} onPress={() => router.push(`/product/${p.id}`)}>
                 <Card style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
@@ -96,7 +98,7 @@ export default function StoreDetail() {
                   <View style={{ flex: 1 }}>
                     <Text style={st.dropTitle} numberOfLines={1}>{p.name}</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
-                      {p.memberPrice != null && <Tag text="멤버십가" tone="gold" />}
+                      {p.memberPrice != null && <Tag text={t('memberPrice')} tone="gold" />}
                       <Text style={st.dropPrice}>{won(p.memberPrice ?? p.basePrice)}</Text>
                       {p.memberPrice != null && <Text style={st.normal}>{won(p.basePrice)}</Text>}
                     </View>

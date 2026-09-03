@@ -4,7 +4,8 @@ import { Alert, Image, Platform, ScrollView, StyleSheet, Text, View } from 'reac
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { api, img } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
-import { C, won } from '../../lib/theme';
+import { useI18n } from '../../lib/i18n';
+import { C } from '../../lib/theme';
 import { Btn, Card, Loading, Screen, Tag } from '../../lib/ui';
 
 function notify(title: string, msg: string) {
@@ -18,6 +19,7 @@ const fmtMin = (m: number) =>
 export default function DropDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { me } = useAuth();
+  const { t, won, locale } = useI18n();
   const [d, setD] = useState<any | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -35,11 +37,11 @@ export default function DropDetail() {
     setBusy(true);
     try {
       const r = await api<any>(`/drops/${id}/claim`, { method: 'POST', body: {} });
-      notify(r.type === 'TICKET' ? '결제 완료' : '받았습니다!', r.message);
+      notify(r.type === 'TICKET' ? t('paidDone') : t('claimed'), r.message);
       if (r.type === 'TICKET') router.push('/wallet');
       else router.back();
     } catch (e: any) {
-      notify('받을 수 없습니다', e.message);
+      notify(t('cantClaim'), e.message);
     } finally {
       setBusy(false);
     }
@@ -56,9 +58,9 @@ export default function DropDetail() {
         <Card>
           <View style={{ flexDirection: 'row', gap: 5, marginBottom: 8 }}>
             <Tag text={`${d.category.emoji} ${d.region.name}`} />
-            {d.audience === 'MEMBER_ONLY' && <Tag text="멤버 전용" tone="gold" />}
-            {d.isSponsored && <Tag text="광고" tone="warn" />}
-            <Tag text={d.kind === 'TICKET' ? '앱에서 결제' : '현장 결제 딜'} tone="ok" />
+            {d.audience === 'MEMBER_ONLY' && <Tag text={t('memberOnly')} tone="gold" />}
+            {d.isSponsored && <Tag text={t('ad')} tone="warn" />}
+            <Tag text={d.kind === 'TICKET' ? t('payInApp') : t('payOnSite')} tone="ok" />
           </View>
           <Text style={st.title}>{d.title}</Text>
           <Text style={st.merchant}>{d.merchant.name} · {d.merchant.address ?? ''}</Text>
@@ -71,35 +73,33 @@ export default function DropDetail() {
           </View>
 
           <View style={st.infoBox}>
-            <Text style={st.info}>· 남은 수량 {d.remainingQty} / {d.totalQty}</Text>
-            <Text style={st.info}>· 1개 = {d.personsPerUnit}인 기준</Text>
-            <Text style={st.info}>· 마감 {new Date(d.closeAt).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</Text>
+            <Text style={st.info}>{t('stockLine', { a: d.remainingQty, b: d.totalQty })}</Text>
+            <Text style={st.info}>{t('perUnitLine', { n: d.personsPerUnit })}</Text>
+            <Text style={st.info}>{t('closeLine', { date: new Date(d.closeAt).toLocaleString(locale, { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) })}</Text>
             {d.usableFromMinute != null && (
-              <Text style={st.info}>· 사용 가능 시간 {fmtMin(d.usableFromMinute)}~{fmtMin(d.usableToMinute)}</Text>
+              <Text style={st.info}>{t('usableTime', { a: fmtMin(d.usableFromMinute), b: fmtMin(d.usableToMinute) })}</Text>
             )}
-            {d.maxPerUser && <Text style={st.info}>· 1인당 최대 {d.maxPerUser}개</Text>}
+            {d.maxPerUser && <Text style={st.info}>{t('maxPerUser', { n: d.maxPerUser })}</Text>}
           </View>
         </Card>
 
         {d.locked ? (
           <Card style={{ backgroundColor: C.warnSoft, borderColor: C.warnSoft }}>
-            <Text style={st.lockText}>멤버십 회원 전용 DROP입니다</Text>
-            <Btn title="멤버십 알아보기" onPress={() => router.push('/(tabs)/my')} />
+            <Text style={st.lockText}>{t('memberOnlyDrop')}</Text>
+            <Btn title={t('seeMembership')} onPress={() => router.push('/(tabs)/my')} />
           </Card>
         ) : (
           <Btn
             title={
-              soldOut ? '품절' :
-              d.kind === 'TICKET' ? `${won(d.dropPrice)} 결제하고 받기` : '이 딜 받기 (무료)'
+              soldOut ? t('soldOut') :
+              d.kind === 'TICKET' ? t('payAndGet', { price: won(d.dropPrice) }) : t('getFree')
             }
             onPress={claim}
             disabled={busy || soldOut}
           />
         )}
         <Text style={st.note}>
-          {d.kind === 'TICKET'
-            ? '결제하면 이용권이 바로 발급됩니다. 매장에서 QR 스캔으로 사용하세요.'
-            : '받아두면 [사용] 탭에서 매장 QR을 스캔해 할인받을 수 있어요.'}
+          {d.kind === 'TICKET' ? t('ticketNote') : t('dealNote')}
         </Text>
       </ScrollView>
     </Screen>

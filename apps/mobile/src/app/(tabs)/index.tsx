@@ -14,7 +14,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { api, cacheGet, cacheSet, img } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
-import { C, won } from '../../lib/theme';
+import { LangButton, pickGreeting, useI18n } from '../../lib/i18n';
+import { C } from '../../lib/theme';
 import { Screen } from '../../lib/ui';
 import { HScroll } from '../../lib/hscroll';
 import { Logo } from '../../lib/logo';
@@ -46,61 +47,38 @@ function notifyHome(title: string, msg: string) {
   else Alert.alert(title, msg);
 }
 
+type Tr = (key: string, vars?: Record<string, string | number>) => string;
+
 /** 다음 오픈까지 남은 시간 문구 */
-function untilText(opensAt: string, now: number) {
+function untilText(t: Tr, opensAt: string, now: number) {
   const ms = new Date(opensAt).getTime() - now;
   if (ms <= 0) return '';
   const h = Math.floor(ms / 3600_000);
   const m = Math.floor((ms % 3600_000) / 60_000);
   const s = Math.floor((ms % 60_000) / 1000);
-  return h > 0 ? `${h}시간 ${m}분 후 오픈` : `${m}분 ${String(s).padStart(2, '0')}초 후 오픈`;
+  return h > 0 ? t('opensInHM', { h, m }) : t('opensInMS', { m, s: String(s).padStart(2, '0') });
 }
 
 // 카테고리 타일 — 카테고리마다 고유 그라데이션 + 흰 라인 아이콘 (MZ 톤)
-const CATS: { code: string; label: string; icon: keyof typeof Ionicons.glyphMap; colors: [string, string] }[] = [
-  { code: 'marine', label: '해양레저', icon: 'boat-outline', colors: ['#38BDF8', '#2563EB'] },
-  { code: 'food', label: '맛집', icon: 'restaurant-outline', colors: ['#FB7185', '#E11D48'] },
-  { code: 'cafe', label: '카페', icon: 'cafe-outline', colors: ['#FBBF24', '#D97706'] },
-  { code: 'bar', label: '펍·바', icon: 'wine-outline', colors: ['#A78BFA', '#6D28D9'] },
-  { code: 'exhibit', label: '전시', icon: 'color-palette-outline', colors: ['#F472B6', '#C026D3'] },
-  { code: 'kids', label: '키즈', icon: 'happy-outline', colors: ['#4ADE80', '#16A34A'] },
+const CATS: { code: string; labelKey: string; icon: keyof typeof Ionicons.glyphMap; colors: [string, string] }[] = [
+  { code: 'marine', labelKey: 'catMarine', icon: 'boat-outline', colors: ['#38BDF8', '#2563EB'] },
+  { code: 'food', labelKey: 'catFood', icon: 'restaurant-outline', colors: ['#FB7185', '#E11D48'] },
+  { code: 'cafe', labelKey: 'catCafe', icon: 'cafe-outline', colors: ['#FBBF24', '#D97706'] },
+  { code: 'bar', labelKey: 'catBar', icon: 'wine-outline', colors: ['#A78BFA', '#6D28D9'] },
+  { code: 'exhibit', labelKey: 'catExhibit', icon: 'color-palette-outline', colors: ['#F472B6', '#C026D3'] },
+  { code: 'kids', labelKey: 'catKids', icon: 'happy-outline', colors: ['#4ADE80', '#16A34A'] },
 ];
 
-/**
- * 시간대·요일에 따라 달라지는 환영 문구. 열 때마다 풀에서 랜덤으로 하나 뽑는다.
- * "살아있는 서비스" 느낌 — 같은 앱을 두 번 열어도 인사가 조금씩 다르다.
- */
-function pickGreeting(): string {
-  const now = new Date();
-  const h = now.getHours();
-  const day = now.getDay(); // 0=일 5=금 6=토
-  const pool: string[] = [];
-
-  if (h >= 5 && h < 11) {
-    pool.push('오늘 부산 날씨 최고예요 ☀️', '아침 10시, 새 DROP 도착했어요 ⚡', '오늘 부산은 어때요?');
-  } else if (h >= 11 && h < 17) {
-    pool.push('오후엔 바다 어때요? 🌊', '지금 마감 임박 딜이 있어요 ⏰', '오늘 부산은 어때요?');
-  } else if (h >= 17 && h < 23) {
-    pool.push('오늘 밤, 한 잔 어때요? 🍹', '저녁 한정 딜이 열렸어요 🌙');
-    if (day === 5) pool.push('불금이에요! 🔥 오늘 밤 딜 놓치지 마요');
-  } else {
-    pool.push('내일의 부산을 미리 찜해요 🌙', '못 자는 밤엔 딜 구경 어때요? ✨');
-  }
-  if ((day === 6 || day === 0) && h >= 8 && h < 20) {
-    pool.push('주말의 부산, 놓치지 마요 🏖️');
-  }
-  return pool[Math.floor(Math.random() * pool.length)];
-}
-
-function hoursLeft(closeAt: string) {
+function hoursLeft(t: Tr, closeAt: string) {
   const ms = new Date(closeAt).getTime() - Date.now();
-  if (ms <= 0) return '마감';
+  if (ms <= 0) return t('closedNow');
   const h = Math.floor(ms / 3600_000);
-  return h >= 24 ? `${Math.floor(h / 24)}일 남음` : h > 0 ? `${h}시간 남음` : `${Math.floor(ms / 60_000)}분 남음`;
+  return h >= 24 ? t('daysLeft', { d: Math.floor(h / 24) }) : h > 0 ? t('hoursLeft', { h }) : t('minLeft', { m: Math.floor(ms / 60_000) });
 }
 
 export default function HomeScreen() {
   const { me } = useAuth();
+  const { t, won, lang } = useI18n();
   // null = 아직 로딩(스켈레톤 표시), [] = 진짜 없음
   const [drops, setDrops] = useState<Drop[] | null>(null);
   const [products, setProducts] = useState<Product[] | null>(null);
@@ -145,8 +123,7 @@ export default function HomeScreen() {
 
   useFocusEffect(useCallback(() => { load().catch(() => {}); }, [load]));
 
-  const greetName = me ? `${me.nickname}님` : '홀릭잼';
-  const greeting = useMemo(pickGreeting, []);
+  const greeting = useMemo(() => pickGreeting(lang), [lang]);
 
   return (
     <Screen>
@@ -169,15 +146,18 @@ export default function HomeScreen() {
           <View style={[st.gemDeco, { top: 34, right: 128, width: 14, height: 14, opacity: 0.12, borderRadius: 4 }]} />
           <Text style={st.decoSpark}>✦</Text>
 
-          <Logo light size={27} />
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Logo light size={27} />
+            <LangButton light />
+          </View>
           <Text style={st.greet}>
             {me ? (
               <>
-                <Text style={st.greetName}>{greetName} 👋</Text>
+                <Text style={st.greetName}>{t('greetHi', { nick: me.nickname })}</Text>
                 {'\n'}{greeting}
               </>
             ) : (
-              <>부산 놀러갈 땐,{'\n'}홀릭잼 🌊</>
+              t('heroGuest')
             )}
           </Text>
         </LinearGradient>
@@ -187,11 +167,11 @@ export default function HomeScreen() {
               <View style={st.statusRow}>
                 <View style={{ flex: 1 }}>
                   <Text style={st.statusPlan}>
-                    {me.membership ? `${me.membership.planName} 이용 중` : '멤버십을 시작해 보세요'}
+                    {me.membership ? t('planInUse', { plan: me.membership.planName }) : t('startMembership')}
                   </Text>
                   <Text style={st.statusSaving}>
-                    이번 달 <Text style={{ color: C.brand, fontWeight: '700' }}>{won(me.savings.thisMonth)}</Text> 아꼈어요
-                    {me.savings.recoveryRate != null ? ` · 회수율 ${me.savings.recoveryRate}%` : ''}
+                    {t('savedThisMonth', { amt: won(me.savings.thisMonth) })}
+                    {me.savings.recoveryRate != null ? t('recoveryRate', { r: me.savings.recoveryRate }) : ''}
                   </Text>
                 </View>
                 {me.membership && (
@@ -205,8 +185,8 @@ export default function HomeScreen() {
               </View>
             ) : (
               <View style={st.statusRow}>
-                <Text style={[st.statusPlan, { flex: 1 }]}>3초 간편가입하고 오늘 혜택 받기</Text>
-                <Text style={st.loginBtn}>시작하기</Text>
+                <Text style={[st.statusPlan, { flex: 1 }]}>{t('joinCta')}</Text>
+                <Text style={st.loginBtn}>{t('start')}</Text>
               </View>
             )}
         </Pressable>
@@ -216,8 +196,8 @@ export default function HomeScreen() {
           <View style={st.couponWrap}>
             <View style={st.sectionHead}>
               <View>
-                <Text style={st.sectionTitle}>오늘의 무료 쿠폰 ⏰</Text>
-                <Text style={st.sectionSub}>정해진 시간에 선착순으로 열려요</Text>
+                <Text style={st.sectionTitle}>{t('couponSection')}</Text>
+                <Text style={st.sectionSub}>{t('couponSectionSub')}</Text>
               </View>
             </View>
             {coupons.map((cd) => {
@@ -230,7 +210,7 @@ export default function HomeScreen() {
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <Text style={st.couponTitle} numberOfLines={1}>{cd.benefit.title}</Text>
                     <Text style={st.couponSub} numberOfLines={1}>
-                      {cd.benefit.merchantName} · 매일 {timesLabel} · 받으면 {cd.validHours}시간 유효
+                      {t('couponMeta', { name: cd.benefit.merchantName, times: timesLabel, h: cd.validHours })}
                     </Text>
                   </View>
                   {open ? (
@@ -242,34 +222,34 @@ export default function HomeScreen() {
                         setCouponBusy(true);
                         try {
                           const r = await api<any>(`/coupon-drops/${cd.id}/claim`, { method: 'POST', body: {} });
-                          notifyHome('쿠폰 도착 🎉', r.message);
+                          notifyHome(t('couponGot'), r.message);
                           load().catch(() => {});
                         } catch (e: any) {
-                          notifyHome('받을 수 없어요', e.message);
+                          notifyHome(t('couponFail'), e.message);
                         } finally {
                           setCouponBusy(false);
                         }
                       }}
                     >
-                      <Text style={st.couponBtnText}>받기</Text>
-                      <Text style={st.couponBtnSub}>{open.remaining}장 남음</Text>
+                      <Text style={st.couponBtnText}>{t('claim')}</Text>
+                      <Text style={st.couponBtnSub}>{t('couponLeft', { n: open.remaining })}</Text>
                     </Pressable>
                   ) : upcoming ? (
                     <View style={st.couponWait}>
-                      <Text style={st.couponWaitTime}>{upcoming.time} 오픈</Text>
-                      <Text style={st.couponWaitSub}>{untilText(upcoming.opensAt, nowTick)}</Text>
+                      <Text style={st.couponWaitTime}>{t('opensAt', { time: upcoming.time })}</Text>
+                      <Text style={st.couponWaitSub}>{untilText(t, upcoming.opensAt, nowTick)}</Text>
                     </View>
                   ) : (
                     <View style={st.couponWait}>
-                      <Text style={st.couponWaitTime}>{soldout ? '소진 완료' : '오늘 마감'}</Text>
-                      <Text style={st.couponWaitSub}>내일 {cd.slots[0]?.time}에 다시</Text>
+                      <Text style={st.couponWaitTime}>{soldout ? t('couponSoldout') : t('couponEnded')}</Text>
+                      <Text style={st.couponWaitSub}>{t('couponTomorrow', { time: cd.slots[0]?.time ?? '' })}</Text>
                     </View>
                   )}
                 </View>
               );
             })}
             <Pressable onPress={() => router.push('/(tabs)/my')}>
-              <Text style={st.couponUpsell}>멤버십은 기다림 없이 모든 혜택 상시 오픈 →</Text>
+              <Text style={st.couponUpsell}>{t('couponUpsell')}</Text>
             </Pressable>
           </View>
         )}
@@ -277,11 +257,11 @@ export default function HomeScreen() {
         {/* ② 오늘 도착한 DROP */}
         <View style={st.sectionHead}>
           <View>
-            <Text style={st.sectionTitle}>오늘 도착한 DROP ⚡</Text>
-            <Text style={st.sectionSub}>매일 아침 10시, 한정수량으로 열려요</Text>
+            <Text style={st.sectionTitle}>{t('dropSection')}</Text>
+            <Text style={st.sectionSub}>{t('dropSectionSub')}</Text>
           </View>
           <Pressable onPress={() => router.push('/(tabs)/drops')}>
-            <Text style={st.more}>전체보기</Text>
+            <Text style={st.more}>{t('more')}</Text>
           </Pressable>
         </View>
         <HScroll contentContainerStyle={{ paddingHorizontal: 16, gap: 10 }}>
@@ -303,12 +283,12 @@ export default function HomeScreen() {
                 ) : (
                   <View style={[st.dropImg, { backgroundColor: C.brandSoft }]} />
                 )}
-                <View style={st.dropQty}><Text style={st.dropQtyText}>{d.remainingQty}개 남음</Text></View>
+                <View style={st.dropQty}><Text style={st.dropQtyText}>{t('qtyLeft', { n: d.remainingQty })}</Text></View>
                 {d.locked && <View style={st.lockOverlay}><Text style={st.lockEmoji}>🔒</Text></View>}
               </View>
               <View style={{ padding: 10 }}>
                 <Text style={st.dropTitle} numberOfLines={1}>{d.title}</Text>
-                <Text style={st.dropMerchant} numberOfLines={1}>{d.merchant.name} · {hoursLeft(d.closeAt)}</Text>
+                <Text style={st.dropMerchant} numberOfLines={1}>{d.merchant.name} · {hoursLeft(t, d.closeAt)}</Text>
                 <View style={st.dropPriceRow}>
                   <Text style={st.dropRate}>{d.discountRate}%</Text>
                   <Text style={st.dropPrice}>{won(d.dropPrice)}</Text>
@@ -321,8 +301,8 @@ export default function HomeScreen() {
         {/* ③ 액티비티 예약 */}
         <View style={st.sectionHead}>
           <View>
-            <Text style={st.sectionTitle}>바다부터 도심까지 🏄</Text>
-            <Text style={st.sectionSub}>결제하면 예약까지 한 번에 끝나요</Text>
+            <Text style={st.sectionTitle}>{t('activitySection')}</Text>
+            <Text style={st.sectionSub}>{t('activitySectionSub')}</Text>
           </View>
         </View>
         <HScroll contentContainerStyle={{ paddingHorizontal: 16, gap: 14 }}>
@@ -337,7 +317,7 @@ export default function HomeScreen() {
                 <View style={st.catGloss} />
                 <Ionicons name={c.icon} size={24} color="#fff" />
               </LinearGradient>
-              <Text style={st.catLabel}>{c.label}</Text>
+              <Text style={st.catLabel}>{t(c.labelKey)}</Text>
             </Pressable>
           ))}
         </HScroll>
@@ -365,7 +345,7 @@ export default function HomeScreen() {
                 <View style={st.dropPriceRow}>
                   {p.memberPrice != null ? (
                     <>
-                      <Text style={st.memberTag}>멤버십가</Text>
+                      <Text style={st.memberTag}>{t('memberPrice')}</Text>
                       <Text style={st.prodPrice}>{won(p.memberPrice)}</Text>
                       <Text style={st.prodNormal}>{won(p.basePrice)}</Text>
                     </>
@@ -383,11 +363,11 @@ export default function HomeScreen() {
           <>
             <View style={st.sectionHead}>
               <View>
-                <Text style={st.sectionTitle}>지금 쓸 수 있는 내 혜택 🎁</Text>
-                <Text style={st.sectionSub}>{benefits.length}개 매장에서 기다리고 있어요</Text>
+                <Text style={st.sectionTitle}>{t('myBenefitSection')}</Text>
+                <Text style={st.sectionSub}>{t('myBenefitSectionSub', { n: benefits.length })}</Text>
               </View>
               <Pressable onPress={() => router.push('/benefits')}>
-                <Text style={st.more}>전체보기</Text>
+                <Text style={st.more}>{t('more')}</Text>
               </Pressable>
             </View>
             <View style={{ paddingHorizontal: 16, gap: 8 }}>

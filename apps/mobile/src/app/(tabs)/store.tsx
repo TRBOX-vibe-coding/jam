@@ -10,6 +10,7 @@ import {
 import { router } from 'expo-router';
 import { api, img } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
+import { useI18n } from '../../lib/i18n';
 import { C } from '../../lib/theme';
 import { Chip, EmptyText, Loading, Screen } from '../../lib/ui';
 import { HScroll } from '../../lib/hscroll';
@@ -25,6 +26,7 @@ type Merchant = {
 
 export default function StoreScreen() {
   const { me } = useAuth();
+  const { t } = useI18n();
   const [regions, setRegions] = useState<Region[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [regionId, setRegionId] = useState<string | null>(null);
@@ -55,22 +57,20 @@ export default function StoreScreen() {
       {/* 멤버십 안내 배너 — 비멤버에게 "왜 사야 하는지" */}
       {!isMember && (
         <Pressable style={st.banner} onPress={() => router.push('/(tabs)/my')}>
-          <Text style={st.bannerText}>
-            멤버십 하나로 아래 <Text style={{ fontWeight: '700' }}>모든 매장 혜택</Text>이 한 번에 열려요
-          </Text>
-          <Text style={st.bannerCta}>4,900원부터 →</Text>
+          <Text style={st.bannerText}>{t('bannerAll')}</Text>
+          <Text style={st.bannerCta}>{t('bannerCta')}</Text>
         </Pressable>
       )}
 
       <View style={{ backgroundColor: C.white, paddingBottom: 10 }}>
         <HScroll contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 10 }}>
-          <Chip label="전체 지역" active={!regionId} onPress={() => setRegionId(null)} />
+          <Chip label={t('allRegions')} active={!regionId} onPress={() => setRegionId(null)} />
           {regions.map((r) => (
             <Chip key={r.id} label={r.name} active={regionId === r.id} onPress={() => setRegionId(r.id)} />
           ))}
         </HScroll>
         <HScroll contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8 }}>
-          <Chip label="전체" active={!categoryId} onPress={() => setCategoryId(null)} />
+          <Chip label={t('all')} active={!categoryId} onPress={() => setCategoryId(null)} />
           {categories.map((c) => (
             <Chip key={c.id} label={`${c.emoji} ${c.name}`} active={categoryId === c.id} onPress={() => setCategoryId(c.id)} />
           ))}
@@ -87,7 +87,7 @@ export default function StoreScreen() {
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load().catch(() => {}); setRefreshing(false); }} />
           }
-          ListEmptyComponent={<EmptyText text="조건에 맞는 제휴 매장이 없어요" />}
+          ListEmptyComponent={<EmptyText text={t('noMerchants')} />}
           renderItem={({ item: m }) => (
             <Pressable style={st.card} onPress={() => router.push(`/store/${m.id}`)}>
               {m.thumbnailUrl ? (
@@ -113,13 +113,13 @@ export default function StoreScreen() {
                 ))}
                 <View style={st.metaRow}>
                   {m.openDropCount > 0 && (
-                    <Text style={st.metaDrop}>DROP {m.openDropCount}</Text>
+                    <Text style={st.metaDrop}>{t('metaDrop', { n: m.openDropCount })}</Text>
                   )}
                   {m.productCount > 0 && (
-                    <Text style={st.metaProduct}>예약상품 {m.productCount}</Text>
+                    <Text style={st.metaProduct}>{t('metaProduct', { n: m.productCount })}</Text>
                   )}
                   {!isMember && m.benefits.length > 0 && (
-                    <Text style={st.metaLock}>멤버십 시 사용 가능</Text>
+                    <Text style={st.metaLock}>{t('lockedForMember')}</Text>
                   )}
                 </View>
               </View>
