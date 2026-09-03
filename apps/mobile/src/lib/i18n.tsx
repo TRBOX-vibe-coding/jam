@@ -354,7 +354,7 @@ export function LangButton({ light }: { light?: boolean }) {
   return (
     <>
       <Pressable style={[ls.pill, light && ls.pillLight]} onPress={() => setOpen(true)} hitSlop={8}>
-        <Text style={[ls.pillText, light && { color: '#fff' }]}>🌐 {cur.short}</Text>
+        <Text style={[ls.pillText, light && { color: C.brand }]}>🌐 {cur.short}</Text>
       </Pressable>
       <Modal visible={open} transparent animationType="none" onRequestClose={() => setOpen(false)}>
         <Pressable style={ls.backdrop} onPress={() => setOpen(false)}>
@@ -404,7 +404,12 @@ const ls = StyleSheet.create({
     backgroundColor: C.white, borderWidth: 1, borderColor: C.line,
     borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5,
   },
-  pillLight: { backgroundColor: 'rgba(255,255,255,0.18)', borderColor: 'rgba(255,255,255,0.35)' },
+  pillLight: {
+    // 파란 히어로 위에서 묻히지 않게 — 불투명 흰 배경 + 브랜드색 글자 + 그림자
+    backgroundColor: '#fff', borderColor: '#fff',
+    shadowColor: '#003B5C', shadowOpacity: 0.25, shadowRadius: 6, shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
+  },
   pillText: { fontSize: 12, fontWeight: '700', color: C.ink2 },
   backdrop: { flex: 1, backgroundColor: 'rgba(18,24,31,0.45)', alignItems: 'center', justifyContent: 'center', padding: 32 },
   sheet: { backgroundColor: C.white, borderRadius: 16, width: '100%', maxWidth: 300, overflow: 'hidden', paddingVertical: 6 },
