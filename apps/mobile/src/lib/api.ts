@@ -80,6 +80,12 @@ export class ApiError extends Error {
   }
 }
 
+/** 콘텐츠 언어 — i18n 프로바이더가 갱신하고, 모든 요청에 x-lang으로 실려 간다 */
+let contentLang = 'ko';
+export function setApiLang(lang: string) {
+  contentLang = lang;
+}
+
 export async function api<T = unknown>(
   path: string,
   opts: { method?: string; body?: unknown } = {},
@@ -90,6 +96,7 @@ export async function api<T = unknown>(
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(contentLang !== 'ko' ? { 'x-lang': contentLang } : {}),
     },
     body: opts.body != null ? JSON.stringify(opts.body) : undefined,
   });

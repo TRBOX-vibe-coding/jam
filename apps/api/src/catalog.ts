@@ -1,10 +1,11 @@
 /** 지역·카테고리 조회 + 내 정보/관심 설정 */
 import {
-  Body, Controller, Get, Module, Patch, UseGuards,
+  Body, Controller, Get, Module, Patch, Req, UseGuards,
 } from '@nestjs/common';
 import { IsArray, IsOptional, IsString } from 'class-validator';
 import { PrismaService } from './prisma.service';
 import { AuthModule, UserGuard, UserId } from './auth';
+import { langOf, trField } from './i18n.util';
 
 class UpdateInterestsDto {
   @IsOptional() @IsArray() @IsString({ each: true }) regionIds?: string[];
@@ -20,7 +21,7 @@ export class CatalogController {
     return this.prisma.client.region.findMany({
       where: { isOpen: true },
       orderBy: { sortOrder: 'asc' },
-      select: { id: true, code: true, city: true, name: true },
+      select: { id: true, code: true, city: true, name: true, i18n: true },
     });
   }
 
@@ -29,13 +30,14 @@ export class CatalogController {
     return this.prisma.client.category.findMany({
       where: { isActive: true },
       orderBy: { sortOrder: 'asc' },
-      select: { id: true, code: true, name: true, emoji: true },
+      select: { id: true, code: true, name: true, emoji: true, i18n: true },
     });
   }
 
   @Get('me')
   @UseGuards(UserGuard)
-  async me(@UserId() userId: string) {
+  async me(@UserId() userId: string, @Req() req: any) {
+    const lang = langOf(req);
     const db = this.prisma.client;
     const user = await db.user.findUniqueOrThrow({
       where: { id: userId },
@@ -49,7 +51,7 @@ export class CatalogController {
     const membership = await db.userMembership.findFirst({
       where: { userId, status: 'ACTIVE', endAt: { gt: new Date() } },
       orderBy: { endAt: 'desc' },
-      include: { plan: { select: { code: true, name: true, price: true } } },
+      include: { plan: { select: { code: true, name: true, price: true, i18n: true } } },
     });
 
     // 이번 달 절약액 + 누적 절약액: 멤버십 가치를 숫자로 보여주는 핵심 값
@@ -84,7 +86,7 @@ export class CatalogController {
       membership: membership
         ? {
             planCode: membership.plan.code,
-            planName: membership.plan.name,
+            planName: trField(membership.plan, 'name', lang),
             source: membership.source,
             endAt: membership.endAt,
           }

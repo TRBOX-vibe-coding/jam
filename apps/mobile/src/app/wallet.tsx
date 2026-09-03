@@ -26,7 +26,7 @@ const CSTATUS: Record<string, { key: string; tone: 'ok' | 'brand' | 'bad' | 'war
 
 export default function WalletScreen() {
   const { me } = useAuth();
-  const { t, won, locale } = useI18n();
+  const { t, won, locale, lang } = useI18n();
   const [vouchers, setVouchers] = useState<any[] | null>(null);
   const [claims, setClaims] = useState<any[] | null>(null);
 
@@ -35,7 +35,7 @@ export default function WalletScreen() {
       if (!me) return;
       api<any[]>('/me/vouchers').then(setVouchers).catch(() => setVouchers([]));
       api<any[]>('/me/claims').then(setClaims).catch(() => setClaims([]));
-    }, [me]),
+    }, [me, lang]),
   );
 
   if (!me) {

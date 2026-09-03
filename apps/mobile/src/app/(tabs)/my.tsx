@@ -30,13 +30,13 @@ function notify(title: string, msg: string) {
 
 export default function MyScreen() {
   const { ready, me, login, logout, refresh } = useAuth();
-  const { t, won, locale } = useI18n();
+  const { t, won, locale, lang } = useI18n();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     api<Plan[]>('/membership/plans').then(setPlans).catch(() => {});
-  }, []);
+  }, [lang]);
 
   async function doLogin(provider: string) {
     setBusy(true);

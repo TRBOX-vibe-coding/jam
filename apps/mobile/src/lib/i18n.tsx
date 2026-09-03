@@ -5,6 +5,7 @@
  */
 import { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { setApiLang } from './api';
 import { C } from './theme';
 
 export type Lang = 'ko' | 'en' | 'zh' | 'ja';
@@ -299,7 +300,10 @@ const LOCALE: Record<Lang, string> = { ko: 'ko-KR', en: 'en-US', zh: 'zh-CN', ja
 function loadLang(): Lang {
   try {
     const v = typeof localStorage !== 'undefined' ? localStorage.getItem('hg_lang') : null;
-    if (v === 'ko' || v === 'en' || v === 'zh' || v === 'ja') return v;
+    if (v === 'ko' || v === 'en' || v === 'zh' || v === 'ja') {
+      setApiLang(v);
+      return v;
+    }
   } catch { /* storage 불가 환경 */ }
   return 'ko';
 }
@@ -321,6 +325,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
 
   const setLang = useCallback((l: Lang) => {
     setLangState(l);
+    setApiLang(l);
     try { localStorage.setItem('hg_lang', l); } catch { /* 무시 */ }
   }, []);
 

@@ -38,8 +38,8 @@ export class OrdersController {
         ...(type ? { type: type as never } : {}),
       },
       include: {
-        merchant: { select: { id: true, name: true, region: { select: { name: true } } } },
-        category: { select: { name: true, emoji: true } },
+        merchant: { select: { id: true, name: true, i18n: true, region: { select: { name: true, i18n: true } } } },
+        category: { select: { name: true, emoji: true, i18n: true } },
       },
       orderBy: { createdAt: 'asc' },
     });
@@ -52,7 +52,7 @@ export class OrdersController {
     const p = await db.product.findUnique({
       where: { id },
       include: {
-        merchant: { select: { id: true, name: true, address: true } },
+        merchant: { select: { id: true, name: true, address: true, i18n: true } },
         slots: {
           where: { isOpen: true, startAt: { gt: new Date() } },
           orderBy: { startAt: 'asc' },
@@ -224,8 +224,8 @@ export class OrdersController {
       include: {
         product: {
           select: {
-            name: true, type: true, verification: true,
-            merchant: { select: { id: true, name: true, address: true } },
+            name: true, type: true, verification: true, i18n: true,
+            merchant: { select: { id: true, name: true, address: true, i18n: true } },
           },
         },
         reservation: { include: { slot: { select: { startAt: true, endAt: true } } } },
@@ -244,8 +244,8 @@ export class OrdersController {
         drop: {
           select: {
             title: true, kind: true, normalPrice: true, dropPrice: true,
-            usableFromMinute: true, usableToMinute: true,
-            merchant: { select: { id: true, name: true, address: true } },
+            usableFromMinute: true, usableToMinute: true, i18n: true,
+            merchant: { select: { id: true, name: true, address: true, i18n: true } },
           },
         },
       },
@@ -259,7 +259,7 @@ export class OrdersController {
       where: { userId, status: 'DONE' },
       orderBy: { createdAt: 'desc' },
       take: 50,
-      include: { merchant: { select: { name: true } } },
+      include: { merchant: { select: { name: true, i18n: true } } },
     });
   }
 }

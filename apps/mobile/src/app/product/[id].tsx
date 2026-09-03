@@ -18,7 +18,7 @@ function notify(title: string, msg: string) {
 export default function ProductDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { me } = useAuth();
-  const { t, won, locale } = useI18n();
+  const { t, won, locale, lang } = useI18n();
   const [p, setP] = useState<any | null>(null);
   const [slotId, setSlotId] = useState<string | null>(null);
   const [headcount, setHeadcount] = useState(1);
@@ -27,7 +27,7 @@ export default function ProductDetail() {
   useFocusEffect(
     useCallback(() => {
       api<any>(`/products/${id}`).then(setP).catch(() => {});
-    }, [id]),
+    }, [id, lang]),
   );
 
   async function purchase() {

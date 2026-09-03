@@ -32,7 +32,7 @@ function timeLeft(t: (k: string, v?: Record<string, string | number>) => string,
 }
 
 export default function DropsScreen() {
-  const { t, won } = useI18n();
+  const { t, won, lang } = useI18n();
   const [regions, setRegions] = useState<Region[]>([]);
   const [regionId, setRegionId] = useState<string | null>(null);
   const [drops, setDrops] = useState<Drop[] | null>(null);
@@ -45,7 +45,7 @@ export default function DropsScreen() {
     ]);
     setRegions(rs);
     setDrops(ds);
-  }, [regionId]);
+  }, [regionId, lang]);
 
   useFocusEffect(useCallback(() => { load().catch(() => setDrops([])); }, [load]));
 

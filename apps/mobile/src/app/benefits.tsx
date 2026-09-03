@@ -25,7 +25,7 @@ const SOURCE_KEY: Record<string, string> = {
 
 export default function BenefitsScreen() {
   const { me } = useAuth();
-  const { t, won, locale } = useI18n();
+  const { t, won, locale, lang } = useI18n();
   const [data, setData] = useState<{ totalCount: number; merchants: BenefitGroup[] } | null>(null);
   const [error, setError] = useState('');
 
@@ -35,7 +35,7 @@ export default function BenefitsScreen() {
       api<{ totalCount: number; merchants: BenefitGroup[] }>('/me/benefits')
         .then(setData)
         .catch((e) => setError(e.message));
-    }, []),
+    }, [lang]),
   );
 
   if (!me) {

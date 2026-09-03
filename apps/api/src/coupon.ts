@@ -4,10 +4,11 @@
  */
 import {
   BadRequestException, Controller, Get, Module, NotFoundException,
-  Param, Post, UseGuards,
+  Param, Post, Req, UseGuards,
 } from '@nestjs/common';
 import { PrismaService } from './prisma.service';
 import { AuthModule, UserGuard, UserId } from './auth';
+import { langOf, trField } from './i18n.util';
 
 /** "HH:mm" → 오늘 그 시각의 Date */
 function todayAt(hhmm: string): Date {
@@ -28,7 +29,8 @@ export class CouponController {
 
   /** 오늘의 배포 일정 — 비로그인도 볼 수 있다(홈 노출용) */
   @Get('today')
-  async today() {
+  async today(@Req() req: any) {
+    const lang = langOf(req);
     const db = this.prisma.client;
     const now = new Date();
     const drops = await db.couponDrop.findMany({
@@ -36,8 +38,8 @@ export class CouponController {
       include: {
         benefit: {
           select: {
-            id: true, title: true, type: true, value: true, freebieName: true,
-            merchant: { select: { name: true, region: { select: { name: true } } } },
+            id: true, title: true, type: true, value: true, freebieName: true, i18n: true,
+            merchant: { select: { name: true, i18n: true, region: { select: { name: true, i18n: true } } } },
           },
         },
       },
@@ -63,12 +65,12 @@ export class CouponController {
         id: d.id,
         validHours: d.validHours,
         benefit: {
-          title: d.benefit.title,
+          title: trField(d.benefit, 'title', lang),
           type: d.benefit.type,
           value: d.benefit.value,
-          freebieName: d.benefit.freebieName,
-          merchantName: d.benefit.merchant.name,
-          regionName: d.benefit.merchant.region.name,
+          freebieName: trField(d.benefit, 'freebieName', lang),
+          merchantName: trField(d.benefit.merchant, 'name', lang),
+          regionName: trField(d.benefit.merchant.region, 'name', lang),
         },
         slots,
       });

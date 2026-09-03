@@ -11,12 +11,13 @@
  */
 import {
   BadRequestException, Body, Controller, Get, Module, NotFoundException,
-  Param, Post, UseGuards,
+  Param, Post, Req, UseGuards,
 } from '@nestjs/common';
 import { IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 import { PrismaService } from './prisma.service';
 import { AuthModule, UserGuard, UserId } from './auth';
+import { langOf, trField } from './i18n.util';
 import { makeVerifyToken, minutesOfDay } from './util';
 
 const VERIFY_TTL_MS = 90_000;
@@ -37,13 +38,14 @@ export class ScanController {
   /** 매장 QR 스캔 → 이 매장에서 내가 지금 쓸 수 있는 것 */
   @Get('scan/:qrCode')
   @UseGuards(UserGuard)
-  async scan(@UserId() userId: string, @Param('qrCode') qrCode: string) {
+  async scan(@UserId() userId: string, @Param('qrCode') qrCode: string, @Req() req: any) {
+    const lang = langOf(req);
     const db = this.prisma.client;
     const now = new Date();
 
     const qr = await db.merchantQr.findUnique({
       where: { code: qrCode },
-      include: { merchant: { include: { region: { select: { name: true } } } } },
+      include: { merchant: { include: { region: { select: { name: true, i18n: true } } } } },
     });
     if (!qr || !qr.isActive || qr.merchant.status !== 'ACTIVE') {
       throw new NotFoundException('등록되지 않은 매장 QR입니다');
@@ -85,7 +87,8 @@ export class ScanController {
         conditions: ub.benefit.conditions,
         validTo: ub.validTo,
         blocked,
-      });
+        i18n: (ub.benefit as any).i18n,
+      } as any);
     }
 
     // 2) 이 매장 DROP 딜 (받아둔 것)
@@ -117,7 +120,8 @@ export class ScanController {
         dropPrice: d.dropPrice,
         validTo: c.validTo,
         blocked,
-      };
+        i18n: (d as any).i18n,
+      } as any;
     });
 
     // 3) 이 매장 이용권 (구매한 것)
@@ -129,7 +133,7 @@ export class ScanController {
         product: { merchantId: merchant.id },
       },
       include: {
-        product: { select: { name: true, verification: true } },
+        product: { select: { name: true, verification: true, i18n: true } },
         reservation: { include: { slot: { select: { startAt: true } } } },
       },
     });
@@ -137,16 +141,16 @@ export class ScanController {
     return {
       merchant: {
         id: merchant.id,
-        name: merchant.name,
-        region: merchant.region.name,
-        address: merchant.address,
+        name: trField(merchant, 'name', lang),
+        region: trField(merchant.region, 'name', lang),
+        address: trField(merchant, 'address', lang),
       },
       benefits: usableBenefits,
       dropClaims: usableClaims,
       vouchers: vouchers.map((v) => ({
         id: v.id,
         code: v.code,
-        productName: v.product.name,
+        productName: trField(v.product, 'name', lang),
         verification: v.product.verification,
         headcount: v.headcount,
         reservedAt: v.reservation?.slot.startAt ?? null,
@@ -159,7 +163,8 @@ export class ScanController {
   /** 사용처리 */
   @Post('redeem')
   @UseGuards(UserGuard)
-  async redeem(@UserId() userId: string, @Body() dto: RedeemDto) {
+  async redeem(@UserId() userId: string, @Body() dto: RedeemDto, @Req() req: any) {
+    const lang = langOf(req);
     const db = this.prisma.client;
     const now = new Date();
 
@@ -222,7 +227,7 @@ export class ScanController {
             headcount, savedAmount: saved, verifyToken, verifyExpires,
           },
         });
-        return this.done(r.id, merchant.name, ub.benefit.title, saved, verifyToken, verifyExpires, 'QR_ONLY');
+        return this.done(r.id, trField(merchant, 'name', lang), trField(ub.benefit, 'title', lang), saved, verifyToken, verifyExpires, 'QR_ONLY');
       }
 
       if (dto.itemType === 'DROP') {
@@ -256,7 +261,7 @@ export class ScanController {
             verifyToken, verifyExpires,
           },
         });
-        return this.done(r.id, merchant.name, d.title, saved, verifyToken, verifyExpires, 'QR_ONLY');
+        return this.done(r.id, trField(merchant, 'name', lang), trField(d, 'title', lang), saved, verifyToken, verifyExpires, 'QR_ONLY');
       }
 
       // VOUCHER
@@ -295,7 +300,7 @@ export class ScanController {
         },
       });
       return this.done(
-        r.id, merchant.name, voucher.product.name, saved,
+        r.id, trField(merchant, 'name', lang), trField(voucher.product, 'name', lang), saved,
         verifyToken, verifyExpires, voucher.product.verification,
       );
     });

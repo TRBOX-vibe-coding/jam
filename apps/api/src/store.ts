@@ -21,13 +21,13 @@ export class StoreController {
       },
       orderBy: [{ region: { sortOrder: 'asc' } }, { name: 'asc' }],
       include: {
-        region: { select: { id: true, name: true } },
-        category: { select: { id: true, name: true, emoji: true } },
+        region: { select: { id: true, name: true, i18n: true } },
+        category: { select: { id: true, name: true, emoji: true, i18n: true } },
         benefits: {
           where: { isActive: true },
           select: {
             id: true, title: true, type: true, value: true,
-            freebieName: true, companionLimit: true, conditions: true,
+            freebieName: true, companionLimit: true, conditions: true, i18n: true,
           },
         },
         products: { where: { isActive: true }, select: { id: true } },
@@ -38,6 +38,7 @@ export class StoreController {
       id: m.id,
       name: m.name,
       intro: m.intro,
+      i18n: (m as any).i18n,
       address: m.address,
       thumbnailUrl: m.thumbnailUrl,
       region: m.region,
@@ -54,27 +55,27 @@ export class StoreController {
     const m = await this.prisma.client.merchant.findFirst({
       where: { id, status: 'ACTIVE' },
       include: {
-        region: { select: { name: true } },
-        category: { select: { name: true, emoji: true } },
+        region: { select: { name: true, i18n: true } },
+        category: { select: { name: true, emoji: true, i18n: true } },
         benefits: {
           where: { isActive: true },
           select: {
             id: true, title: true, type: true, value: true,
-            freebieName: true, companionLimit: true, maxUsePerDay: true, conditions: true,
+            freebieName: true, companionLimit: true, maxUsePerDay: true, conditions: true, i18n: true,
           },
         },
         products: {
           where: { isActive: true },
           select: {
             id: true, name: true, type: true, imageUrl: true,
-            basePrice: true, memberPrice: true,
+            basePrice: true, memberPrice: true, i18n: true,
           },
         },
         drops: {
           where: { status: 'OPEN', closeAt: { gt: now } },
           select: {
             id: true, title: true, imageUrl: true, kind: true,
-            normalPrice: true, dropPrice: true, remainingQty: true, closeAt: true,
+            normalPrice: true, dropPrice: true, remainingQty: true, closeAt: true, i18n: true,
           },
         },
       },

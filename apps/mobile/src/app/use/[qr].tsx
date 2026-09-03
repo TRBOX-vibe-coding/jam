@@ -19,7 +19,7 @@ type ScanResult = {
 
 export default function UseScreen() {
   const { qr } = useLocalSearchParams<{ qr: string }>();
-  const { t, won, locale } = useI18n();
+  const { t, won, locale, lang } = useI18n();
   const [data, setData] = useState<ScanResult | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -30,7 +30,7 @@ export default function UseScreen() {
       api<ScanResult>(`/scan/${encodeURIComponent(qr!)}`)
         .then(setData)
         .catch((e) => setError(e.message));
-    }, [qr]),
+    }, [qr, lang]),
   );
 
   async function redeem(itemType: 'BENEFIT' | 'DROP' | 'VOUCHER', itemId: string, title: string) {

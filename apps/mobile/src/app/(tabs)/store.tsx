@@ -26,7 +26,7 @@ type Merchant = {
 
 export default function StoreScreen() {
   const { me } = useAuth();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [regions, setRegions] = useState<Region[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [regionId, setRegionId] = useState<string | null>(null);
@@ -46,7 +46,7 @@ export default function StoreScreen() {
     setRegions(rs);
     setCategories(cs);
     setRows(ms);
-  }, [regionId, categoryId]);
+  }, [regionId, categoryId, lang]);
 
   useEffect(() => { load().catch(() => setRows([])); }, [load]);
 

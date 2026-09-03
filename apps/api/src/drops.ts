@@ -55,9 +55,9 @@ export class DropsController {
       },
       orderBy: [{ isSponsored: 'desc' }, { closeAt: 'asc' }],
       include: {
-        merchant: { select: { id: true, name: true, address: true } },
-        region: { select: { id: true, name: true } },
-        category: { select: { id: true, name: true, emoji: true } },
+        merchant: { select: { id: true, name: true, address: true, i18n: true } },
+        region: { select: { id: true, name: true, i18n: true } },
+        category: { select: { id: true, name: true, emoji: true, i18n: true } },
       },
     });
 
@@ -66,6 +66,7 @@ export class DropsController {
       kind: d.kind,
       title: d.title,
       description: d.description,
+      i18n: (d as any).i18n,
       imageUrl: d.imageUrl,
       merchant: d.merchant,
       region: d.region,
@@ -96,10 +97,10 @@ export class DropsController {
     const d = await db.drop.findUnique({
       where: { id },
       include: {
-        merchant: { select: { id: true, name: true, address: true, intro: true } },
-        region: { select: { name: true } },
-        category: { select: { name: true, emoji: true } },
-        product: { select: { id: true, name: true, type: true } },
+        merchant: { select: { id: true, name: true, address: true, intro: true, i18n: true } },
+        region: { select: { name: true, i18n: true } },
+        category: { select: { name: true, emoji: true, i18n: true } },
+        product: { select: { id: true, name: true, type: true, i18n: true } },
       },
     });
     if (!d) throw new NotFoundException('DROP을 찾을 수 없습니다');

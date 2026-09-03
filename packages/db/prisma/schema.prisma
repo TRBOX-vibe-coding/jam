@@ -43,6 +43,8 @@ enum AdminRole {
 /// 시/구 단위 지역. DROP 노출과 확장 순서를 지역 단위로 통제한다.
 model Region {
   id        String   @id @default(cuid())
+  /// 다국어 번역: { en: {name}, zh: {...}, ja: {...} }
+  i18n      Json?
   code      String   @unique
   city      String
   district  String
@@ -61,6 +63,7 @@ model Region {
 /// 카테고리(맛집/카페/펍/액티비티/전시/키즈/뷰티/클래스/숙박 ...)
 model Category {
   id        String   @id @default(cuid())
+  i18n      Json?
   code      String   @unique
   name      String
   emoji     String?
@@ -167,6 +170,7 @@ enum MembershipStatus {
 
 /// 판매 중인 멤버십 상품 정의 (3일잼 / 5일잼 / 잼마스터)
 model MembershipPlan {
+  i18n Json?
   id           String   @id @default(cuid())
   code         String   @unique
   name         String
@@ -211,6 +215,7 @@ enum MerchantStatus {
 }
 
 model Merchant {
+  i18n Json?
   id         String         @id @default(cuid())
   name       String
   status     MerchantStatus @default(PENDING)
@@ -287,6 +292,7 @@ enum BenefitType {
 
 /// 가맹점이 제공하는 상시 혜택 정의
 model Benefit {
+  i18n Json?
   id          String      @id @default(cuid())
   merchantId  String
   merchant    Merchant    @relation(fields: [merchantId], references: [id], onDelete: Cascade)
@@ -448,6 +454,7 @@ enum DropKind {
 
 /// 오늘의 DROP. 서비스의 핵심 경험.
 model Drop {
+  i18n Json?
   id         String   @id @default(cuid())
   merchantId String
   merchant   Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
@@ -550,6 +557,7 @@ enum VerificationLevel {
 }
 
 model Product {
+  i18n Json?
   id         String      @id @default(cuid())
   merchantId String
   merchant   Merchant    @relation(fields: [merchantId], references: [id], onDelete: Cascade)
