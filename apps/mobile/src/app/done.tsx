@@ -7,11 +7,13 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../lib/auth';
-import { C, won } from '../lib/theme';
+import { useI18n } from '../lib/i18n';
+import { C } from '../lib/theme';
 import { Btn, Screen } from '../lib/ui';
 
 export default function DoneScreen() {
   const { me } = useAuth();
+  const { t, won, locale } = useI18n();
   const p = useLocalSearchParams<{
     merchantName: string; itemTitle: string; savedAmount: string; verifyToken: string; staff: string;
   }>();
@@ -26,14 +28,14 @@ export default function DoneScreen() {
     return () => clearInterval(t);
   }, []);
 
-  const clock = now.toLocaleTimeString('ko-KR', { hour12: false });
+  const clock = now.toLocaleTimeString(locale, { hour12: false });
   const saved = Number(p.savedAmount || 0);
 
   return (
     <Screen>
       <View style={st.wrap}>
         <View style={[st.badge, left === 0 && { backgroundColor: C.ink3 }]}>
-          <Text style={st.badgeText}>{left > 0 ? '사용 완료' : '표시 만료'}</Text>
+          <Text style={st.badgeText}>{left > 0 ? t('doneBadge') : t('doneExpired')}</Text>
         </View>
 
         <Text style={st.merchant}>{p.merchantName}</Text>
@@ -42,7 +44,7 @@ export default function DoneScreen() {
         {/* 닉네임 — 직원이 사용내역 맨 윗줄과 눈으로 대조하는 기준 (사이렌 오더 방식) */}
         {!!me?.nickname && (
           <View style={st.nickPill}>
-            <Text style={st.nick}>{me.nickname} 님</Text>
+            <Text style={st.nick}>{t('doneNick', { nick: me.nickname })}</Text>
           </View>
         )}
 
@@ -50,27 +52,27 @@ export default function DoneScreen() {
         <Text style={st.clock}>{clock}</Text>
         <View style={st.pulseRow}>
           <View style={[st.dot, { opacity: now.getSeconds() % 2 ? 1 : 0.2 }]} />
-          <Text style={st.live}>실시간 화면 · {left}초</Text>
+          <Text style={st.live}>{t('liveSec', { n: left })}</Text>
         </View>
 
         {/* 6자리 코드는 직원 확인(고가) 상품에만 노출 — 일반 혜택은 흐르는 시계 확인만으로 끝 */}
         {p.staff === '1' && (
           <View style={st.tokenBox}>
-            <Text style={st.tokenLabel}>직원 확인 코드</Text>
+            <Text style={st.tokenLabel}>{t('staffCode')}</Text>
             <Text style={st.token}>{p.verifyToken}</Text>
           </View>
         )}
 
         {saved > 0 && (
-          <Text style={st.saved}>이번에 {won(saved)} 아꼈어요 🎉</Text>
+          <Text style={st.saved}>{t('doneSaved', { amt: won(saved) })}</Text>
         )}
         {p.staff === '1' && (
-          <Text style={st.staffNote}>이 상품은 직원이 코드를 확인한 후 이용할 수 있어요.</Text>
+          <Text style={st.staffNote}>{t('staffNote')}</Text>
         )}
 
         <View style={{ marginTop: 28, width: '100%' }}>
           {/* 확인 후엔 홈이 아니라 [사용] 탭으로 — 사용 흐름의 제자리로 돌아간다 */}
-          <Btn title="확인" onPress={() => router.replace('/(tabs)/scan')} />
+          <Btn title={t('confirm')} onPress={() => router.replace('/(tabs)/scan')} />
         </View>
       </View>
     </Screen>

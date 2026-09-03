@@ -7,7 +7,8 @@ import { Alert, Platform, ScrollView, StyleSheet, Text, View } from 'react-nativ
 import { router } from 'expo-router';
 import { api } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
-import { C, won } from '../../lib/theme';
+import { LangChips, useI18n } from '../../lib/i18n';
+import { C } from '../../lib/theme';
 import { Btn, Card, Loading, Screen, Tag } from '../../lib/ui';
 
 type Plan = { code: string; name: string; description: string; price: number; durationDays: number };
@@ -16,10 +17,10 @@ type Plan = { code: string; name: string; description: string; price: number; du
 const DEMO_MODE = true;
 
 const SOCIALS = [
-  { provider: 'KAKAO', label: '카카오로 시작', bg: '#FEE500', fg: '#191600' },
-  { provider: 'NAVER', label: '네이버로 시작', bg: '#03C75A', fg: '#fff' },
-  { provider: 'GOOGLE', label: 'Google로 시작', bg: '#fff', fg: '#1F1F1F' },
-  { provider: 'APPLE', label: 'Apple로 시작', bg: '#000', fg: '#fff' },
+  { provider: 'KAKAO', labelKey: 'socialKakao', bg: '#FEE500', fg: '#191600' },
+  { provider: 'NAVER', labelKey: 'socialNaver', bg: '#03C75A', fg: '#fff' },
+  { provider: 'GOOGLE', labelKey: 'socialGoogle', bg: '#fff', fg: '#1F1F1F' },
+  { provider: 'APPLE', labelKey: 'socialApple', bg: '#000', fg: '#fff' },
 ];
 
 function notify(title: string, msg: string) {
@@ -29,6 +30,7 @@ function notify(title: string, msg: string) {
 
 export default function MyScreen() {
   const { ready, me, login, logout, refresh } = useAuth();
+  const { t, won, locale } = useI18n();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [busy, setBusy] = useState(false);
 
@@ -43,7 +45,7 @@ export default function MyScreen() {
       const providerId = provider === 'KAKAO' ? 'demo-user-1' : `demo-${provider.toLowerCase()}-1`;
       await login(provider, providerId);
     } catch (e: any) {
-      notify('로그인 실패', e.message);
+      notify(t('loginFail'), e.message);
     } finally {
       setBusy(false);
     }
@@ -55,7 +57,7 @@ export default function MyScreen() {
     try {
       await login('KAKAO', providerId);
     } catch (e: any) {
-      notify('로그인 실패', e.message);
+      notify(t('loginFail'), e.message);
     } finally {
       setBusy(false);
     }
@@ -67,19 +69,19 @@ export default function MyScreen() {
       try {
         const r = await api<any>('/membership/purchase', { method: 'POST', body: { planCode: plan.code } });
         await refresh();
-        notify('멤버십 시작!', r.message);
+        notify(t('memberStarted'), r.message);
       } catch (e: any) {
-        notify('구매할 수 없습니다', e.message);
+        notify(t('cantBuy'), e.message);
       } finally {
         setBusy(false);
       }
     };
     if (Platform.OS === 'web') {
-      if (window.confirm(`${plan.name} (${won(plan.price)})을 시작할까요?\n결제는 데모(모의결제)로 처리됩니다.`)) await run();
+      if (window.confirm(t('buyConfirmWeb', { plan: plan.name, price: won(plan.price) }))) await run();
     } else {
-      Alert.alert(plan.name, `${won(plan.price)} · ${plan.durationDays}일\n결제는 데모(모의결제)로 처리됩니다.`, [
-        { text: '취소', style: 'cancel' },
-        { text: '시작하기', onPress: run },
+      Alert.alert(plan.name, t('buyConfirmNative', { price: won(plan.price), days: plan.durationDays }), [
+        { text: t('cancel'), style: 'cancel' },
+        { text: t('start'), onPress: run },
       ]);
     }
   }
@@ -92,21 +94,19 @@ export default function MyScreen() {
         {!me ? (
           <>
             <Card>
-              <Text style={st.hero}>3초 만에 시작하세요</Text>
-              <Text style={st.heroSub}>
-                아이디·비밀번호 없이 간편하게.{'\n'}나머지 정보는 필요한 순간에만 받을게요.
-              </Text>
+              <Text style={st.hero}>{t('myHero')}</Text>
+              <Text style={st.heroSub}>{t('myHeroSub')}</Text>
               {SOCIALS.map((s) => (
                 <View key={s.provider} style={{ marginTop: 8 }}>
                   <Text
                     onPress={() => !busy && doLogin(s.provider)}
                     style={[st.socialBtn, { backgroundColor: s.bg, color: s.fg }]}
                   >
-                    {s.label}
+                    {t(s.labelKey)}
                   </Text>
                 </View>
               ))}
-              <Text style={st.devNote}>데모 기간: 임시 계정으로 로그인됩니다 (소셜 연동 전)</Text>
+              <Text style={st.devNote}>{t('demoNote')}</Text>
               {DEMO_MODE && (
                 <View style={st.devOwnerRow}>
                   <Text style={st.devOwner} onPress={() => !busy && doOwnerLogin('demo-owner-2')}>
@@ -125,29 +125,29 @@ export default function MyScreen() {
                 {me.membership ? (
                   <Tag text={me.membership.planName} tone="gold" />
                 ) : (
-                  <Tag text="일반회원" tone="warn" />
+                  <Tag text={t('freeTier')} tone="warn" />
                 )}
               </View>
               <Text style={st.cardName}>{me.nickname}</Text>
               {me.membership ? (
                 <>
                   <Text style={st.cardSaving}>
-                    이번 달 {won(me.savings.thisMonth)} 절약
-                    {me.savings.recoveryRate != null && ` · 회수율 ${me.savings.recoveryRate}%`}
+                    {t('cardSaved', { amt: won(me.savings.thisMonth) })}
+                    {me.savings.recoveryRate != null && t('recoveryRate', { r: me.savings.recoveryRate })}
                   </Text>
                   <Text style={st.cardUntil}>
-                    ~{new Date(me.membership.endAt).toLocaleDateString('ko-KR')} 까지
+                    {t('untilDate', { date: new Date(me.membership.endAt).toLocaleDateString(locale) })}
                   </Text>
                 </>
               ) : (
-                <Text style={st.cardSaving}>멤버십을 시작하면 제휴 혜택이 한 번에 열려요</Text>
+                <Text style={st.cardSaving}>{t('cardNoPlan')}</Text>
               )}
             </Card>
 
             {/* 멤버십 구매 */}
             {!me.membership && (
               <>
-                <Text style={st.section}>멤버십 시작하기</Text>
+                <Text style={st.section}>{t('startPlanSection')}</Text>
                 {plans.map((p) => (
                   <Card key={p.code}>
                     <View style={st.rowBetween}>
@@ -157,7 +157,7 @@ export default function MyScreen() {
                       </View>
                       <View style={{ alignItems: 'flex-end', gap: 6 }}>
                         <Text style={st.planPrice}>{won(p.price)}</Text>
-                        <Btn title="시작" small onPress={() => buy(p)} disabled={busy} />
+                        <Btn title={t('startShort')} small onPress={() => buy(p)} disabled={busy} />
                       </View>
                     </View>
                   </Card>
@@ -166,28 +166,28 @@ export default function MyScreen() {
             )}
 
             {/* 바로가기 */}
-            <Text style={st.section}>바로가기</Text>
+            <Text style={st.section}>{t('shortcuts')}</Text>
             <Card>
               <View style={st.rowBetween}>
                 <View>
-                  <Text style={st.planName}>내 혜택 전체 보기</Text>
-                  <Text style={st.planDesc}>매장별로 열려 있는 혜택 · 절약 내역</Text>
+                  <Text style={st.planName}>{t('myBenefitsAll')}</Text>
+                  <Text style={st.planDesc}>{t('myBenefitsAllSub')}</Text>
                 </View>
-                <Btn title='보기' small onPress={() => router.push('/benefits')} />
+                <Btn title={t('view')} small onPress={() => router.push('/benefits')} />
               </View>
             </Card>
             <Card>
               <View style={st.rowBetween}>
                 <View>
-                  <Text style={st.planName}>이용권 · 예약</Text>
-                  <Text style={st.planDesc}>구매한 티켓과 확정된 예약</Text>
+                  <Text style={st.planName}>{t('titleWallet')}</Text>
+                  <Text style={st.planDesc}>{t('walletSub')}</Text>
                 </View>
-                <Btn title='보기' small onPress={() => router.push('/wallet')} />
+                <Btn title={t('view')} small onPress={() => router.push('/wallet')} />
               </View>
             </Card>
 
             {/* 내 가게 — 사장님도 같은 카카오 로그인. 계정에 가게가 연결되면 여기가 자동으로 열린다 */}
-            <Text style={st.section}>내 가게</Text>
+            <Text style={st.section}>{t('myStore')}</Text>
             {me.ownedMerchant ? (
               me.ownedMerchant.status === 'ACTIVE' ? (
                 <Card>
@@ -218,14 +218,20 @@ export default function MyScreen() {
             )}
 
             <View style={{ marginTop: 18 }}>
-              <Btn title="로그아웃" tone="ghost" onPress={logout} />
+              <Btn title={t('logout')} tone="ghost" onPress={logout} />
             </View>
           </>
         )}
 
+        {/* 언어 설정 — 로그인 여부와 무관하게 항상 노출 */}
+        <Text style={st.section}>🌐 {t('language')}</Text>
+        <Card>
+          <LangChips />
+        </Card>
+
         <Text style={st.foot}>
-          결제는 PG 연동 전까지 모의결제로 동작합니다{'\n'}
-          빌드 {process.env.EXPO_PUBLIC_BUILD ?? '개발 모드'}
+          {t('footNote')}{'\n'}
+          {t('build')} {process.env.EXPO_PUBLIC_BUILD ?? '개발 모드'}
         </Text>
       </ScrollView>
     </Screen>

@@ -7,7 +7,8 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
-import { C, won } from '../lib/theme';
+import { useI18n } from '../lib/i18n';
+import { C } from '../lib/theme';
 import { Btn, Card, EmptyText, Loading, Screen, Tag } from '../lib/ui';
 
 type BenefitGroup = {
@@ -15,15 +16,16 @@ type BenefitGroup = {
   items: { id: string; title: string; type: string; freebieName: string | null; validTo: string | null; sourceType: string }[];
 };
 
-const SOURCE_LABEL: Record<string, string> = {
-  MEMBERSHIP_PLAN: '멤버십',
-  PRODUCT: '상품구매',
-  REGION_PASS: '지역패스',
-  MANUAL: '지급',
+const SOURCE_KEY: Record<string, string> = {
+  MEMBERSHIP_PLAN: 'srcMembership',
+  PRODUCT: 'srcProduct',
+  REGION_PASS: 'srcRegionPass',
+  MANUAL: 'srcManual',
 };
 
 export default function BenefitsScreen() {
   const { me } = useAuth();
+  const { t, won, locale } = useI18n();
   const [data, setData] = useState<{ totalCount: number; merchants: BenefitGroup[] } | null>(null);
   const [error, setError] = useState('');
 
@@ -40,8 +42,8 @@ export default function BenefitsScreen() {
     return (
       <Screen>
         <View style={{ padding: 24 }}>
-          <EmptyText text="로그인하면 내 혜택이 여기에 모여요" />
-          <Btn title="로그인하러 가기" onPress={() => router.push('/(tabs)/my')} />
+          <EmptyText text={t('benefitsLoginEmpty')} />
+          <Btn title={t('goLogin')} onPress={() => router.push('/(tabs)/my')} />
         </View>
       </Screen>
     );
@@ -52,12 +54,12 @@ export default function BenefitsScreen() {
       <ScrollView contentContainerStyle={{ padding: 16 }}>
         {/* 절약 요약 — 사용자가 계산하지 않게 앱이 계산해서 보여준다 */}
         <Card style={{ backgroundColor: C.brand, borderColor: C.brand }}>
-          <Text style={st.savingLabel}>이번 달 아낀 금액</Text>
+          <Text style={st.savingLabel}>{t('savedLabel')}</Text>
           <Text style={st.savingValue}>{won(me.savings.thisMonth)}</Text>
           <View style={{ flexDirection: 'row', gap: 14, marginTop: 6 }}>
-            <Text style={st.savingSub}>누적 {won(me.savings.total)}</Text>
+            <Text style={st.savingSub}>{t('savedTotal', { amt: won(me.savings.total) })}</Text>
             {me.savings.recoveryRate != null && (
-              <Text style={st.savingSub}>멤버십 비용 회수 {me.savings.recoveryRate}%</Text>
+              <Text style={st.savingSub}>{t('savedRecovery', { r: me.savings.recoveryRate })}</Text>
             )}
           </View>
         </Card>
@@ -67,8 +69,8 @@ export default function BenefitsScreen() {
 
         {data && data.totalCount === 0 && (
           <View>
-            <EmptyText text="아직 열린 혜택이 없어요. 멤버십을 시작하면 제휴 혜택이 한 번에 열립니다." />
-            <Btn title="멤버십 보러 가기" onPress={() => router.push('/(tabs)/my')} />
+            <EmptyText text={t('noBenefitsYet')} />
+            <Btn title={t('seePlans')} onPress={() => router.push('/(tabs)/my')} />
           </View>
         )}
 
@@ -86,18 +88,18 @@ export default function BenefitsScreen() {
                   <Text style={st.benefitTitle}>{b.title}</Text>
                   {b.validTo && (
                     <Text style={st.validTo}>
-                      ~{new Date(b.validTo).toLocaleDateString('ko-KR')} 까지
+                      {t('untilDate', { date: new Date(b.validTo).toLocaleDateString(locale) })}
                     </Text>
                   )}
                 </View>
-                <Tag text={SOURCE_LABEL[b.sourceType] ?? b.sourceType} tone="ok" />
+                <Tag text={SOURCE_KEY[b.sourceType] ? t(SOURCE_KEY[b.sourceType]) : b.sourceType} tone="ok" />
               </View>
             ))}
           </Card>
         ))}
 
         {data && data.totalCount > 0 && (
-          <Text style={st.hint}>매장에 가면 [사용] 탭에서 매장 QR을 스캔하세요.</Text>
+          <Text style={st.hint}>{t('benefitsHint')}</Text>
         )}
       </ScrollView>
     </Screen>

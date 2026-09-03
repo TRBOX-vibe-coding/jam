@@ -9,12 +9,14 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useCameraPermissions } from 'expo-camera';
 import { useAuth } from '../../lib/auth';
+import { useI18n } from '../../lib/i18n';
 import { QrScanner } from '../../lib/qr-scanner';
 import { C } from '../../lib/theme';
 import { Btn, Card, Screen } from '../../lib/ui';
 
 export default function ScanScreen() {
   const { me } = useAuth();
+  const { t } = useI18n();
   const [permission, requestPermission] = useCameraPermissions();
   const [manual, setManual] = useState('');
   const [showManual, setShowManual] = useState(false);
@@ -34,7 +36,7 @@ export default function ScanScreen() {
     if (Platform.OS !== 'web' && !permission?.granted) {
       const r = await requestPermission();
       if (!r.granted) {
-        setScanError('카메라 권한이 필요해요. 설정에서 카메라를 허용해 주세요.');
+        setScanError(t('camPerm'));
         return;
       }
     }
@@ -46,8 +48,8 @@ export default function ScanScreen() {
       <Screen>
         <View style={{ padding: 24 }}>
           <Card>
-            <Text style={st.guide}>로그인 후 매장 QR을 스캔하면{'\n'}그 매장에서 쓸 수 있는 혜택이 바로 나옵니다.</Text>
-            <Btn title="로그인하러 가기" onPress={() => router.push('/(tabs)/my')} />
+            <Text style={st.guide}>{t('scanLoginGuide')}</Text>
+            <Btn title={t('goLogin')} onPress={() => router.push('/(tabs)/my')} />
           </Card>
         </View>
       </Screen>
@@ -58,10 +60,10 @@ export default function ScanScreen() {
     <Screen>
       <View style={{ padding: 16, flex: 1 }}>
         <Card>
-          <Text style={st.stepTitle}>사용 방법</Text>
-          <Text style={st.step}>1. 매장 카운터의 홀릭잼 QR을 찾으세요</Text>
-          <Text style={st.step}>2. 아래 버튼으로 스캔하세요</Text>
-          <Text style={st.step}>3. 쓸 혜택을 고르고 직원에게 완료화면을 보여주세요</Text>
+          <Text style={st.stepTitle}>{t('howToUse')}</Text>
+          <Text style={st.step}>{t('step1')}</Text>
+          <Text style={st.step}>{t('step2')}</Text>
+          <Text style={st.step}>{t('step3')}</Text>
         </Card>
 
         {scanning ? (
@@ -78,19 +80,19 @@ export default function ScanScreen() {
               <View pointerEvents="none" style={st.scanOverlay}>
                 <View style={st.scanFrame} />
                 <View style={st.scanGuideBox}>
-                  <Text style={st.scanGuide}>매장 QR을 틀 안에 비춰주세요</Text>
-                  <Text style={st.scanGuideSub}>버튼을 누를 필요 없이 자동으로 인식됩니다</Text>
+                  <Text style={st.scanGuide}>{t('scanFrameGuide')}</Text>
+                  <Text style={st.scanGuideSub}>{t('scanAuto')}</Text>
                 </View>
               </View>
             </View>
             <View style={{ padding: 12 }}>
-              <Btn title="닫기" tone="ghost" onPress={() => setScanning(false)} />
+              <Btn title={t('close')} tone="ghost" onPress={() => setScanning(false)} />
             </View>
           </View>
         ) : (
           <Pressable style={st.scanBtn} onPress={openScanner}>
             <Ionicons name="scan-outline" size={20} color="#fff" />
-            <Text style={st.scanBtnText}>매장 QR 스캔하기</Text>
+            <Text style={st.scanBtnText}>{t('scanBtn')}</Text>
           </Pressable>
         )}
 
@@ -103,7 +105,7 @@ export default function ScanScreen() {
         {/* 수동 입력은 평소엔 텍스트 한 줄만. 누르면 입력창이 열린다 */}
         {showManual ? (
           <Card style={{ marginTop: 12 }}>
-            <Text style={st.manualLabel}>매장 QR 아래에 적힌 코드를 입력하세요</Text>
+            <Text style={st.manualLabel}>{t('manualLabel')}</Text>
             <TextInput
               value={manual}
               onChangeText={setManual}
@@ -115,13 +117,13 @@ export default function ScanScreen() {
               onSubmitEditing={() => go(manual)}
             />
             <View style={{ flexDirection: 'row', gap: 8 }}>
-              <View style={{ flex: 1 }}><Btn title="확인" small onPress={() => go(manual)} /></View>
-              <Btn title="닫기" small tone="ghost" onPress={() => setShowManual(false)} />
+              <View style={{ flex: 1 }}><Btn title={t('confirm')} small onPress={() => go(manual)} /></View>
+              <Btn title={t('close')} small tone="ghost" onPress={() => setShowManual(false)} />
             </View>
           </Card>
         ) : (
           <Pressable style={st.manualLink} onPress={() => setShowManual(true)}>
-            <Text style={st.manualLinkText}>QR을 스캔할 수 없나요?</Text>
+            <Text style={st.manualLinkText}>{t('scanFallback')}</Text>
           </Pressable>
         )}
       </View>

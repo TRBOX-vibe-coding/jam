@@ -1,16 +1,18 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { C } from '../../lib/theme';
+import { useI18n } from '../../lib/i18n';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
 function tabIcon(active: IconName, inactive: IconName) {
-  return ({ focused, color }: { focused: boolean; color: string }) => (
+  return ({ focused, color }: { focused: boolean; color: any }) => (
     <Ionicons name={focused ? active : inactive} size={22} color={color} />
   );
 }
 
 export default function TabsLayout() {
+  const { t } = useI18n();
   return (
     <Tabs
       screenOptions={{
@@ -27,39 +29,39 @@ export default function TabsLayout() {
         name="index"
         options={{
           headerShown: false,
-          tabBarLabel: '홈',
+          tabBarLabel: t('tabHome'),
           tabBarIcon: tabIcon('home', 'home-outline'),
         }}
       />
       <Tabs.Screen
         name="drops"
         options={{
-          title: '오늘의 DROP',
-          tabBarLabel: 'DROP',
+          title: t('titleDrops'),
+          tabBarLabel: t('tabDrop'),
           tabBarIcon: tabIcon('flash', 'flash-outline'),
         }}
       />
       <Tabs.Screen
         name="store"
         options={{
-          title: '제휴 혜택',
-          tabBarLabel: '혜택',
+          title: t('titleStore'),
+          tabBarLabel: t('tabStore'),
           tabBarIcon: tabIcon('pricetags', 'pricetags-outline'),
         }}
       />
       <Tabs.Screen
         name="scan"
         options={{
-          title: '매장에서 사용',
-          tabBarLabel: '사용',
+          title: t('titleScan'),
+          tabBarLabel: t('tabScan'),
           tabBarIcon: tabIcon('qr-code', 'qr-code-outline'),
         }}
       />
       <Tabs.Screen
         name="my"
         options={{
-          title: 'MY',
-          tabBarLabel: 'MY',
+          title: t('tabMy'),
+          tabBarLabel: t('tabMy'),
           tabBarIcon: tabIcon('person', 'person-outline'),
         }}
       />
