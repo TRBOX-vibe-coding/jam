@@ -12,6 +12,7 @@ import {
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { track } from '../../lib/analytics';
 import { api, cacheGet, cacheSet, img } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { LangButton, pickGreeting, useI18n } from '../../lib/i18n';
@@ -35,6 +36,7 @@ type BenefitGroup = {
   merchant: { id: string; name: string; thumbnailUrl: string | null; region: { name: string }; category: { emoji: string } };
   items: { title: string }[];
 };
+type Campaign = { id: string; title: string; subtitle: string | null; bannerImageUrl: string | null; subsidyLabel: string | null; endAt: string | null };
 type CouponSlot = { time: string; opensAt: string; closesAt: string; state: 'upcoming' | 'open' | 'soldout' | 'ended'; remaining: number; total: number };
 type CouponDrop = {
   id: string; validHours: number;
@@ -82,6 +84,7 @@ export default function HomeScreen() {
   // null = 아직 로딩(스켈레톤 표시), [] = 진짜 없음
   const [drops, setDrops] = useState<Drop[] | null>(null);
   const [products, setProducts] = useState<Product[] | null>(null);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [benefits, setBenefits] = useState<BenefitGroup[]>([]);
   const [coupons, setCoupons] = useState<CouponDrop[]>([]);
   const [couponBusy, setCouponBusy] = useState(false);
@@ -108,6 +111,8 @@ export default function HomeScreen() {
     api<Product[]>('/products')
       .then((p) => { setProducts(sortProducts(p)); cacheSet(`products:${lang}`, p); })
       .catch(() => setProducts((prev) => prev ?? []));
+    api<Campaign[]>('/campaigns/active').then(setCampaigns).catch(() => setCampaigns([]));
+    track('home_view');
     if (me) {
       api<{ merchants: BenefitGroup[] }>('/me/benefits')
         .then((b) => setBenefits(b.merchants))
@@ -190,6 +195,36 @@ export default function HomeScreen() {
               </View>
             )}
         </Pressable>
+
+        {/* ①-a 기획전 배너 — 키마위크·수변영화관 같은 공공사업. 관리자가 노출·순서·기간을 제어한다 */}
+        {campaigns.length > 0 && (
+          <View style={{ marginTop: 18, gap: 10 }}>
+            {campaigns.slice(0, 3).map((c) => (
+              <Pressable
+                key={c.id}
+                style={st.campCard}
+                onPress={() => { track('campaign_click', { type: 'campaign', id: c.id }); router.push(`/campaign/${c.id}` as never); }}
+              >
+                {c.bannerImageUrl ? (
+                  <Image source={{ uri: img(c.bannerImageUrl, 960) }} style={st.campImg} />
+                ) : (
+                  <View style={[st.campImg, { backgroundColor: C.brand }]} />
+                )}
+                <LinearGradient
+                  colors={['rgba(10,18,26,0.05)', 'rgba(10,18,26,0.72)']}
+                  style={st.campImg}
+                />
+                {!!c.subsidyLabel && (
+                  <View style={st.campChip}><Text style={st.campChipText}>🏛 {c.subsidyLabel}</Text></View>
+                )}
+                <View style={st.campBody}>
+                  <Text style={st.campTitle} numberOfLines={1}>{c.title}</Text>
+                  {!!c.subtitle && <Text style={st.campSub} numberOfLines={1}>{c.subtitle}</Text>}
+                </View>
+              </Pressable>
+            ))}
+          </View>
+        )}
 
         {/* ①-b 오늘의 무료 쿠폰 — 비멤버 전용. 시간 한정·선착순으로 멤버십 전환을 유도한다 */}
         {!me?.membership && coupons.length > 0 && (
@@ -418,6 +453,16 @@ const st = StyleSheet.create({
   loginBtn: { backgroundColor: C.brand, color: '#fff', fontSize: 13, fontWeight: '700', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, overflow: 'hidden' },
 
   sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', paddingHorizontal: 16, marginTop: 24, marginBottom: 11 },
+  campCard: { height: 118, borderRadius: 16, overflow: 'hidden', marginHorizontal: 16, backgroundColor: C.ink },
+  campImg: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
+  campChip: {
+    position: 'absolute', top: 10, left: 10, backgroundColor: '#fff',
+    borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3.5,
+  },
+  campChipText: { fontSize: 10.5, fontWeight: '700', color: C.brand },
+  campBody: { flex: 1, justifyContent: 'flex-end', padding: 13 },
+  campTitle: { color: '#fff', fontSize: 18, fontWeight: '700', letterSpacing: -0.3 },
+  campSub: { color: 'rgba(255,255,255,0.88)', fontSize: 11.5, marginTop: 2 },
   couponWrap: { marginTop: 2 },
   couponCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12,

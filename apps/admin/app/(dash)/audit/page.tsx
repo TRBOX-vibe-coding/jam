@@ -12,6 +12,11 @@ const ACTION_LABEL: Record<string, string> = {
   REDEMPTION_CANCEL: '사용 취소(CS)',
   SETTLEMENT_GENERATE: '정산 생성',
   SETTLEMENT_CONFIRM: '정산 확정',
+  CAMPAIGN_CREATE: '기획전 생성',
+  CAMPAIGN_UPDATE: '기획전 수정',
+  CAMPAIGN_DELETE: '기획전 삭제',
+  CAMPAIGN_CLOSE: '기획전 종료',
+  CAMPAIGN_PRODUCT_CREATE: '기획전 상품 등록',
 };
 
 export default function AuditPage() {

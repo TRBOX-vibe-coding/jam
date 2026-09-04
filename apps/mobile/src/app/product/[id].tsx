@@ -4,6 +4,7 @@
 import { useCallback, useState } from 'react';
 import { Alert, Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { track } from '../../lib/analytics';
 import { api, img } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { useI18n } from '../../lib/i18n';
@@ -26,7 +27,10 @@ export default function ProductDetail() {
 
   useFocusEffect(
     useCallback(() => {
-      api<any>(`/products/${id}`).then(setP).catch(() => {});
+      api<any>(`/products/${id}`).then((r) => {
+        setP(r);
+        track('product_view', { type: 'product', id: String(id) });
+      }).catch(() => {});
     }, [id, lang]),
   );
 
@@ -45,6 +49,7 @@ export default function ProductDetail() {
         method: 'POST',
         body: { slotId: slotId ?? undefined, headcount, contactName: me.nickname },
       });
+      track('product_purchase', { type: 'product', id: String(id) }, { headcount });
       notify(t('doneTitle'), r.message);
       router.push('/wallet');
     } catch (e: any) {

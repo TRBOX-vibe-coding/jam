@@ -395,7 +395,7 @@ export class AdminController {
         take: s,
         select: {
           id: true, nickname: true, provider: true, email: true, status: true,
-          createdAt: true, lastLoginAt: true,
+          createdAt: true, lastLoginAt: true, tags: true,
           memberships: {
             where: { status: 'ACTIVE', endAt: { gt: new Date() } },
             select: { plan: { select: { name: true } }, endAt: true, source: true },

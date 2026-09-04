@@ -74,6 +74,13 @@ export class MembershipController {
         data: { userId, planId: plan.id, orderId: order.id, startAt: now, endAt },
       });
 
+      // 회원 그룹 태그 — 타깃 Push·세그먼트용 (예: plan:JAM3)
+      const planTag = `plan:${plan.code}`;
+      const u = await tx.user.findUniqueOrThrow({ where: { id: userId }, select: { tags: true } });
+      if (!u.tags.includes(planTag)) {
+        await tx.user.update({ where: { id: userId }, data: { tags: { push: planTag } } });
+      }
+
       // 이 플랜으로 열리는 모든 혜택을 즉시 지급
       const rules = await tx.benefitGrantRule.findMany({
         where: { trigger: 'MEMBERSHIP_PLAN', membershipPlanId: plan.id, isActive: true },

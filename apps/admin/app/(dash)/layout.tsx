@@ -6,6 +6,7 @@ import { getToken, setToken } from '@/lib/api';
 
 const MENU = [
   { href: '/', label: '대시보드', icon: '📊' },
+  { href: '/campaigns', label: '기획전', icon: '🎪' },
   { href: '/drops', label: 'DROP 관리', icon: '⚡' },
   { href: '/merchants', label: '가맹점', icon: '🏪' },
   { href: '/products', label: '상품·예약', icon: '🎟️' },

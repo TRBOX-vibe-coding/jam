@@ -45,6 +45,8 @@ model Region {
   id        String   @id @default(cuid())
   /// 다국어 번역: { en: {name}, zh: {...}, ja: {...} }
   i18n      Json?
+  /// 확장 대비: 국가 (예: 대한민국, 베트남)
+  country   String   @default("대한민국")
   code      String   @unique
   city      String
   district  String
@@ -82,6 +84,8 @@ model Category {
 model User {
   id     String     @id @default(cuid())
   status UserStatus @default(ACTIVE)
+  /// 회원 그룹/태그 — 타깃 Push·세그먼트용 (예: plan:JAM3, campaign:<id>, org:부산시청)
+  tags   String[]   @default([])
 
   // 간편가입만 지원한다. 비밀번호는 두지 않는다.
   provider   SocialProvider
@@ -455,6 +459,9 @@ enum DropKind {
 /// 오늘의 DROP. 서비스의 핵심 경험.
 model Drop {
   i18n Json?
+  /// 기획전(공공사업) 소속 꼬리표 — 실적 엑셀·배너 노출용
+  campaignId String?
+  campaign   Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
   id         String   @id @default(cuid())
   merchantId String
   merchant   Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
@@ -558,6 +565,8 @@ enum VerificationLevel {
 
 model Product {
   i18n Json?
+  campaignId String?
+  campaign   Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
   id         String      @id @default(cuid())
   merchantId String
   merchant   Merchant    @relation(fields: [merchantId], references: [id], onDelete: Cascade)
@@ -912,4 +921,44 @@ model AdminPasswordReset {
   createdAt DateTime  @default(now())
 
   @@index([adminId])
+}
+
+/// 기획전/공공사업 — 기간 한정 사업을 묶는 폴더.
+/// 앱 홈 배너로 노출되고, 소속 상품 판매실적을 엑셀로 뽑아 지자체에 제출한다.
+/// 지원금은 지자체→업체 직접 지급이라 정산 엔진은 필요 없다 (증빙만).
+model Campaign {
+  id             String    @id @default(cuid())
+  i18n           Json?
+  title          String
+  subtitle       String?
+  bannerImageUrl String?
+  /// 지자체 지원 표기 (예: "부산시 지원") — 있으면 상품 카드에 딱지가 붙는다
+  subsidyLabel   String?
+  isActive       Boolean   @default(true)
+  sortOrder      Int       @default(0)
+  startAt        DateTime?
+  endAt          DateTime?
+  createdAt      DateTime  @default(now())
+
+  drops    Drop[]
+  products Product[]
+
+  @@index([isActive, sortOrder])
+}
+
+/// 사용자 행동 로그 — 향후 AI/분석용. 처음부터 쌓는다 (대표 요구 8번).
+model EventLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  /// 비로그인 구분용 익명 id (기기 로컬 생성)
+  anonId     String?
+  event      String
+  entityType String?
+  entityId   String?
+  lang       String?
+  meta       Json?
+  createdAt  DateTime @default(now())
+
+  @@index([event, createdAt])
+  @@index([userId, createdAt])
 }

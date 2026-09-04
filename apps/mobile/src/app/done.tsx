@@ -6,6 +6,7 @@
 import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
+import { track } from '../lib/analytics';
 import { useAuth } from '../lib/auth';
 import { useI18n } from '../lib/i18n';
 import { C } from '../lib/theme';
@@ -21,11 +22,13 @@ export default function DoneScreen() {
   const [left, setLeft] = useState(90);
 
   useEffect(() => {
+    track('redeem_done', undefined, { merchant: p.merchantName });
     const t = setInterval(() => {
       setNow(new Date());
       setLeft((v) => Math.max(0, v - 1));
     }, 1000);
     return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const clock = now.toLocaleTimeString(locale, { hour12: false });

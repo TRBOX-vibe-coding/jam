@@ -58,6 +58,7 @@ export class DropsController {
         merchant: { select: { id: true, name: true, address: true, i18n: true } },
         region: { select: { id: true, name: true, i18n: true } },
         category: { select: { id: true, name: true, emoji: true, i18n: true } },
+        campaign: { select: { id: true, title: true, subsidyLabel: true, i18n: true } },
       },
     });
 
@@ -71,6 +72,7 @@ export class DropsController {
       merchant: d.merchant,
       region: d.region,
       category: d.category,
+      campaign: d.campaign,
       normalPrice: d.normalPrice,
       dropPrice: d.dropPrice,
       discountRate: Math.round((1 - d.dropPrice / d.normalPrice) * 100),
@@ -101,6 +103,7 @@ export class DropsController {
         region: { select: { name: true, i18n: true } },
         category: { select: { name: true, emoji: true, i18n: true } },
         product: { select: { id: true, name: true, type: true, i18n: true } },
+        campaign: { select: { id: true, title: true, subsidyLabel: true, i18n: true } },
       },
     });
     if (!d) throw new NotFoundException('DROP을 찾을 수 없습니다');
@@ -156,6 +159,15 @@ export class DropsController {
       const after = await tx.drop.findUniqueOrThrow({ where: { id }, select: { remainingQty: true } });
       if (after.remainingQty === 0) {
         await tx.drop.update({ where: { id }, data: { status: 'SOLD_OUT' } });
+      }
+
+      // 기획전 상품이면 회원 그룹 태그 부착 (예: campaign:<id>) — 타깃 Push용
+      if (drop.campaignId) {
+        const tag = `campaign:${drop.campaignId}`;
+        const u = await tx.user.findUniqueOrThrow({ where: { id: userId }, select: { tags: true } });
+        if (!u.tags.includes(tag)) {
+          await tx.user.update({ where: { id: userId }, data: { tags: { push: tag } } });
+        }
       }
 
       if (drop.kind === 'DEAL') {
