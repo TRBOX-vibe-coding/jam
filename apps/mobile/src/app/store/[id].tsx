@@ -4,6 +4,7 @@
 import { useCallback, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { track } from '../../lib/analytics';
 import { api, img } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { useI18n } from '../../lib/i18n';
@@ -18,7 +19,10 @@ export default function StoreDetail() {
 
   useFocusEffect(
     useCallback(() => {
-      api<any>(`/merchants/${id}`).then(setM).catch(() => {});
+      api<any>(`/merchants/${id}`).then((r) => {
+        setM(r);
+        track('store_view', { type: 'merchant', id: String(id) });
+      }).catch(() => {});
     }, [id, lang]),
   );
 

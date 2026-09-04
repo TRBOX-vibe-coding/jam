@@ -2,6 +2,7 @@
 import { useCallback, useState } from 'react';
 import { Alert, Image, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { track } from '../../lib/analytics';
 import { api, img } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { useI18n } from '../../lib/i18n';
@@ -25,7 +26,10 @@ export default function DropDetail() {
 
   useFocusEffect(
     useCallback(() => {
-      api<any>(`/drops/${id}`).then(setD).catch(() => {});
+      api<any>(`/drops/${id}`).then((r) => {
+        setD(r);
+        track('drop_view', { type: 'drop', id: String(id) });
+      }).catch(() => {});
     }, [id, lang]),
   );
 
@@ -37,6 +41,7 @@ export default function DropDetail() {
     setBusy(true);
     try {
       const r = await api<any>(`/drops/${id}/claim`, { method: 'POST', body: {} });
+      track(r.type === 'TICKET' ? 'ticket_purchase' : 'drop_claim', { type: 'drop', id: String(id) });
       notify(r.type === 'TICKET' ? t('paidDone') : t('claimed'), r.message);
       if (r.type === 'TICKET') router.push('/wallet');
       else router.back();
@@ -58,6 +63,7 @@ export default function DropDetail() {
         <Card>
           <View style={{ flexDirection: 'row', gap: 5, marginBottom: 8 }}>
             <Tag text={`${d.category.emoji} ${d.region.name}`} />
+            {!!d.campaign?.subsidyLabel && <Tag text={`🏛 ${d.campaign.subsidyLabel}`} tone="ok" />}
             {d.audience === 'MEMBER_ONLY' && <Tag text={t('memberOnly')} tone="gold" />}
             {d.isSponsored && <Tag text={t('ad')} tone="warn" />}
             <Tag text={d.kind === 'TICKET' ? t('payInApp') : t('payOnSite')} tone="ok" />

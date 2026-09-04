@@ -5,6 +5,7 @@
 import { useEffect, useState } from 'react';
 import { Alert, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
+import { track } from '../../lib/analytics';
 import { api } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { LangChips, useI18n } from '../../lib/i18n';
@@ -68,6 +69,7 @@ export default function MyScreen() {
       setBusy(true);
       try {
         const r = await api<any>('/membership/purchase', { method: 'POST', body: { planCode: plan.code } });
+        track('membership_purchase', { type: 'plan', id: plan.code });
         await refresh();
         notify(t('memberStarted'), r.message);
       } catch (e: any) {

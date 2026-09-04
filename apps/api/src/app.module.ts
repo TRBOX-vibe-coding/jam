@@ -12,6 +12,8 @@ import { MerchantModule } from './merchant';
 import { AdminModule } from './admin';
 import { StoreModule } from './store';
 import { CouponModule } from './coupon';
+import { CampaignModule } from './campaign';
+import { EventsModule } from './events';
 import { UploadsController } from './uploads.controller';
 
 @Controller()
@@ -35,6 +37,8 @@ class HealthController {
     AdminModule,
     StoreModule,
     CouponModule,
+    CampaignModule,
+    EventsModule,
   ],
   controllers: [HealthController, UploadsController],
   providers: [{ provide: APP_INTERCEPTOR, useClass: I18nInterceptor }],

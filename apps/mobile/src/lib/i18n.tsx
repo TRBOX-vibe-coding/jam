@@ -5,6 +5,7 @@
  */
 import { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { track } from './analytics';
 import { setApiLang } from './api';
 import { C } from './theme';
 
@@ -90,6 +91,12 @@ const D: Record<string, [string, string, string, string]> = {
   catBar: ['펍·바', 'Pub·Bar', '酒吧', 'バー'],
   catExhibit: ['전시', 'Exhibit', '展览', '展示'],
   catKids: ['키즈', 'Kids', '亲子', 'キッズ'],
+
+  // ── 기획전 ──
+  titleCampaign: ['기획전', 'Event', '专题活动', '特集'],
+  onePerPerson: ['1인 1장', '1 per person', '每人限1张', 'お一人様1枚'],
+  perPersonMax: ['1인 {n}장', 'Max {n}/person', '每人限{n}张', 'お一人{n}枚'],
+  subsidyNotice: ['지자체 지원 할인이 적용된 가격이에요', 'Prices include a local-government subsidy discount', '价格已含地方政府补贴优惠', '自治体の支援割引が適用された価格です'],
 
   // ── DROP 탭 ──
   noDropsRegion: ['이 지역에는 아직 오픈된 DROP이 없어요', 'No open DROPs in this area yet', '该地区暂无DROP', 'このエリアにはまだDROPがありません'],
@@ -326,6 +333,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
   const setLang = useCallback((l: Lang) => {
     setLangState(l);
     setApiLang(l);
+    track('lang_change', undefined, { to: l });
     try { localStorage.setItem('hg_lang', l); } catch { /* 무시 */ }
   }, []);
 

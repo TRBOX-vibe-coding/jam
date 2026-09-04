@@ -85,6 +85,9 @@ let contentLang = 'ko';
 export function setApiLang(lang: string) {
   contentLang = lang;
 }
+export function getApiLang() {
+  return contentLang;
+}
 
 export async function api<T = unknown>(
   path: string,

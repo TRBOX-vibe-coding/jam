@@ -69,7 +69,7 @@ export default function UsersPage() {
           <Empty text="회원이 없습니다" />
         ) : (
           <>
-            <Table head={['닉네임', '상태', '멤버십', '출처', '사용/주문', '최근 로그인', '관리']}>
+            <Table head={['닉네임', '상태', '멤버십', '회원 그룹', '사용/주문', '최근 로그인', '관리']}>
               {data.items.map((u) => (
                 <tr key={u.id} className={u.status !== 'ACTIVE' ? 'opacity-60' : ''}>
                   <Td>
@@ -87,7 +87,15 @@ export default function UsersPage() {
                       <span className="text-xs text-ink-3">일반회원</span>
                     )}
                   </Td>
-                  <Td>{u.memberships[0] ? <Badge>{u.memberships[0].source}</Badge> : <span className="text-xs text-ink-3">—</span>}</Td>
+                  <Td className="max-w-[180px]">
+                    {(u.tags ?? []).length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {u.tags.map((t: string) => <Badge key={t}>{t}</Badge>)}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-ink-3">—</span>
+                    )}
+                  </Td>
                   <Td className="tabular-nums text-xs text-ink-3">
                     사용 {u._count.redemptions} · 주문 {u._count.orders}
                   </Td>
