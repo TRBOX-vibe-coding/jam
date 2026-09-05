@@ -15,18 +15,58 @@ function Thumb({ src }: { src?: string | null }) {
   );
 }
 
+const EMPTY_CREATE = {
+  merchantId: '', title: '', description: '', kind: 'DEAL',
+  normalPrice: '', dropPrice: '', totalQty: '', maxPerUser: '1',
+  closeAt: '', imageUrl: '', memberOnly: false,
+};
+
 export default function DropsPage() {
   const [pending, setPending] = useState<any[] | null>(null);
   const [all, setAll] = useState<any[] | null>(null);
+  const [merchants, setMerchants] = useState<any[]>([]);
   const [msg, setMsg] = useState('');
   const [edit, setEdit] = useState<any | null>(null);
   const [form, setForm] = useState({ title: '', description: '', normalPrice: '', dropPrice: '', totalQty: '' });
+  const [showCreate, setShowCreate] = useState(false);
+  const [cf, setCf] = useState(EMPTY_CREATE);
 
   const load = useCallback(() => {
     api<any[]>('/admin/drops?status=PENDING').then(setPending).catch(() => setPending([]));
     api<any[]>('/admin/drops').then(setAll).catch(() => setAll([]));
   }, []);
-  useEffect(load, [load]);
+  useEffect(() => {
+    load();
+    api<any[]>('/admin/merchants?status=ACTIVE').then(setMerchants).catch(() => {});
+  }, [load]);
+
+  /** 본사 발굴 딜 직접 등록 — 승인 없이 즉시 오픈 */
+  async function createDrop() {
+    try {
+      await api('/admin/drops', {
+        method: 'POST',
+        body: {
+          merchantId: cf.merchantId,
+          title: cf.title,
+          description: cf.description || undefined,
+          kind: cf.kind,
+          normalPrice: Number(cf.normalPrice),
+          dropPrice: Number(cf.dropPrice),
+          totalQty: Number(cf.totalQty),
+          maxPerUser: Number(cf.maxPerUser) || 1,
+          closeAt: new Date(`${cf.closeAt}T23:59:59`).toISOString(),
+          imageUrl: cf.imageUrl || undefined,
+          memberOnly: cf.memberOnly,
+        },
+      });
+      setMsg(`'${cf.title}' 등록 완료 — 앱에 즉시 오픈`);
+      setCf(EMPTY_CREATE);
+      setShowCreate(false);
+      load();
+    } catch (e: any) {
+      alert(e.message);
+    }
+  }
 
   async function approve(id: string) {
     const r = await api<{ status: string }>(`/admin/drops/${id}/approve`, { method: 'POST' });
@@ -85,8 +125,46 @@ export default function DropsPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-xl font-bold">DROP 관리</h1>
-        {msg && <span className="rounded bg-ok-soft px-3 py-1 text-xs font-semibold text-ok">{msg}</span>}
+        <div className="flex items-center gap-3">
+          {msg && <span className="rounded bg-ok-soft px-3 py-1 text-xs font-semibold text-ok">{msg}</span>}
+          <Button onClick={() => setShowCreate((v) => !v)}>{showCreate ? '닫기' : '＋ DROP 직접 등록'}</Button>
+        </div>
       </div>
+
+      {showCreate && (
+        <Card className="p-5">
+          <p className="mb-3 rounded bg-brand-soft px-3 py-2 text-xs text-brand">
+            본사 발굴 딜 직접 등록 — 승인 절차 없이 <b>앱에 즉시 오픈</b>됩니다.
+          </p>
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <select className={inputCls} value={cf.merchantId} onChange={(e) => setCf({ ...cf, merchantId: e.target.value })}>
+              <option value="">가맹점 선택 *</option>
+              {merchants.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+            </select>
+            <input className={`${inputCls} lg:col-span-2`} placeholder="딜 제목 *" value={cf.title} onChange={(e) => setCf({ ...cf, title: e.target.value })} />
+            <select className={inputCls} value={cf.kind} onChange={(e) => setCf({ ...cf, kind: e.target.value })}>
+              <option value="DEAL">현장 결제 딜 (무료 받기)</option>
+              <option value="TICKET">앱에서 결제 (티켓)</option>
+            </select>
+            <input className={`${inputCls} col-span-2 lg:col-span-4`} placeholder="설명" value={cf.description} onChange={(e) => setCf({ ...cf, description: e.target.value })} />
+            <input className={inputCls} placeholder="정상가 *" value={cf.normalPrice} onChange={(e) => setCf({ ...cf, normalPrice: e.target.value.replace(/\D/g, '') })} />
+            <input className={inputCls} placeholder="딜 가격 *" value={cf.dropPrice} onChange={(e) => setCf({ ...cf, dropPrice: e.target.value.replace(/\D/g, '') })} />
+            <input className={inputCls} placeholder="총 수량 *" value={cf.totalQty} onChange={(e) => setCf({ ...cf, totalQty: e.target.value.replace(/\D/g, '') })} />
+            <input className={inputCls} placeholder="1인당 최대" value={cf.maxPerUser} onChange={(e) => setCf({ ...cf, maxPerUser: e.target.value.replace(/\D/g, '') })} />
+            <input className={inputCls} type="date" title="마감일 *" value={cf.closeAt} onChange={(e) => setCf({ ...cf, closeAt: e.target.value })} />
+            <input className={`${inputCls} lg:col-span-2`} placeholder="사진 URL" value={cf.imageUrl} onChange={(e) => setCf({ ...cf, imageUrl: e.target.value })} />
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2 text-sm font-semibold">
+                <input type="checkbox" checked={cf.memberOnly} onChange={(e) => setCf({ ...cf, memberOnly: e.target.checked })} />
+                멤버 전용
+              </label>
+              <Button onClick={createDrop} disabled={!cf.merchantId || cf.title.length < 2 || !cf.normalPrice || !cf.dropPrice || !cf.totalQty || !cf.closeAt}>
+                등록 + 즉시 오픈
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
 
       <Card>
         <CardHeader title={`승인 대기 (${pending?.length ?? '…'})`} />

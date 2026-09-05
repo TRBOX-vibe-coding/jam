@@ -9,6 +9,16 @@ const EMPTY_PRODUCT = {
   totalQty: '', onePerUser: true, maxPerUser: '2', closeAt: '', imageUrl: '',
 };
 
+/** 파일 → data URL (사진 업로드용) */
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result));
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+}
+
 function dt(s?: string | null) {
   return s ? new Date(s).toLocaleDateString('ko-KR') : '상시';
 }
@@ -21,6 +31,15 @@ export default function CampaignsPage() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [productFor, setProductFor] = useState<any | null>(null);
   const [pf, setPf] = useState(EMPTY_PRODUCT);
+  const [bannerB64, setBannerB64] = useState<string | null>(null);
+  const [productB64, setProductB64] = useState<string | null>(null);
+
+  async function pickFile(e: React.ChangeEvent<HTMLInputElement>, set: (v: string | null) => void) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (f.size > 5 * 1024 * 1024) { alert('이미지는 5MB 이하여야 합니다'); return; }
+    set(await fileToDataUrl(f));
+  }
 
   const load = useCallback(() => {
     api<any[]>('/admin/campaigns').then(setRows).catch(() => setRows([]));
@@ -37,7 +56,8 @@ export default function CampaignsPage() {
         body: {
           title: form.title,
           subtitle: form.subtitle || undefined,
-          bannerImageUrl: form.bannerImageUrl || undefined,
+          bannerImageBase64: bannerB64 ?? undefined,
+          bannerImageUrl: bannerB64 ? undefined : form.bannerImageUrl || undefined,
           subsidyLabel: form.subsidyLabel || undefined,
           sortOrder: Number(form.sortOrder) || 0,
           endAt: form.endAt ? new Date(`${form.endAt}T23:59:59`).toISOString() : undefined,
@@ -45,6 +65,7 @@ export default function CampaignsPage() {
       });
       setMsg('기획전을 만들었습니다 — 앱 홈 배너에 바로 노출됩니다');
       setForm(EMPTY_FORM);
+      setBannerB64(null);
       setShowCreate(false);
       load();
     } catch (e: any) {
@@ -94,12 +115,14 @@ export default function CampaignsPage() {
           onePerUser: pf.onePerUser,
           maxPerUser: pf.onePerUser ? undefined : Number(pf.maxPerUser) || 2,
           closeAt: new Date(`${pf.closeAt}T23:59:59`).toISOString(),
-          imageUrl: pf.imageUrl || undefined,
+          imageBase64: productB64 ?? undefined,
+          imageUrl: productB64 ? undefined : pf.imageUrl || undefined,
         },
       });
       setMsg(`'${pf.name}' 등록 완료 — 앱에서 바로 판매 시작`);
       setProductFor(null);
       setPf(EMPTY_PRODUCT);
+      setProductB64(null);
       load();
     } catch (e: any) {
       alert(e.message);
@@ -130,7 +153,17 @@ export default function CampaignsPage() {
             <input className={inputCls} placeholder="기획전 이름 * (예: 키마위크 2026)" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
             <input className={`${inputCls} lg:col-span-2`} placeholder="부제 (예: 부산 바다 액티비티 페스티벌)" value={form.subtitle} onChange={(e) => setForm({ ...form, subtitle: e.target.value })} />
             <input className={inputCls} placeholder="지원 표기 (예: 부산시 지원)" value={form.subsidyLabel} onChange={(e) => setForm({ ...form, subsidyLabel: e.target.value })} />
-            <input className={inputCls} placeholder="배너 이미지 URL" value={form.bannerImageUrl} onChange={(e) => setForm({ ...form, bannerImageUrl: e.target.value })} />
+            <div className="flex items-center gap-2">
+              <label className="cursor-pointer whitespace-nowrap rounded-md border border-line bg-white px-3 py-2 text-sm font-semibold text-ink-2 hover:bg-ground">
+                <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => pickFile(e, setBannerB64)} />
+                {bannerB64 ? '📁 배너 변경' : '📁 배너 사진'}
+              </label>
+              {bannerB64 ? (
+                <img src={bannerB64} alt="배너" className="h-9 w-16 rounded object-cover" />
+              ) : (
+                <input className={inputCls} placeholder="또는 이미지 URL" value={form.bannerImageUrl} onChange={(e) => setForm({ ...form, bannerImageUrl: e.target.value })} />
+              )}
+            </div>
             <div className="flex gap-2">
               <input className={inputCls} type="date" title="종료일" value={form.endAt} onChange={(e) => setForm({ ...form, endAt: e.target.value })} />
               <input className={`${inputCls} w-20`} placeholder="순서" value={form.sortOrder} onChange={(e) => setForm({ ...form, sortOrder: e.target.value.replace(/\D/g, '') })} />
@@ -240,8 +273,18 @@ export default function CampaignsPage() {
               )}
             </div>
             <div className="sm:col-span-2">
-              <label className="mb-1 block text-xs font-semibold text-ink-3">상품 사진 URL</label>
-              <input className={inputCls} value={pf.imageUrl} onChange={(e) => setPf({ ...pf, imageUrl: e.target.value })} placeholder="https://..." />
+              <label className="mb-1 block text-xs font-semibold text-ink-3">상품 사진</label>
+              <div className="flex items-center gap-2">
+                <label className="cursor-pointer whitespace-nowrap rounded-md border border-line bg-white px-3 py-2 text-sm font-semibold text-ink-2 hover:bg-ground">
+                  <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => pickFile(e, setProductB64)} />
+                  {productB64 ? '📁 사진 변경' : '📁 사진 올리기'}
+                </label>
+                {productB64 ? (
+                  <img src={productB64} alt="상품" className="h-9 w-12 rounded object-cover" />
+                ) : (
+                  <input className={inputCls} value={pf.imageUrl} onChange={(e) => setPf({ ...pf, imageUrl: e.target.value })} placeholder="또는 이미지 URL" />
+                )}
+              </div>
             </div>
           </div>
           <div className="mt-4 flex justify-end gap-2">
