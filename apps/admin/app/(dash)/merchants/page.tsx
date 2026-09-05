@@ -1,10 +1,22 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
 import QRCode from 'qrcode';
-import { api } from '@/lib/api';
+import { API_BASE, api } from '@/lib/api';
 import { Badge, Button, Card, CardHeader, Empty, Modal, Table, TableSkeleton, Td } from '@/components/ui';
 
 type Opt = { id: string; name: string; emoji?: string };
+
+const img = (u?: string | null, w = 160) => (u ? (u.startsWith('/') ? `${API_BASE}${u}?w=${w}` : u) : null);
+
+/** 파일 → data URL (가게 대표 사진 업로드용) */
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result));
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+}
 
 const EMPTY_FORM = { name: '', regionId: '', categoryId: '', address: '', ownerName: '', contactPhone: '', contactEmail: '', intro: '', commissionRate: '0' };
 
@@ -48,6 +60,16 @@ export default function MerchantsPage() {
     const next = m.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE';
     await api(`/admin/merchants/${m.id}`, { method: 'PATCH', body: { status: next } });
     setMsg(`${m.name} → ${next === 'ACTIVE' ? '운영 재개' : '일시 중지'}`);
+    load();
+  }
+
+  /** 가게 대표 사진 — 앱 혜택탭·홈 혜택매장 썸네일에 바로 반영 */
+  async function changePhoto(m: any, e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (f.size > 5 * 1024 * 1024) { alert('이미지는 5MB 이하여야 합니다'); return; }
+    await api(`/admin/merchants/${m.id}`, { method: 'PATCH', body: { thumbnailBase64: await fileToDataUrl(f) } });
+    setMsg(`${m.name} 대표 사진 변경 완료`);
     load();
   }
 
@@ -121,7 +143,14 @@ export default function MerchantsPage() {
               <tr key={m.id}>
                 <Td><Badge>{m.status}</Badge></Td>
                 <Td>
-                  <div className="font-medium">{m.name}</div>
+                  <div className="flex items-center gap-2.5">
+                    {m.thumbnailUrl ? (
+                      <img src={img(m.thumbnailUrl) ?? ''} alt="" loading="lazy" className="h-10 w-10 shrink-0 rounded-lg object-cover" />
+                    ) : (
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-ground text-base">{m.category.emoji}</div>
+                    )}
+                    <div className="font-medium">{m.name}</div>
+                  </div>
                   {(m.ownerName || m.bizRegNo) && (
                     <div className="max-w-[260px] text-[11px] text-ink-3">
                       대표 {m.ownerName ?? '-'} · 사업자 {m.bizRegNo ?? '-'}
@@ -163,6 +192,10 @@ export default function MerchantsPage() {
                         </Button>
                       </>
                     )}
+                    <label className="cursor-pointer">
+                      <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => changePhoto(m, e)} />
+                      <span className="inline-block rounded-md border border-line bg-white px-2.5 py-1 text-xs font-semibold text-ink-2 hover:bg-ground">사진</span>
+                    </label>
                     <Button small variant="ghost" onClick={() => openEdit(m)}>수정</Button>
                     <Button small variant="danger" onClick={() => remove(m)}>삭제</Button>
                   </div>

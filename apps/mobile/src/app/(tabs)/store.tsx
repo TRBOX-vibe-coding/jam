@@ -26,7 +26,9 @@ type Merchant = {
 
 export default function StoreScreen() {
   const { me } = useAuth();
-  const { t, lang } = useI18n();
+  const { t, won, lang } = useI18n();
+  // 멤버십 최저가 — 관리자에서 플랜 가격을 바꾸면 배너 문구도 따라간다
+  const [minPlanPrice, setMinPlanPrice] = useState(4900);
   const [regions, setRegions] = useState<Region[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [regionId, setRegionId] = useState<string | null>(null);
@@ -49,6 +51,11 @@ export default function StoreScreen() {
   }, [regionId, categoryId, lang]);
 
   useEffect(() => { load().catch(() => setRows([])); }, [load]);
+  useEffect(() => {
+    api<{ price: number }[]>('/membership/plans')
+      .then((ps) => { if (ps.length) setMinPlanPrice(Math.min(...ps.map((p) => p.price))); })
+      .catch(() => {});
+  }, [lang]);
 
   const isMember = !!me?.membership;
 
@@ -58,7 +65,7 @@ export default function StoreScreen() {
       {!isMember && (
         <Pressable style={st.banner} onPress={() => router.push('/(tabs)/my')}>
           <Text style={st.bannerText}>{t('bannerAll')}</Text>
-          <Text style={st.bannerCta}>{t('bannerCta')}</Text>
+          <Text style={st.bannerCta}>{t('bannerCta', { price: won(minPlanPrice) })}</Text>
         </Pressable>
       )}
 

@@ -105,7 +105,7 @@ const D: Record<string, [string, string, string, string]> = {
 
   // ── 혜택(스토어) 탭 ──
   bannerAll: ['멤버십 하나로 아래 모든 매장 혜택이 한 번에 열려요', 'One membership unlocks every store perk below', '一份会员，解锁下方所有店铺优惠', 'メンバーシップ1つで下の全店舗の特典が使えます'],
-  bannerCta: ['4,900원부터 →', 'From ₩4,900 →', '₩4,900起 →', '₩4,900から →'],
+  bannerCta: ['{price}부터 →', 'From {price} →', '{price}起 →', '{price}から →'],
   allRegions: ['전체 지역', 'All areas', '全部地区', '全エリア'],
   noMerchants: ['조건에 맞는 제휴 매장이 없어요', 'No stores match the filters', '没有符合条件的店铺', '条件に合う店舗がありません'],
   metaDrop: ['DROP {n}', 'DROP {n}', 'DROP {n}', 'DROP {n}'],

@@ -91,6 +91,7 @@ class PatchMerchantDto {
   @IsOptional() @IsString() ownerName?: string;
   @IsOptional() @IsString() regionId?: string;
   @IsOptional() @IsString() categoryId?: string;
+  @IsOptional() @IsString() thumbnailBase64?: string;
 }
 class PatchUserDto {
   @IsIn(['ACTIVE', 'DORMANT', 'WITHDRAWN']) status!: string;
@@ -105,6 +106,8 @@ class PatchDropDto {
   @IsOptional() @IsString() closeAt?: string;
   /// 'PENDING'으로 보내면 승인 대기 상태로 되돌린다
   @IsOptional() @IsIn(['PENDING']) status?: string;
+  @IsOptional() @IsString() imageBase64?: string;
+  @IsOptional() @IsString() imageUrl?: string;
 }
 class PatchSlotDto {
   @IsOptional() isOpen?: boolean;
@@ -266,11 +269,13 @@ export class AdminController {
       data.status = 'PENDING';
       data.approvedAt = null;
     }
+    if (dto.imageBase64) data.imageUrl = saveImageDataUrl(dto.imageBase64, 'drop');
+    else if (dto.imageUrl !== undefined) data.imageUrl = dto.imageUrl || null;
     const np = (data.normalPrice as number) ?? drop.normalPrice;
     const dp = (data.dropPrice as number) ?? drop.dropPrice;
     if (dp >= np) throw new BadRequestException('할인가는 정상가보다 낮아야 합니다');
     const updated = await this.prisma.client.drop.update({ where: { id }, data: data as never });
-    await this.audit(adminId, 'DROP_UPDATE', 'Drop', id, JSON.stringify(dto));
+    await this.audit(adminId, 'DROP_UPDATE', 'Drop', id, JSON.stringify({ ...dto, imageBase64: dto.imageBase64 ? '(사진)' : undefined }));
     return updated;
   }
 
@@ -340,9 +345,10 @@ export class AdminController {
         ...(dto.ownerName !== undefined ? { ownerName: dto.ownerName } : {}),
         ...(dto.regionId ? { regionId: dto.regionId } : {}),
         ...(dto.categoryId ? { categoryId: dto.categoryId } : {}),
+        ...(dto.thumbnailBase64 ? { thumbnailUrl: saveImageDataUrl(dto.thumbnailBase64, 'merchant') } : {}),
       },
     });
-    await this.audit(adminId, 'MERCHANT_UPDATE', 'Merchant', id, JSON.stringify(dto));
+    await this.audit(adminId, 'MERCHANT_UPDATE', 'Merchant', id, JSON.stringify({ ...dto, thumbnailBase64: dto.thumbnailBase64 ? '(사진)' : undefined }));
     return m;
   }
 
