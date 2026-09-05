@@ -61,14 +61,11 @@ function untilText(t: Tr, opensAt: string, now: number) {
   return h > 0 ? t('opensInHM', { h, m }) : t('opensInMS', { m, s: String(s).padStart(2, '0') });
 }
 
-// 카테고리 타일 — 카테고리마다 고유 그라데이션 + 흰 라인 아이콘 (MZ 톤)
-const CATS: { code: string; labelKey: string; icon: keyof typeof Ionicons.glyphMap; colors: [string, string] }[] = [
-  { code: 'marine', labelKey: 'catMarine', icon: 'boat-outline', colors: ['#38BDF8', '#2563EB'] },
-  { code: 'food', labelKey: 'catFood', icon: 'restaurant-outline', colors: ['#FB7185', '#E11D48'] },
-  { code: 'cafe', labelKey: 'catCafe', icon: 'cafe-outline', colors: ['#FBBF24', '#D97706'] },
-  { code: 'bar', labelKey: 'catBar', icon: 'wine-outline', colors: ['#A78BFA', '#6D28D9'] },
-  { code: 'exhibit', labelKey: 'catExhibit', icon: 'color-palette-outline', colors: ['#F472B6', '#C026D3'] },
-  { code: 'kids', labelKey: 'catKids', icon: 'happy-outline', colors: ['#4ADE80', '#16A34A'] },
+// 카테고리 타일 그라데이션 팔레트 — 관리자에서 카테고리를 추가/숨김하면 홈에도 그대로 반영된다
+const CAT_COLORS: [string, string][] = [
+  ['#38BDF8', '#2563EB'], ['#FB7185', '#E11D48'], ['#FBBF24', '#D97706'],
+  ['#A78BFA', '#6D28D9'], ['#F472B6', '#C026D3'], ['#4ADE80', '#16A34A'],
+  ['#FB923C', '#EA580C'], ['#2DD4BF', '#0D9488'], ['#818CF8', '#4F46E5'],
 ];
 
 function hoursLeft(t: Tr, closeAt: string) {
@@ -85,6 +82,7 @@ export default function HomeScreen() {
   const [drops, setDrops] = useState<Drop[] | null>(null);
   const [products, setProducts] = useState<Product[] | null>(null);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [cats, setCats] = useState<{ id: string; name: string; emoji: string | null }[]>([]);
   const [benefits, setBenefits] = useState<BenefitGroup[]>([]);
   const [coupons, setCoupons] = useState<CouponDrop[]>([]);
   const [couponBusy, setCouponBusy] = useState(false);
@@ -112,6 +110,7 @@ export default function HomeScreen() {
       .then((p) => { setProducts(sortProducts(p)); cacheSet(`products:${lang}`, p); })
       .catch(() => setProducts((prev) => prev ?? []));
     api<Campaign[]>('/campaigns/active').then(setCampaigns).catch(() => setCampaigns([]));
+    api<{ id: string; name: string; emoji: string | null }[]>('/categories').then(setCats).catch(() => {});
     track('home_view');
     if (me) {
       api<{ merchants: BenefitGroup[] }>('/me/benefits')
@@ -341,18 +340,18 @@ export default function HomeScreen() {
           </View>
         </View>
         <HScroll contentContainerStyle={{ paddingHorizontal: 16, gap: 14 }}>
-          {CATS.map((c) => (
-            <Pressable key={c.code} style={st.cat} onPress={() => router.push('/(tabs)/store')}>
+          {cats.map((c, i) => (
+            <Pressable key={c.id} style={st.cat} onPress={() => router.push('/(tabs)/store')}>
               <LinearGradient
-                colors={c.colors}
+                colors={CAT_COLORS[i % CAT_COLORS.length]}
                 start={{ x: 0.1, y: 0 }}
                 end={{ x: 0.9, y: 1 }}
                 style={st.catTile}
               >
                 <View style={st.catGloss} />
-                <Ionicons name={c.icon} size={24} color="#fff" />
+                <Text style={st.catEmoji}>{c.emoji ?? '✨'}</Text>
               </LinearGradient>
-              <Text style={st.catLabel}>{t(c.labelKey)}</Text>
+              <Text style={st.catLabel}>{c.name}</Text>
             </Pressable>
           ))}
         </HScroll>
@@ -510,6 +509,7 @@ const st = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.22)',
   },
   catLabel: { fontSize: 11.5, fontWeight: '700', color: C.ink2, letterSpacing: -0.2 },
+  catEmoji: { fontSize: 24 },
 
   prodCard: { backgroundColor: C.white, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: C.line },
   prodImg: { width: '100%', height: 150 },

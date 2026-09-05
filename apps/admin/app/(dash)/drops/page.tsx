@@ -15,6 +15,16 @@ function Thumb({ src }: { src?: string | null }) {
   );
 }
 
+/** 파일 → data URL (딜 사진 업로드용) */
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result));
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+}
+
 const EMPTY_CREATE = {
   merchantId: '', title: '', description: '', kind: 'DEAL',
   normalPrice: '', dropPrice: '', totalQty: '', maxPerUser: '1',
@@ -30,6 +40,24 @@ export default function DropsPage() {
   const [form, setForm] = useState({ title: '', description: '', normalPrice: '', dropPrice: '', totalQty: '' });
   const [showCreate, setShowCreate] = useState(false);
   const [cf, setCf] = useState(EMPTY_CREATE);
+  const [createB64, setCreateB64] = useState<string | null>(null);
+
+  async function pickFile(e: React.ChangeEvent<HTMLInputElement>, set: (v: string | null) => void) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (f.size > 5 * 1024 * 1024) { alert('이미지는 5MB 이하여야 합니다'); return; }
+    set(await fileToDataUrl(f));
+  }
+
+  /** 기존 딜 사진 변경 */
+  async function changeImage(d: any, e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (f.size > 5 * 1024 * 1024) { alert('이미지는 5MB 이하여야 합니다'); return; }
+    await api(`/admin/drops/${d.id}`, { method: 'PATCH', body: { imageBase64: await fileToDataUrl(f) } });
+    setMsg(`'${d.title}' 사진 변경 완료`);
+    load();
+  }
 
   const load = useCallback(() => {
     api<any[]>('/admin/drops?status=PENDING').then(setPending).catch(() => setPending([]));
@@ -55,12 +83,14 @@ export default function DropsPage() {
           totalQty: Number(cf.totalQty),
           maxPerUser: Number(cf.maxPerUser) || 1,
           closeAt: new Date(`${cf.closeAt}T23:59:59`).toISOString(),
-          imageUrl: cf.imageUrl || undefined,
+          imageBase64: createB64 ?? undefined,
+          imageUrl: createB64 ? undefined : cf.imageUrl || undefined,
           memberOnly: cf.memberOnly,
         },
       });
       setMsg(`'${cf.title}' 등록 완료 — 앱에 즉시 오픈`);
       setCf(EMPTY_CREATE);
+      setCreateB64(null);
       setShowCreate(false);
       load();
     } catch (e: any) {
@@ -152,7 +182,17 @@ export default function DropsPage() {
             <input className={inputCls} placeholder="총 수량 *" value={cf.totalQty} onChange={(e) => setCf({ ...cf, totalQty: e.target.value.replace(/\D/g, '') })} />
             <input className={inputCls} placeholder="1인당 최대" value={cf.maxPerUser} onChange={(e) => setCf({ ...cf, maxPerUser: e.target.value.replace(/\D/g, '') })} />
             <input className={inputCls} type="date" title="마감일 *" value={cf.closeAt} onChange={(e) => setCf({ ...cf, closeAt: e.target.value })} />
-            <input className={`${inputCls} lg:col-span-2`} placeholder="사진 URL" value={cf.imageUrl} onChange={(e) => setCf({ ...cf, imageUrl: e.target.value })} />
+            <div className="flex items-center gap-2 lg:col-span-2">
+              <label className="cursor-pointer whitespace-nowrap rounded-md border border-line bg-white px-3 py-2 text-sm font-semibold text-ink-2 hover:bg-ground">
+                <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => pickFile(e, setCreateB64)} />
+                {createB64 ? '📁 사진 변경' : '📁 사진 올리기'}
+              </label>
+              {createB64 ? (
+                <img src={createB64} alt="미리보기" className="h-9 w-12 rounded object-cover" />
+              ) : (
+                <input className={inputCls} placeholder="또는 사진 URL" value={cf.imageUrl} onChange={(e) => setCf({ ...cf, imageUrl: e.target.value })} />
+              )}
+            </div>
             <div className="flex items-center gap-3">
               <label className="flex items-center gap-2 text-sm font-semibold">
                 <input type="checkbox" checked={cf.memberOnly} onChange={(e) => setCf({ ...cf, memberOnly: e.target.checked })} />
@@ -232,7 +272,11 @@ export default function DropsPage() {
                 <Td className="tabular-nums">{d.remainingQty}/{d.totalQty}</Td>
                 <Td className="whitespace-nowrap text-xs text-ink-3">{dt(d.closeAt)}</Td>
                 <Td>
-                  <div className="flex gap-1.5">
+                  <div className="flex flex-wrap gap-1.5">
+                    <label className="cursor-pointer">
+                      <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => changeImage(d, e)} />
+                      <span className="inline-block rounded-md border border-line bg-white px-2.5 py-1 text-xs font-semibold text-ink-2 hover:bg-ground">사진</span>
+                    </label>
                     <Button small variant="ghost" onClick={() => openEdit(d)}>수정</Button>
                     {['OPEN', 'SCHEDULED', 'REJECTED', 'CLOSED', 'SOLD_OUT'].includes(d.status) && (
                       <Button small variant="ghost" onClick={() => revert(d)}>대기로</Button>

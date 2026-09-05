@@ -33,6 +33,22 @@ export default function SettingsPage() {
     load();
   }
 
+  async function renameRegion(r: any) {
+    const name = prompt('지역 이름 수정', r.name);
+    if (!name || name === r.name) return;
+    await api(`/admin/regions/${r.id}`, { method: 'PATCH', body: { name } });
+    setMsg(`'${r.name}' → '${name}' 변경`);
+    load();
+  }
+
+  async function renameCategory(c: any) {
+    const name = prompt('카테고리 이름 수정', c.name);
+    if (!name || name === c.name) return;
+    await api(`/admin/categories/${c.id}`, { method: 'PATCH', body: { name } });
+    setMsg(`'${c.name}' → '${name}' 변경`);
+    load();
+  }
+
   async function addCategory() {
     try {
       await api('/admin/categories', { method: 'POST', body: { name: cf.name, emoji: cf.emoji || undefined } });
@@ -87,9 +103,12 @@ export default function SettingsPage() {
                 <Td className="text-xs text-ink-3">{r.country}</Td>
                 <Td className="tabular-nums text-xs text-ink-3">{r._count.merchants} / {r._count.drops}</Td>
                 <Td>
-                  <Button small variant={r.isOpen ? 'danger' : 'primary'} onClick={() => toggleRegion(r)}>
-                    {r.isOpen ? '숨김' : '오픈'}
-                  </Button>
+                  <div className="flex gap-1.5">
+                    <Button small variant="ghost" onClick={() => renameRegion(r)}>이름 수정</Button>
+                    <Button small variant={r.isOpen ? 'danger' : 'primary'} onClick={() => toggleRegion(r)}>
+                      {r.isOpen ? '숨김' : '오픈'}
+                    </Button>
+                  </div>
                 </Td>
               </tr>
             ))}
@@ -117,9 +136,12 @@ export default function SettingsPage() {
                 <Td className="font-medium">{c.emoji} {c.name}</Td>
                 <Td className="tabular-nums text-xs text-ink-3">{c._count.merchants}곳</Td>
                 <Td>
-                  <Button small variant={c.isActive ? 'danger' : 'primary'} onClick={() => toggleCategory(c)}>
-                    {c.isActive ? '숨김' : '노출'}
-                  </Button>
+                  <div className="flex gap-1.5">
+                    <Button small variant="ghost" onClick={() => renameCategory(c)}>이름 수정</Button>
+                    <Button small variant={c.isActive ? 'danger' : 'primary'} onClick={() => toggleCategory(c)}>
+                      {c.isActive ? '숨김' : '노출'}
+                    </Button>
+                  </div>
                 </Td>
               </tr>
             ))}
