@@ -3,7 +3,7 @@
  * 프론트는 항상 /api/... 만 부르고, 실제 API 터널 주소는 여기 한 줄에만 있다.
  * → 터널이 바뀌면 이 파일의 API 값만 바꾸고 dist에 복사 후 wrangler 재배포 (재빌드 불필요, 10초).
  */
-const API = 'https://brain-collectible-won-feet.trycloudflare.com';
+const API = 'https://completion-blind-show-directed.trycloudflare.com';
 
 export default {
   async fetch(request, env) {

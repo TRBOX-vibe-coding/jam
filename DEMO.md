@@ -4,12 +4,14 @@
 |---|---|
 | 📱 유저 앱 (폰/PC 브라우저) | https://jam-5dw.pages.dev |
 | 🖥 관리자 웹 | https://holicgem-admin.pages.dev (구주소 holicgem-admin.vercel.app 은 자동 이동) |
+| 🏪 점주(사장님) 웹 | https://holicgem-partner.pages.dev — 액티비티·숙박 점주가 사무실 PC에서 판매·예약 확인 |
 | ⚙️ API 서버 | 프론트가 `/api` 프록시로 접속 — 터널 주소는 각 배포의 `_worker.js` 한 줄에만 존재 |
 
 ## 계정 (프로덕션에서도 임시계정 사용 가능 — 데모 기간 한정)
 - 관리자: admin@holicgem.com / admin1234
 - 앱 손님: MY 탭 → "카카오로 시작" 등 아무 소셜 버튼 → 즉시 임시계정 로그인 (앱키 불필요)
 - 앱 점주: MY 로그인 화면 하단 "[시연용] 승인된 점주 화면 체험 (서프홀릭)" → 가맹점 모드까지 체험
+- 점주 웹: 로그인 화면 하단 "[시연용] 승인된 점주로 로그인 (서프홀릭)" → 대시보드·사용 내역(엑셀)·예약·DROP/상품/혜택 등록·정산
 - API 직접 테스트: `POST /auth/social` body `{"provider":"KAKAO","providerId":"아무값"}` → 토큰 발급 (인증키 불필요)
 
 ## 점주 셀프 등록 시연 (야놀자식)

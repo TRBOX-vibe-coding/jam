@@ -5,13 +5,19 @@
  */
 import {
   BadRequestException, Body, Controller, ForbiddenException, Get, Module,
-  NotFoundException, Param, Post, Query, UseGuards,
+  NotFoundException, Param, Post, Query, Res, UseGuards,
 } from '@nestjs/common';
 import { IsEmail, IsIn, IsInt, IsOptional, IsString, Matches, Max, Min, MinLength } from 'class-validator';
 import { Type } from 'class-transformer';
+import * as XLSX from 'xlsx';
 import { PrismaService } from './prisma.service';
 import { saveImageDataUrl } from './uploads';
 import { AuthModule, UserGuard, UserId } from './auth';
+
+function fmtDateTime(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
 
 class CreateDropDto {
   @IsString() @MinLength(4) title!: string;
@@ -315,6 +321,64 @@ export class MerchantController {
       orderBy: { createdAt: 'desc' },
       take: 50,
     });
+  }
+
+  /** 예약 목록 — 액티비티·숙박 점주가 사무실 PC에서 확인하는 핵심 화면 */
+  @Get('my/reservations')
+  async myReservations(@UserId() userId: string, @Query('days') days?: string) {
+    const m = await this.myMerchant(userId);
+    const since = new Date();
+    since.setDate(since.getDate() - (Number(days) || 30));
+    return this.prisma.client.reservation.findMany({
+      where: { product: { merchantId: m.id }, createdAt: { gte: since } },
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+      include: {
+        user: { select: { nickname: true } },
+        product: { select: { id: true, name: true } },
+        slot: { select: { startAt: true, endAt: true, capacity: true } },
+      },
+    });
+  }
+
+  /** 판매·사용내역 엑셀 — 사무실 정리용 */
+  @Get('my/report')
+  async myReport(@UserId() userId: string, @Query('days') days?: string, @Res() res?: any) {
+    const m = await this.myMerchant(userId);
+    const since = new Date();
+    since.setDate(since.getDate() - (Number(days) || 30));
+    since.setHours(0, 0, 0, 0);
+    const rows = await this.prisma.client.redemption.findMany({
+      where: { merchantId: m.id, createdAt: { gte: since } },
+      orderBy: { createdAt: 'asc' },
+      include: {
+        user: { select: { nickname: true } },
+        userBenefit: { include: { benefit: { select: { title: true } } } },
+        dropClaim: { include: { drop: { select: { title: true } } } },
+        voucher: { include: { product: { select: { name: true } } } },
+      },
+    });
+    const TYPE_LABEL: Record<string, string> = { BENEFIT: '혜택', DROP: 'DROP', VOUCHER: '이용권' };
+    const data = rows.map((r) => ({
+      '사용시간': fmtDateTime(r.createdAt),
+      '항목': r.voucher?.product.name ?? r.dropClaim?.drop.title ?? r.userBenefit?.benefit.title ?? '-',
+      '유형': TYPE_LABEL[r.type] ?? r.type,
+      '고객': r.user.nickname,
+      '인원': r.headcount,
+      '절약액 (KRW)': r.savedAmount,
+      '상태': r.status === 'DONE' ? '완료' : '취소',
+    }));
+    const ws = XLSX.utils.json_to_sheet(data.length ? data : [{ '사용시간': '', '안내': '내역이 없습니다' }]);
+    ws['!cols'] = [{ wch: 19 }, { wch: 32 }, { wch: 8 }, { wch: 10 }, { wch: 6 }, { wch: 11 }, { wch: 7 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '사용내역');
+    const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    const fname = encodeURIComponent(`${m.name}_사용내역_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    res.set({
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': `attachment; filename*=UTF-8''${fname}`,
+    });
+    res.send(buf);
   }
 
   /** 정산 내역 */
