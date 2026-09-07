@@ -34,6 +34,8 @@ export default function MerchantProductCreate() {
   const [memberPrice, setMemberPrice] = useState('');
   const [verification, setVerification] = useState<'QR_ONLY' | 'QR_PIN'>('QR_ONLY');
   const [cancelPolicy, setCancelPolicy] = useState('');
+  const [totalQty, setTotalQty] = useState('');       // 티켓형 총 판매 수량
+  const [slotCapacity, setSlotCapacity] = useState(''); // 예약형 회차당 정원
   const [image, setImage] = useState<{ uri: string; dataUrl: string } | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -78,6 +80,8 @@ export default function MerchantProductCreate() {
           memberPrice: member > 0 ? member : undefined,
           verification,
           cancelPolicy: cancelPolicy.trim() || undefined,
+          totalQty: type === 'TICKET' && totalQty ? Number(totalQty) : undefined,
+          slotCapacity: type === 'RESERVATION' && slotCapacity ? Number(slotCapacity) : undefined,
           imageBase64: image?.dataUrl,
         },
       });
@@ -174,6 +178,26 @@ export default function MerchantProductCreate() {
           </Text>
         )}
 
+        {type === 'TICKET' ? (
+          <>
+            <Text style={st.label}>총 판매 수량 (선택)</Text>
+            <TextInput
+              style={st.input} value={totalQty} onChangeText={(t) => setTotalQty(t.replace(/\D/g, ''))}
+              placeholder="예) 100 — 비우면 무제한" placeholderTextColor={C.ink3} keyboardType="number-pad"
+            />
+            <Text style={st.fieldHint}>다 팔리면 자동으로 품절 처리돼요.</Text>
+          </>
+        ) : (
+          <>
+            <Text style={st.label}>회차당 정원 (선택)</Text>
+            <TextInput
+              style={st.input} value={slotCapacity} onChangeText={(t) => setSlotCapacity(t.replace(/\D/g, ''))}
+              placeholder="예) 6 — 시간 회차 하나에 받을 인원" placeholderTextColor={C.ink3} keyboardType="number-pad"
+            />
+            <Text style={st.fieldHint}>본사가 시간 회차를 만들 때 이 정원이 기본으로 들어가요.</Text>
+          </>
+        )}
+
         <Text style={st.label}>현장 사용 확인 방식</Text>
         <View style={st.presetRow}>
           {VERIFS.map((v) => (
@@ -226,6 +250,7 @@ const st = StyleSheet.create({
   typeLabel: { fontSize: 15, fontWeight: '700', color: C.ink },
   typeDesc: { fontSize: 12, color: C.ink3, marginTop: 2 },
   rateLine: { marginTop: 8, fontSize: 13.5, fontWeight: '700', color: C.ink },
+  fieldHint: { fontSize: 11.5, color: C.ink3, marginTop: 5 },
   presetRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   preset: {
     paddingHorizontal: 13, paddingVertical: 9, borderRadius: 10,

@@ -143,7 +143,8 @@ class PatchProductDto {
 class CreateSlotDto {
   @IsString() startAt!: string; // ISO
   @Type(() => Number) @IsInt() @Min(15) @Max(600) durationMinutes!: number;
-  @Type(() => Number) @IsInt() @Min(1) @Max(200) capacity!: number;
+  /// 비우면 점주가 상품에 정해둔 회차당 기본 정원(defaultCapacity)을 쓴다.
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(200) capacity?: number;
 }
 
 @Controller('admin')
@@ -635,10 +636,13 @@ export class AdminController {
     const startAt = new Date(dto.startAt);
     if (Number.isNaN(startAt.getTime())) throw new BadRequestException('시작 시각이 올바르지 않습니다');
     const endAt = new Date(startAt.getTime() + dto.durationMinutes * 60_000);
+    const product = await this.prisma.client.product.findUnique({ where: { id }, select: { defaultCapacity: true } });
+    const capacity = dto.capacity ?? product?.defaultCapacity ?? null;
+    if (capacity == null) throw new BadRequestException('정원을 입력해 주세요 (점주가 정해둔 기본 정원이 없는 상품입니다)');
     const slot = await this.prisma.client.productSlot.create({
-      data: { productId: id, startAt, endAt, capacity: dto.capacity },
+      data: { productId: id, startAt, endAt, capacity },
     });
-    await this.audit(adminId, 'SLOT_CREATE', 'ProductSlot', slot.id, `${dto.startAt} / ${dto.capacity}명`);
+    await this.audit(adminId, 'SLOT_CREATE', 'ProductSlot', slot.id, `${dto.startAt} / ${capacity}명`);
     return slot;
   }
 

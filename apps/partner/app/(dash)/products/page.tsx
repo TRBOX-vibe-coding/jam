@@ -6,7 +6,7 @@ import { Badge, Button, Card, CardHeader, Empty, Table, TableSkeleton, Td } from
 const img = (u?: string | null, w = 160) => (u ? (u.startsWith('/') ? `${API_BASE}${u}?w=${w}` : u) : null);
 const TYPE_LABEL: Record<string, string> = { TICKET: '티켓', RESERVATION: '예약형', PASS: 'PASS' };
 
-const EMPTY = { type: 'RESERVATION', name: '', description: '', basePrice: '', memberPrice: '', verification: 'QR_ONLY', cancelPolicy: '' };
+const EMPTY = { type: 'RESERVATION', name: '', description: '', basePrice: '', memberPrice: '', verification: 'QR_ONLY', cancelPolicy: '', totalQty: '', slotCapacity: '' };
 
 export default function MyProductsPage() {
   const [rows, setRows] = useState<any[] | null>(null);
@@ -41,6 +41,8 @@ export default function MyProductsPage() {
           memberPrice: f.memberPrice ? Number(f.memberPrice) : undefined,
           verification: f.verification,
           cancelPolicy: f.cancelPolicy || undefined,
+          totalQty: f.type === 'TICKET' && f.totalQty ? Number(f.totalQty) : undefined,
+          slotCapacity: f.type === 'RESERVATION' && f.slotCapacity ? Number(f.slotCapacity) : undefined,
           imageBase64: photo ?? undefined,
         },
       });
@@ -89,7 +91,12 @@ export default function MyProductsPage() {
             <input className={`${inputCls} col-span-2 lg:col-span-4`} placeholder="설명" value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} />
             <input className={inputCls} placeholder="정상가 *" value={f.basePrice} onChange={(e) => setF({ ...f, basePrice: e.target.value.replace(/\D/g, '') })} />
             <input className={inputCls} placeholder="멤버십가 (선택)" value={f.memberPrice} onChange={(e) => setF({ ...f, memberPrice: e.target.value.replace(/\D/g, '') })} />
-            <input className={`${inputCls} col-span-2`} placeholder="취소 정책 (예: 기상 악화 시 전액 환불)" value={f.cancelPolicy} onChange={(e) => setF({ ...f, cancelPolicy: e.target.value })} />
+            {f.type === 'TICKET' ? (
+              <input className={inputCls} placeholder="총 판매 수량 (비우면 무제한)" title="다 팔리면 자동 품절됩니다" value={f.totalQty} onChange={(e) => setF({ ...f, totalQty: e.target.value.replace(/\D/g, '') })} />
+            ) : (
+              <input className={inputCls} placeholder="회차당 정원 (예: 6)" title="시간 회차 하나에 받을 수 있는 인원" value={f.slotCapacity} onChange={(e) => setF({ ...f, slotCapacity: e.target.value.replace(/\D/g, '') })} />
+            )}
+            <input className={inputCls} placeholder="취소 정책 (예: 기상 악화 시 전액 환불)" value={f.cancelPolicy} onChange={(e) => setF({ ...f, cancelPolicy: e.target.value })} />
             <div className="col-span-2 flex items-center gap-2 lg:col-span-4">
               <label className="cursor-pointer whitespace-nowrap rounded-md border border-line bg-white px-3 py-2 text-sm font-semibold text-ink-2 hover:bg-ground">
                 <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={pickPhoto} />
@@ -110,7 +117,7 @@ export default function MyProductsPage() {
         ) : rows.length === 0 ? (
           <Empty text="등록한 상품이 없습니다" />
         ) : (
-          <Table head={['상태', '상품', '유형', '정상가', '멤버십가', '회차']}>
+          <Table head={['상태', '상품', '유형', '정상가', '멤버십가', '수량·회차']}>
             {rows.map((p) => (
               <tr key={p.id} className={p.approval === 'REJECTED' ? 'opacity-60' : ''}>
                 <Td>
@@ -135,7 +142,13 @@ export default function MyProductsPage() {
                 <Td><Badge>{TYPE_LABEL[p.type] ?? p.type}</Badge></Td>
                 <Td className="tabular-nums">{won(p.basePrice)}</Td>
                 <Td className="tabular-nums">{p.memberPrice != null ? won(p.memberPrice) : <span className="text-ink-3">—</span>}</Td>
-                <Td className="tabular-nums text-xs">{p.type === 'RESERVATION' ? `${p._count.slots}개` : <span className="text-ink-3">—</span>}</Td>
+                <Td className="whitespace-nowrap tabular-nums text-xs">
+                  {p.type === 'RESERVATION'
+                    ? `회차 ${p._count.slots}개${p.defaultCapacity ? ` · 정원 ${p.defaultCapacity}명` : ''}`
+                    : p.totalQty != null
+                      ? `남은 ${Math.max(0, p.totalQty - p.soldQty)}/${p.totalQty}`
+                      : <span className="text-ink-3">무제한</span>}
+                </Td>
               </tr>
             ))}
           </Table>

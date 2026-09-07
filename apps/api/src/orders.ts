@@ -63,6 +63,8 @@ export class OrdersController {
     if (!p) throw new NotFoundException('상품을 찾을 수 없습니다');
     return {
       ...p,
+      // 티켓형 남은 수량 (null=무제한)
+      remainingQty: p.totalQty != null ? Math.max(0, p.totalQty - p.soldQty) : null,
       slots: p.slots.map((s) => ({ ...s, remaining: s.capacity - s.reserved })),
     };
   }
@@ -87,6 +89,17 @@ export class OrdersController {
     }
 
     return db.$transaction(async (tx) => {
+      // 티켓형 총 수량 제한 — 조건부 증가로 초과 판매 방지, 소진되면 자동 품절
+      if (!dto.slotId && product.totalQty != null) {
+        const taken = await tx.$executeRaw`
+          UPDATE "Product" SET "soldQty" = "soldQty" + 1
+          WHERE "id" = ${id} AND "soldQty" < "totalQty"`;
+        if (taken === 0) throw new BadRequestException('준비된 수량이 모두 판매되었습니다 (품절)');
+        await tx.$executeRaw`
+          UPDATE "Product" SET "isActive" = false
+          WHERE "id" = ${id} AND "totalQty" IS NOT NULL AND "soldQty" >= "totalQty"`;
+      }
+
       let slot = null;
       if (dto.slotId) {
         // 정원 조건부 차감 — 초과 예약 방지

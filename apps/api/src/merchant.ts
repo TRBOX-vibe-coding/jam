@@ -49,6 +49,10 @@ class CreateMerchantProductDto {
   @IsOptional() @IsIn(['QR_ONLY', 'QR_PIN']) verification?: string;
   @IsOptional() @IsString() cancelPolicy?: string;
   @IsOptional() @IsString() imageBase64?: string;
+  /// 티켓형: 총 판매 수량(비우면 무제한). 소진되면 자동 품절.
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100000) totalQty?: number;
+  /// 예약형: 회차당 기본 정원 — 본사가 회차를 만들 때 기본값으로 쓴다.
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(200) slotCapacity?: number;
 }
 
 class CreateMerchantBenefitDto {
@@ -269,6 +273,8 @@ export class MerchantController {
         verification: (dto.verification ?? 'QR_ONLY') as never,
         cancelPolicy: dto.cancelPolicy?.trim() || null,
         imageUrl,
+        totalQty: dto.type === 'TICKET' ? dto.totalQty ?? null : null,
+        defaultCapacity: dto.type === 'RESERVATION' ? dto.slotCapacity ?? null : null,
         approval: 'PENDING',
         isActive: false,
       },
