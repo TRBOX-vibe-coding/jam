@@ -298,7 +298,49 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* ② 오늘 도착한 DROP */}
+        {/* ② 할인 쿠폰 — DROP처럼 쿠폰 자체를 사진 카드 슬라이드로. 전체보기에서 카테고리를 고른다 (2026-09-08 확정 구조) */}
+        {me && benefits.length > 0 && (
+          <>
+            <View style={st.sectionHead}>
+              <View>
+                <Text style={st.sectionTitle}>{t('couponSectionHome')}</Text>
+                <Text style={st.sectionSub}>{t('couponSectionHomeSub')}</Text>
+              </View>
+              <Pressable onPress={() => router.push('/(tabs)/store')}>
+                <Text style={st.more}>{t('more')}</Text>
+              </Pressable>
+            </View>
+            <HScroll contentContainerStyle={{ paddingHorizontal: 16, gap: 10 }}>
+              {benefits
+                .flatMap((g) => g.items.map((b) => ({ g, b })))
+                .slice(0, 10)
+                .map(({ g, b }) => (
+                  <Pressable key={b.id} style={st.dropCard} onPress={() => router.push(`/store/${g.merchant.id}`)}>
+                    <View>
+                      {g.merchant.thumbnailUrl ? (
+                        <Image source={{ uri: img(g.merchant.thumbnailUrl, 480) }} style={st.dropImg} />
+                      ) : (
+                        <View style={[st.dropImg, { backgroundColor: C.brandSoft, alignItems: 'center', justifyContent: 'center' }]}>
+                          <Text style={{ fontSize: 30 }}>{g.merchant.category.emoji}</Text>
+                        </View>
+                      )}
+                      <View style={st.couponBadge}>
+                        <Text style={st.couponBadgeText}>
+                          {b.type === 'PERCENT' ? `${b.value}% ${t('offLabel')}` : b.type === 'AMOUNT' ? `${b.value.toLocaleString()}원 ${t('offLabel')}` : t('freeLabel')}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={{ padding: 10 }}>
+                      <Text style={st.dropTitle} numberOfLines={1}>{b.title}</Text>
+                      <Text style={st.dropMerchant} numberOfLines={1}>{g.merchant.name} · {g.merchant.region.name}</Text>
+                    </View>
+                  </Pressable>
+                ))}
+            </HScroll>
+          </>
+        )}
+
+        {/* ③ 오늘 도착한 DROP */}
         <View style={st.sectionHead}>
           <View>
             <Text style={st.sectionTitle}>{t('dropSection')}</Text>
@@ -341,48 +383,6 @@ export default function HomeScreen() {
             </Pressable>
           ))}
         </HScroll>
-
-        {/* ③ 할인 쿠폰 — DROP처럼 쿠폰 자체를 사진 카드 슬라이드로. 전체보기에서 카테고리를 고른다 (2026-09-08 확정 구조) */}
-        {me && benefits.length > 0 && (
-          <>
-            <View style={st.sectionHead}>
-              <View>
-                <Text style={st.sectionTitle}>{t('couponSectionHome')}</Text>
-                <Text style={st.sectionSub}>{t('couponSectionHomeSub')}</Text>
-              </View>
-              <Pressable onPress={() => router.push('/(tabs)/store')}>
-                <Text style={st.more}>{t('more')}</Text>
-              </Pressable>
-            </View>
-            <HScroll contentContainerStyle={{ paddingHorizontal: 16, gap: 10 }}>
-              {benefits
-                .flatMap((g) => g.items.map((b) => ({ g, b })))
-                .slice(0, 10)
-                .map(({ g, b }) => (
-                  <Pressable key={b.id} style={st.dropCard} onPress={() => router.push(`/store/${g.merchant.id}`)}>
-                    <View>
-                      {g.merchant.thumbnailUrl ? (
-                        <Image source={{ uri: img(g.merchant.thumbnailUrl, 480) }} style={st.dropImg} />
-                      ) : (
-                        <View style={[st.dropImg, { backgroundColor: C.brandSoft, alignItems: 'center', justifyContent: 'center' }]}>
-                          <Text style={{ fontSize: 30 }}>{g.merchant.category.emoji}</Text>
-                        </View>
-                      )}
-                      <View style={st.couponBadge}>
-                        <Text style={st.couponBadgeText}>
-                          {b.type === 'PERCENT' ? `${b.value}% ${t('offLabel')}` : b.type === 'AMOUNT' ? `${b.value.toLocaleString()}원 ${t('offLabel')}` : t('freeLabel')}
-                        </Text>
-                      </View>
-                    </View>
-                    <View style={{ padding: 10 }}>
-                      <Text style={st.dropTitle} numberOfLines={1}>{b.title}</Text>
-                      <Text style={st.dropMerchant} numberOfLines={1}>{g.merchant.name} · {g.merchant.region.name}</Text>
-                    </View>
-                  </Pressable>
-                ))}
-            </HScroll>
-          </>
-        )}
 
         {/* ④ 액티비티 예약 — 결제하면 예약까지 (상품) */}
         <View style={st.sectionHead}>
