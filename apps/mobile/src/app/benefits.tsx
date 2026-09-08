@@ -3,18 +3,26 @@
  * 상단에 절약 요약(멤버십 가치의 증거)을 먼저 보여준다.
  */
 import { useCallback, useState } from 'react';
-import { Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
-import { api } from '../lib/api';
+import { LinearGradient } from 'expo-linear-gradient';
+import { api, img } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { useI18n } from '../lib/i18n';
 import { C } from '../lib/theme';
 import { Btn, Card, EmptyText, Loading, Screen, Tag } from '../lib/ui';
 
 type BenefitGroup = {
-  merchant: { id: string; name: string; address: string | null; region: { name: string }; category: { name: string; emoji: string } };
-  items: { id: string; title: string; type: string; freebieName: string | null; validTo: string | null; sourceType: string }[];
+  merchant: { id: string; name: string; address: string | null; thumbnailUrl: string | null; region: { name: string }; category: { name: string; emoji: string } };
+  items: { id: string; title: string; type: string; value: number; freebieName: string | null; validTo: string | null; sourceType: string }[];
 };
+
+/** 할인값을 쿠폰답게 크게 — 10% / 3,000원 / 무료 */
+function couponValue(b: { type: string; value: number }) {
+  if (b.type === 'PERCENT') return `${b.value}%`;
+  if (b.type === 'AMOUNT') return `${b.value.toLocaleString()}원`;
+  return null; // FREEBIE는 i18n 라벨로
+}
 
 /** 카테고리 이름 기준 탭 목록 (중복 제거) */
 function catTabsOf(groups: BenefitGroup[]) {
@@ -123,33 +131,47 @@ export default function BenefitsScreen() {
         )}
 
         {data?.merchants.filter((g) => !cat || g.merchant.category.name === cat).map((g) => (
-          <Card key={g.merchant.id}>
-            <View style={st.rowBetween}>
-              <Text style={st.merchantName}>
-                {g.merchant.category.emoji} {g.merchant.name}
-              </Text>
-              <Text style={st.region}>{g.merchant.region.name}</Text>
-            </View>
-            {g.items.map((b) => (
-              <View key={b.id} style={st.benefitRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={st.benefitTitle}>{b.title}</Text>
-                  {b.validTo && (
-                    <Text style={st.validTo}>
-                      {t('untilDate', { date: new Date(b.validTo).toLocaleDateString(locale) })}
-                    </Text>
-                  )}
-                </View>
-                <Tag text={SOURCE_KEY[b.sourceType] ? t(SOURCE_KEY[b.sourceType]) : b.sourceType} tone="ok" />
-                <Pressable
-                  style={st.useBtn}
-                  onPress={() => { setUseResult(null); setPending({ merchantId: g.merchant.id, merchantName: g.merchant.name, itemId: b.id, title: b.title }); }}
-                >
-                  <Text style={st.useBtnText}>{t('useNow')}</Text>
-                </Pressable>
+          <View key={g.merchant.id} style={st.shopCard}>
+            {/* 매장 사진 배너 — 사진이 쿠폰을 판다 */}
+            <Pressable onPress={() => router.push(`/store/${g.merchant.id}` as never)}>
+              {g.merchant.thumbnailUrl ? (
+                <Image source={{ uri: img(g.merchant.thumbnailUrl, 720) }} style={st.shopImg} />
+              ) : (
+                <View style={[st.shopImg, { backgroundColor: C.brandSoft }]} />
+              )}
+              <LinearGradient colors={['rgba(10,18,26,0)', 'rgba(10,18,26,0.72)']} style={st.shopShade} />
+              <View style={st.shopHead}>
+                <Text style={st.shopName} numberOfLines={1}>{g.merchant.category.emoji} {g.merchant.name}</Text>
+                <Text style={st.shopRegion}>{g.merchant.region.name}</Text>
               </View>
-            ))}
-          </Card>
+            </Pressable>
+            {/* 쿠폰들 — 할인값이 주인공 */}
+            {g.items.map((b, i) => {
+              const v = couponValue(b);
+              return (
+                <View key={b.id} style={[st.couponRow, i > 0 && st.couponDivider]}>
+                  <View style={st.couponValueBox}>
+                    <Text style={st.couponValue}>{v ?? t('freeLabel')}</Text>
+                    {v && <Text style={st.couponValueSub}>{t('offLabel')}</Text>}
+                  </View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={st.benefitTitle} numberOfLines={2}>{b.title}</Text>
+                    {b.validTo && (
+                      <Text style={st.validTo}>
+                        {t('untilDate', { date: new Date(b.validTo).toLocaleDateString(locale) })}
+                      </Text>
+                    )}
+                  </View>
+                  <Pressable
+                    style={st.useBtn}
+                    onPress={() => { setUseResult(null); setPending({ merchantId: g.merchant.id, merchantName: g.merchant.name, itemId: b.id, title: b.title }); }}
+                  >
+                    <Text style={st.useBtnText}>{t('useNow')}</Text>
+                  </Pressable>
+                </View>
+              );
+            })}
+          </View>
         ))}
 
         {data && data.totalCount > 0 && (
@@ -203,6 +225,23 @@ const st = StyleSheet.create({
   validTo: { fontSize: 11, color: C.ink3, marginTop: 1 },
   hint: { textAlign: 'center', color: C.ink3, fontSize: 12, marginTop: 8, marginBottom: 24 },
   useBtn: { backgroundColor: C.brand, borderRadius: 9, paddingHorizontal: 14, paddingVertical: 8 },
+  shopCard: {
+    backgroundColor: C.white, borderRadius: 16, borderWidth: 1, borderColor: C.line,
+    overflow: 'hidden', marginBottom: 12,
+  },
+  shopImg: { width: '100%', height: 108 },
+  shopShade: { position: 'absolute', left: 0, right: 0, top: 0, height: 108 },
+  shopHead: { position: 'absolute', left: 14, right: 14, bottom: 10, flexDirection: 'row', alignItems: 'baseline', gap: 8 },
+  shopName: { color: '#fff', fontSize: 17, fontWeight: '700', flexShrink: 1 },
+  shopRegion: { color: 'rgba(255,255,255,0.85)', fontSize: 12, fontWeight: '600' },
+  couponRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 12 },
+  couponDivider: { borderTopWidth: 1, borderTopColor: C.line },
+  couponValueBox: {
+    minWidth: 62, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#FFF1EC', borderRadius: 12, paddingVertical: 8, paddingHorizontal: 6,
+  },
+  couponValue: { fontSize: 17, fontWeight: '800', color: '#E8503A', letterSpacing: -0.5 },
+  couponValueSub: { fontSize: 10, fontWeight: '700', color: '#E8503A', marginTop: 1 },
   tab: {
     paddingHorizontal: 13, paddingVertical: 7, borderRadius: 999,
     backgroundColor: C.white, borderWidth: 1, borderColor: C.line,

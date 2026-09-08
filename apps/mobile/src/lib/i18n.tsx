@@ -150,6 +150,8 @@ const D: Record<string, [string, string, string, string]> = {
   usedDoneTitle: ['사용 완료!', 'Done!', '使用完成！', '使用完了！'],
   usedSaved: ['{amt} 아꼈어요', 'You saved {amt}', '节省了{amt}', '{amt}お得になりました'],
   couponCat: ['할인 쿠폰', 'Coupons', '优惠券', 'クーポン'],
+  freeLabel: ['무료', 'FREE', '免费', '無料'],
+  offLabel: ['할인', 'OFF', '优惠', 'OFF'],
   useWithPin: ['매장에서 사용하기 (매장 코드 입력)', 'Use at store (enter store code)', '到店使用（输入门店代码）', '店舗で使用（店舗コード入力）'],
   askStaffPin: ['직원에게 매장 코드를 물어보고 입력해 주세요', 'Ask the staff for the store code and enter it', '请向店员询问门店代码并输入', 'スタッフに店舗コードを聞いて入力してください'],
   shortcuts: ['바로가기', 'Shortcuts', '快捷入口', 'ショートカット'],
