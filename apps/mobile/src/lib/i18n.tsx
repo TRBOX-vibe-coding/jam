@@ -150,6 +150,8 @@ const D: Record<string, [string, string, string, string]> = {
   usedDoneTitle: ['사용 완료!', 'Done!', '使用完成！', '使用完了！'],
   usedSaved: ['{amt} 아꼈어요', 'You saved {amt}', '节省了{amt}', '{amt}お得になりました'],
   couponCat: ['할인 쿠폰', 'Coupons', '优惠券', 'クーポン'],
+  couponSectionHome: ['할인 쿠폰 🎟️', 'Coupons 🎟️', '优惠券 🎟️', 'クーポン 🎟️'],
+  couponSectionHomeSub: ['보여주고 확인 한 번이면 바로 할인돼요', 'Show it, tap confirm, get the discount', '出示并确认，立享折扣', '見せて確認するだけで割引'],
   freeLabel: ['무료', 'FREE', '免费', '無料'],
   offLabel: ['할인', 'OFF', '优惠', 'OFF'],
   regionAll: ['전체 지역', 'All areas', '全部地区', '全エリア'],

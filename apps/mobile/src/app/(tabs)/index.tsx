@@ -342,15 +342,17 @@ export default function HomeScreen() {
           ))}
         </HScroll>
 
-        {/* ③ 액티비티 예약 */}
+        {/* ③ 할인 쿠폰 — 이 앱의 정체성. 카테고리 타일을 누르면 그 종류의 쿠폰이 바로 열린다 (2026-09-08 통합) */}
         <View style={st.sectionHead}>
           <View>
-            <Text style={st.sectionTitle}>{t('activitySection')}</Text>
-            <Text style={st.sectionSub}>{t('activitySectionSub')}</Text>
+            <Text style={st.sectionTitle}>{t('couponSectionHome')}</Text>
+            <Text style={st.sectionSub}>{t('couponSectionHomeSub')}</Text>
           </View>
+          <Pressable onPress={() => router.push('/(tabs)/store')}>
+            <Text style={st.more}>{t('more')}</Text>
+          </Pressable>
         </View>
         <HScroll contentContainerStyle={{ paddingHorizontal: 16, gap: 14 }}>
-          {/* 할인 쿠폰 — 이 앱의 정체성. 맨 앞 고정 타일 (2026-09-08 미팅) */}
           <Pressable style={st.cat} onPress={() => router.push('/(tabs)/store')}>
             <LinearGradient
               colors={['#F59E0B', '#DC2626']}
@@ -361,10 +363,9 @@ export default function HomeScreen() {
               <View style={st.catGloss} />
               <Text style={st.catEmoji}>🎟️</Text>
             </LinearGradient>
-            <Text style={[st.catLabel, { color: '#C2410C', fontWeight: '700' }]}>{t('couponCat')}</Text>
+            <Text style={[st.catLabel, { color: '#C2410C', fontWeight: '700' }]}>{t('all')}</Text>
           </Pressable>
           {cats.map((c, i) => (
-            // 카테고리 타일 → 할인 쿠폰 탭의 해당 카테고리로 바로 (2026-09-08 통합)
             <Pressable key={c.id} style={st.cat} onPress={() => router.push(`/(tabs)/store?cat=${encodeURIComponent(c.name)}` as never)}>
               <LinearGradient
                 colors={CAT_COLORS[i % CAT_COLORS.length]}
@@ -379,7 +380,15 @@ export default function HomeScreen() {
             </Pressable>
           ))}
         </HScroll>
-        <View style={{ paddingHorizontal: 16, marginTop: 12, gap: 12 }}>
+
+        {/* ④ 액티비티 예약 — 결제하면 예약까지 (상품) */}
+        <View style={st.sectionHead}>
+          <View>
+            <Text style={st.sectionTitle}>{t('activitySection')}</Text>
+            <Text style={st.sectionSub}>{t('activitySectionSub')}</Text>
+          </View>
+        </View>
+        <View style={{ paddingHorizontal: 16, marginTop: 2, gap: 12 }}>
           {products === null && [1, 2].map((k) => (
             <View key={k} style={st.prodCard}>
               <View style={[st.prodImg, st.skel]} />
@@ -416,38 +425,7 @@ export default function HomeScreen() {
           ))}
         </View>
 
-        {/* ④ 내 혜택 매장 */}
-        {me && benefits.length > 0 && (
-          <>
-            <View style={st.sectionHead}>
-              <View>
-                <Text style={st.sectionTitle}>{t('myBenefitSection')}</Text>
-                <Text style={st.sectionSub}>{t('myBenefitSectionSub', { n: benefits.length })}</Text>
-              </View>
-              <Pressable onPress={() => router.push('/benefits')}>
-                <Text style={st.more}>{t('more')}</Text>
-              </Pressable>
-            </View>
-            <View style={{ paddingHorizontal: 16, gap: 8 }}>
-              {benefits.slice(0, 4).map((g) => (
-                <Pressable key={g.merchant.id} style={st.benefitRow} onPress={() => router.push(`/store/${g.merchant.id}`)}>
-                  {g.merchant.thumbnailUrl ? (
-                    <Image source={{ uri: g.merchant.thumbnailUrl }} style={st.benefitThumb} />
-                  ) : (
-                    <View style={[st.benefitThumb, { backgroundColor: C.brandSoft, alignItems: 'center', justifyContent: 'center' }]}>
-                      <Text>{g.merchant.category.emoji}</Text>
-                    </View>
-                  )}
-                  <View style={{ flex: 1 }}>
-                    <Text style={st.benefitName}>{g.merchant.name}</Text>
-                    <Text style={st.benefitDesc} numberOfLines={1}>{g.items[0]?.title}</Text>
-                  </View>
-                  <Text style={st.benefitRegion}>{g.merchant.region.name}</Text>
-                </Pressable>
-              ))}
-            </View>
-          </>
-        )}
+        {/* (구) "지금 쓸 수 있는 내 혜택" 섹션은 할인 쿠폰 섹션과 중복이라 제거 (2026-09-08) */}
       </ScrollView>
     </Screen>
   );
