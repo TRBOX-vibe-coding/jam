@@ -351,7 +351,7 @@ export default function HomeScreen() {
         </View>
         <HScroll contentContainerStyle={{ paddingHorizontal: 16, gap: 14 }}>
           {/* 할인 쿠폰 — 이 앱의 정체성. 맨 앞 고정 타일 (2026-09-08 미팅) */}
-          <Pressable style={st.cat} onPress={() => router.push('/benefits')}>
+          <Pressable style={st.cat} onPress={() => router.push('/(tabs)/store')}>
             <LinearGradient
               colors={['#F59E0B', '#DC2626']}
               start={{ x: 0.1, y: 0 }}
@@ -364,7 +364,8 @@ export default function HomeScreen() {
             <Text style={[st.catLabel, { color: '#C2410C', fontWeight: '700' }]}>{t('couponCat')}</Text>
           </Pressable>
           {cats.map((c, i) => (
-            <Pressable key={c.id} style={st.cat} onPress={() => router.push('/(tabs)/store')}>
+            // 카테고리 타일 → 할인 쿠폰 탭의 해당 카테고리로 바로 (2026-09-08 통합)
+            <Pressable key={c.id} style={st.cat} onPress={() => router.push(`/(tabs)/store?cat=${encodeURIComponent(c.name)}` as never)}>
               <LinearGradient
                 colors={CAT_COLORS[i % CAT_COLORS.length]}
                 start={{ x: 0.1, y: 0 }}
