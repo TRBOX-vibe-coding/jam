@@ -7,7 +7,7 @@ import { api, img } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { useI18n } from '../../lib/i18n';
 import { C } from '../../lib/theme';
-import { Btn, Card, Loading, Screen, Tag } from '../../lib/ui';
+import { Btn, Card, LoadError, Loading, Screen, Tag } from '../../lib/ui';
 
 function notify(title: string, msg: string) {
   if (Platform.OS === 'web') window.alert(`${title}\n${msg}`);
@@ -22,16 +22,17 @@ export default function DropDetail() {
   const { me } = useAuth();
   const { t, won, locale, lang } = useI18n();
   const [d, setD] = useState<any | null>(null);
+  const [failed, setFailed] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  useFocusEffect(
-    useCallback(() => {
-      api<any>(`/drops/${id}`).then((r) => {
-        setD(r);
-        track('drop_view', { type: 'drop', id: String(id) });
-      }).catch(() => {});
-    }, [id, lang]),
-  );
+  const load = useCallback(() => {
+    setFailed(false);
+    api<any>(`/drops/${id}`).then((r) => {
+      setD(r);
+      track('drop_view', { type: 'drop', id: String(id) });
+    }).catch(() => setFailed(true));
+  }, [id, lang]);
+  useFocusEffect(load);
 
   async function claim() {
     if (!me) {
@@ -52,7 +53,9 @@ export default function DropDetail() {
     }
   }
 
-  if (!d) return <Screen><Loading /></Screen>;
+  if (!d) {
+    return <Screen>{failed ? <LoadError text={t('loadFailed')} retryLabel={t('retry')} onRetry={load} /> : <Loading />}</Screen>;
+  }
 
   const soldOut = d.remainingQty <= 0;
 

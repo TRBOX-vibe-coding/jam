@@ -68,6 +68,16 @@ export function EmptyText({ text }: { text: string }) {
   return <Text style={{ color: C.ink3, textAlign: 'center', padding: 32, fontSize: 14 }}>{text}</Text>;
 }
 
+/** 화면 데이터 로드 실패 — 무한 스피너 대신 다시 시도 버튼을 보여준다 */
+export function LoadError({ text, retryLabel, onRetry }: { text: string; retryLabel: string; onRetry: () => void }) {
+  return (
+    <View style={{ padding: 40, alignItems: 'center', gap: 14 }}>
+      <Text style={{ color: C.ink3, textAlign: 'center', fontSize: 14, lineHeight: 21 }}>{text}</Text>
+      <Btn title={retryLabel} small onPress={onRetry} />
+    </View>
+  );
+}
+
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.ground },
   card: {

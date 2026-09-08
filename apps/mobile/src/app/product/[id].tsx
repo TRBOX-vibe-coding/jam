@@ -9,7 +9,7 @@ import { api, img } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { useI18n } from '../../lib/i18n';
 import { C } from '../../lib/theme';
-import { Btn, Card, Loading, Screen, Tag } from '../../lib/ui';
+import { Btn, Card, LoadError, Loading, Screen, Tag } from '../../lib/ui';
 
 function notify(title: string, msg: string) {
   if (Platform.OS === 'web') window.alert(`${title}\n${msg}`);
@@ -21,18 +21,19 @@ export default function ProductDetail() {
   const { me } = useAuth();
   const { t, won, locale, lang } = useI18n();
   const [p, setP] = useState<any | null>(null);
+  const [failed, setFailed] = useState(false);
   const [slotId, setSlotId] = useState<string | null>(null);
   const [headcount, setHeadcount] = useState(1);
   const [busy, setBusy] = useState(false);
 
-  useFocusEffect(
-    useCallback(() => {
-      api<any>(`/products/${id}`).then((r) => {
-        setP(r);
-        track('product_view', { type: 'product', id: String(id) });
-      }).catch(() => {});
-    }, [id, lang]),
-  );
+  const load = useCallback(() => {
+    setFailed(false);
+    api<any>(`/products/${id}`).then((r) => {
+      setP(r);
+      track('product_view', { type: 'product', id: String(id) });
+    }).catch(() => setFailed(true));
+  }, [id, lang]);
+  useFocusEffect(load);
 
   async function purchase() {
     if (!me) {
@@ -59,7 +60,9 @@ export default function ProductDetail() {
     }
   }
 
-  if (!p) return <Screen><Loading /></Screen>;
+  if (!p) {
+    return <Screen>{failed ? <LoadError text={t('loadFailed')} retryLabel={t('retry')} onRetry={load} /> : <Loading />}</Screen>;
+  }
 
   const unit = me?.membership && p.memberPrice != null ? p.memberPrice : p.basePrice;
   const total = p.type === 'RESERVATION' ? unit * headcount : unit;

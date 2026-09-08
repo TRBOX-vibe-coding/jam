@@ -9,7 +9,7 @@ import { track } from '../../lib/analytics';
 import { api, img } from '../../lib/api';
 import { useI18n } from '../../lib/i18n';
 import { C } from '../../lib/theme';
-import { Loading, Screen } from '../../lib/ui';
+import { LoadError, Loading, Screen } from '../../lib/ui';
 
 type CampaignDetail = {
   id: string; title: string; subtitle: string | null; bannerImageUrl: string | null;
@@ -26,17 +26,20 @@ export default function CampaignScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { t, won, locale, lang } = useI18n();
   const [c, setC] = useState<CampaignDetail | null>(null);
+  const [failed, setFailed] = useState(false);
 
-  useFocusEffect(
-    useCallback(() => {
-      api<CampaignDetail>(`/campaigns/${id}`).then((d) => {
-        setC(d);
-        track('campaign_view', { type: 'campaign', id: String(id) });
-      }).catch(() => {});
-    }, [id, lang]),
-  );
+  const load = useCallback(() => {
+    setFailed(false);
+    api<CampaignDetail>(`/campaigns/${id}`).then((d) => {
+      setC(d);
+      track('campaign_view', { type: 'campaign', id: String(id) });
+    }).catch(() => setFailed(true));
+  }, [id, lang]);
+  useFocusEffect(load);
 
-  if (!c) return <Screen><Loading /></Screen>;
+  if (!c) {
+    return <Screen>{failed ? <LoadError text={t('loadFailed')} retryLabel={t('retry')} onRetry={load} /> : <Loading />}</Screen>;
+  }
 
   return (
     <Screen>

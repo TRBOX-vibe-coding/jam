@@ -9,24 +9,27 @@ import { api, img } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { useI18n } from '../../lib/i18n';
 import { C } from '../../lib/theme';
-import { Btn, Card, Loading, Screen, Tag } from '../../lib/ui';
+import { Btn, Card, LoadError, Loading, Screen, Tag } from '../../lib/ui';
 
 export default function StoreDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { me } = useAuth();
   const { t, won, lang } = useI18n();
   const [m, setM] = useState<any | null>(null);
+  const [failed, setFailed] = useState(false);
 
-  useFocusEffect(
-    useCallback(() => {
-      api<any>(`/merchants/${id}`).then((r) => {
-        setM(r);
-        track('store_view', { type: 'merchant', id: String(id) });
-      }).catch(() => {});
-    }, [id, lang]),
-  );
+  const load = useCallback(() => {
+    setFailed(false);
+    api<any>(`/merchants/${id}`).then((r) => {
+      setM(r);
+      track('store_view', { type: 'merchant', id: String(id) });
+    }).catch(() => setFailed(true));
+  }, [id, lang]);
+  useFocusEffect(load);
 
-  if (!m) return <Screen><Loading /></Screen>;
+  if (!m) {
+    return <Screen>{failed ? <LoadError text={t('loadFailed')} retryLabel={t('retry')} onRetry={load} /> : <Loading />}</Screen>;
+  }
   const isMember = !!me?.membership;
 
   return (

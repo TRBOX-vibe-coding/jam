@@ -143,6 +143,8 @@ const D: Record<string, [string, string, string, string]> = {
   buyConfirmNative: ['{price} · {days}일\n결제는 데모(모의결제)로 처리됩니다.', '{price} · {days} days\nPayment is a demo (mock).', '{price} · {days}天\n付款为演示（模拟支付）。', '{price} · {days}日\n決済はデモ（模擬決済）です。'],
   memberStarted: ['멤버십 시작!', 'Membership started!', '会员开通成功！', 'メンバーシップ開始！'],
   cantBuy: ['구매할 수 없습니다', "Can't purchase", '无法购买', '購入できません'],
+  loadFailed: ['불러오지 못했습니다.\n네트워크를 확인하고 다시 시도해 주세요.', 'Failed to load.\nCheck your network and try again.', '加载失败。\n请检查网络后重试。', '読み込みに失敗しました。\nネットワークを確認して再試行してください。'],
+  retry: ['다시 시도', 'Try again', '重试', '再試行'],
   shortcuts: ['바로가기', 'Shortcuts', '快捷入口', 'ショートカット'],
   myBenefitsAll: ['내 혜택 전체 보기', 'See all my perks', '查看我的全部优惠', 'マイ特典をすべて見る'],
   myBenefitsAllSub: ['매장별로 열려 있는 혜택 · 절약 내역', 'Perks by store · savings history', '各店铺可用优惠·省钱记录', '店舗別の特典・節約履歴'],
