@@ -44,6 +44,7 @@ export class BenefitsController {
       if (!byMerchant.has(m.id)) byMerchant.set(m.id, { merchant: m, items: [] });
       byMerchant.get(m.id)!.items.push({
         id: ub.id,
+        benefitId: ub.benefitId,
         title: ub.benefit.title,
         type: ub.benefit.type,
         value: ub.benefit.value,

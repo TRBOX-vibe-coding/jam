@@ -7,6 +7,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { api, img } from './api';
 import { useAuth } from './auth';
@@ -17,7 +18,7 @@ import { Btn, Card, EmptyText, Loading, Screen } from './ui';
 
 type BenefitGroup = {
   merchant: { id: string; name: string; address: string | null; thumbnailUrl: string | null; region: { name: string }; category: { name: string; emoji: string } };
-  items: { id: string; title: string; type: string; value: number; freebieName: string | null; validTo: string | null; sourceType: string }[];
+  items: { id: string; benefitId: string; title: string; type: string; value: number; freebieName: string | null; validTo: string | null; sourceType: string }[];
 };
 
 /** 할인값을 쿠폰답게 크게 — 10% / 3,000원 / 무료 */
@@ -44,6 +45,18 @@ export default function CouponsScreen() {
   const [pending, setPending] = useState<{ merchantId: string; merchantName: string; itemId: string; title: string } | null>(null);
   const [useResult, setUseResult] = useState<{ savedAmount: number } | null>(null);
   const [busy, setBusy] = useState(false);
+  // 담기(찜) — MY의 "담은 목록"에 모인다
+  const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
+
+  async function toggleSave(benefitId: string) {
+    const key = `BENEFIT:${benefitId}`;
+    setSavedIds((prev) => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; }); // 낙관적 반영
+    try {
+      await api('/me/saves', { method: 'POST', body: { itemType: 'BENEFIT', refId: benefitId } });
+    } catch {
+      setSavedIds((prev) => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; }); // 실패 시 원복
+    }
+  }
 
   // 홈 카테고리 타일에서 넘어온 경우 그 카테고리 탭을 바로 연다
   useEffect(() => {
@@ -55,6 +68,7 @@ export default function CouponsScreen() {
     api<{ totalCount: number; merchants: BenefitGroup[] }>('/me/benefits')
       .then(setData)
       .catch((e) => setError(e.message));
+    api<string[]>('/me/saves/ids').then((ids) => setSavedIds(new Set(ids))).catch(() => {});
   }, [lang]);
   useFocusEffect(load);
 
@@ -184,6 +198,13 @@ export default function CouponsScreen() {
                       </Text>
                     )}
                   </View>
+                  <Pressable hitSlop={8} onPress={() => toggleSave(b.benefitId)}>
+                    <Ionicons
+                      name={savedIds.has(`BENEFIT:${b.benefitId}`) ? 'heart' : 'heart-outline'}
+                      size={22}
+                      color={savedIds.has(`BENEFIT:${b.benefitId}`) ? '#E8503A' : C.ink3}
+                    />
+                  </Pressable>
                   <Pressable
                     style={st.useBtn}
                     onPress={() => { setUseResult(null); setPending({ merchantId: g.merchant.id, merchantName: g.merchant.name, itemId: b.id, title: b.title }); }}

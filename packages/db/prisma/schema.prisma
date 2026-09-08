@@ -115,9 +115,28 @@ model User {
   ownedMerchants     Merchant[]             @relation("MerchantOwner")
   devices            UserDevice[]
   couponClaims       CouponClaim[]
+  savedItems         SavedItem[]
 
   @@unique([provider, providerId])
   @@index([status])
+}
+
+enum SavedItemType {
+  BENEFIT
+  PRODUCT
+}
+
+/// 담기(찜) — 쿠폰·상품을 저장해 MY의 "담은 목록"에서 본다. 추후 여행 계획 기능의 기초.
+model SavedItem {
+  id        String        @id @default(cuid())
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  itemType  SavedItemType
+  refId     String
+  createdAt DateTime      @default(now())
+
+  @@unique([userId, itemType, refId])
+  @@index([userId, createdAt])
 }
 
 model UserDevice {

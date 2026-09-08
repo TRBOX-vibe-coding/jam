@@ -4,6 +4,7 @@
 import { useCallback, useState } from 'react';
 import { Alert, Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { track } from '../../lib/analytics';
 import { api, img } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
@@ -22,6 +23,7 @@ export default function ProductDetail() {
   const { t, won, locale, lang } = useI18n();
   const [p, setP] = useState<any | null>(null);
   const [failed, setFailed] = useState(false);
+  const [saved, setSaved] = useState(false); // 담기(찜)
   const [slotId, setSlotId] = useState<string | null>(null);
   const [headcount, setHeadcount] = useState(1);
   const [busy, setBusy] = useState(false);
@@ -32,8 +34,19 @@ export default function ProductDetail() {
       setP(r);
       track('product_view', { type: 'product', id: String(id) });
     }).catch(() => setFailed(true));
-  }, [id, lang]);
+    if (me) api<string[]>('/me/saves/ids').then((ids) => setSaved(ids.includes(`PRODUCT:${id}`))).catch(() => {});
+  }, [id, lang, me]);
   useFocusEffect(load);
+
+  async function toggleSave() {
+    if (!me) { router.push('/(tabs)/my'); return; }
+    setSaved((s) => !s);
+    try {
+      await api('/me/saves', { method: 'POST', body: { itemType: 'PRODUCT', refId: id } });
+    } catch {
+      setSaved((s) => !s);
+    }
+  }
 
   async function purchase() {
     if (!me) {
@@ -78,7 +91,12 @@ export default function ProductDetail() {
             {p.weatherDependent && <Tag text={t('weather')} tone="warn" />}
             {p.verification !== 'QR_ONLY' && <Tag text={t('staffVerify')} tone="warn" />}
           </View>
-          <Text style={st.title}>{p.name}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
+            <Text style={[st.title, { flex: 1 }]}>{p.name}</Text>
+            <Pressable hitSlop={10} onPress={toggleSave} style={{ marginTop: 3 }}>
+              <Ionicons name={saved ? 'heart' : 'heart-outline'} size={26} color={saved ? '#E8503A' : C.ink3} />
+            </Pressable>
+          </View>
           <Text style={st.merchant}>{p.merchant.name} · {p.merchant.address ?? ''}</Text>
           {p.description && <Text style={st.desc}>{p.description}</Text>}
 

@@ -187,6 +187,15 @@ export default function MyScreen() {
                 <Btn title={t('view')} small onPress={() => router.push('/wallet')} />
               </View>
             </Card>
+            <Card>
+              <View style={st.rowBetween}>
+                <View>
+                  <Text style={st.planName}>♥ {t('savedLink')}</Text>
+                  <Text style={st.planDesc}>{t('savedLinkSub')}</Text>
+                </View>
+                <Btn title={t('view')} small onPress={() => router.push('/saved' as never)} />
+              </View>
+            </Card>
 
             {/* 내 가게 — 사장님도 같은 카카오 로그인. 계정에 가게가 연결되면 여기가 자동으로 열린다 */}
             <Text style={st.section}>{t('myStore')}</Text>
