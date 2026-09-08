@@ -69,7 +69,8 @@ export default function ProductDetail() {
 
   return (
     <Screen>
-      <ScrollView contentContainerStyle={{ padding: 16 }}>
+      {/* 하단 고정 결제바에 가리지 않도록 여백을 넉넉히 둔다 */}
+      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 130 }}>
         {p.imageUrl && <Image source={{ uri: img(p.imageUrl, 960) }} style={st.hero} />}
         <Card>
           <View style={{ flexDirection: 'row', gap: 5, marginBottom: 8 }}>
@@ -123,32 +124,32 @@ export default function ProductDetail() {
               );
             })}
 
-            <Text style={st.section}>{t('headcount')}</Text>
-            <Card>
-              <View style={[st.rowBetween, { justifyContent: 'center', gap: 26 }]}>
-                <Pressable onPress={() => setHeadcount((h) => Math.max(1, h - 1))}>
-                  <Text style={st.stepBtn}>−</Text>
-                </Pressable>
-                <Text style={st.headcount}>{t('people', { n: headcount })}</Text>
-                <Pressable onPress={() => setHeadcount((h) => Math.min(10, h + 1))}>
-                  <Text style={st.stepBtn}>＋</Text>
-                </Pressable>
-              </View>
-            </Card>
           </>
         )}
-
-        <View style={{ marginTop: 8 }}>
-          <Btn
-            title={p.type === 'RESERVATION' ? t('payTotalReserve', { price: won(total) }) : t('payTotal', { price: won(total) })}
-            onPress={purchase}
-            disabled={busy}
-          />
-          <Text style={st.note}>
-            {p.type === 'RESERVATION' ? t('resvNote') : p.type === 'PASS' ? t('passNote') : t('ticketNote')}
-          </Text>
-        </View>
       </ScrollView>
+
+      {/* 하단 고정 결제바 — 스크롤과 무관하게 항상 보인다 */}
+      <View style={st.payBar}>
+        {p.type === 'RESERVATION' && (
+          <View style={st.stepper}>
+            <Pressable hitSlop={8} onPress={() => setHeadcount((h) => Math.max(1, h - 1))}>
+              <Text style={st.stepBtn}>−</Text>
+            </Pressable>
+            <Text style={st.headcount}>{t('people', { n: headcount })}</Text>
+            <Pressable hitSlop={8} onPress={() => setHeadcount((h) => Math.min(10, h + 1))}>
+              <Text style={st.stepBtn}>＋</Text>
+            </Pressable>
+          </View>
+        )}
+        <Btn
+          title={p.type === 'RESERVATION' ? t('payTotalReserve', { price: won(total) }) : t('payTotal', { price: won(total) })}
+          onPress={purchase}
+          disabled={busy}
+        />
+        <Text style={st.note}>
+          {p.type === 'RESERVATION' ? t('resvNote') : p.type === 'PASS' ? t('passNote') : t('ticketNote')}
+        </Text>
+      </View>
     </Screen>
   );
 }
@@ -168,7 +169,13 @@ const st = StyleSheet.create({
   noSlot: { fontSize: 13, color: C.ink3, textAlign: 'center' },
   slotLabel: { fontSize: 15, fontWeight: '700', color: C.ink },
   slotRemain: { fontSize: 13, fontWeight: '700', color: C.brand },
-  stepBtn: { fontSize: 26, fontWeight: '700', color: C.brand, paddingHorizontal: 16 },
-  headcount: { fontSize: 20, fontWeight: '700', color: C.ink, minWidth: 60, textAlign: 'center' },
-  note: { fontSize: 12, color: C.ink3, textAlign: 'center', marginTop: 12, lineHeight: 18 },
+  stepBtn: { fontSize: 24, fontWeight: '700', color: C.brand, paddingHorizontal: 14 },
+  headcount: { fontSize: 17, fontWeight: '700', color: C.ink, minWidth: 52, textAlign: 'center' },
+  note: { fontSize: 11.5, color: C.ink3, textAlign: 'center', marginTop: 8, lineHeight: 16 },
+  payBar: {
+    position: 'absolute', left: 0, right: 0, bottom: 0,
+    backgroundColor: C.white, borderTopWidth: 1, borderTopColor: C.line,
+    paddingHorizontal: 16, paddingTop: 10, paddingBottom: 14, gap: 8,
+  },
+  stepper: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
 });
