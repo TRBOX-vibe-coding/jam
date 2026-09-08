@@ -350,6 +350,19 @@ export default function HomeScreen() {
           </View>
         </View>
         <HScroll contentContainerStyle={{ paddingHorizontal: 16, gap: 14 }}>
+          {/* 할인 쿠폰 — 이 앱의 정체성. 맨 앞 고정 타일 (2026-09-08 미팅) */}
+          <Pressable style={st.cat} onPress={() => router.push('/benefits')}>
+            <LinearGradient
+              colors={['#F59E0B', '#DC2626']}
+              start={{ x: 0.1, y: 0 }}
+              end={{ x: 0.9, y: 1 }}
+              style={st.catTile}
+            >
+              <View style={st.catGloss} />
+              <Text style={st.catEmoji}>🎟️</Text>
+            </LinearGradient>
+            <Text style={[st.catLabel, { color: '#C2410C', fontWeight: '700' }]}>{t('couponCat')}</Text>
+          </Pressable>
           {cats.map((c, i) => (
             <Pressable key={c.id} style={st.cat} onPress={() => router.push('/(tabs)/store')}>
               <LinearGradient

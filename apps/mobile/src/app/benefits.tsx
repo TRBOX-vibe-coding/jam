@@ -16,6 +16,17 @@ type BenefitGroup = {
   items: { id: string; title: string; type: string; freebieName: string | null; validTo: string | null; sourceType: string }[];
 };
 
+/** 카테고리 이름 기준 탭 목록 (중복 제거) */
+function catTabsOf(groups: BenefitGroup[]) {
+  const tabs: { name: string; emoji: string }[] = [];
+  for (const g of groups) {
+    if (!tabs.some((x) => x.name === g.merchant.category.name)) {
+      tabs.push({ name: g.merchant.category.name, emoji: g.merchant.category.emoji });
+    }
+  }
+  return tabs;
+}
+
 const SOURCE_KEY: Record<string, string> = {
   MEMBERSHIP_PLAN: 'srcMembership',
   PRODUCT: 'srcProduct',
@@ -30,6 +41,7 @@ export default function BenefitsScreen() {
   const [error, setError] = useState('');
   // 쿠폰 사용 모달 — QR 스캔 없이 [확인] 버튼만으로 처리한다 (2026-09-08 픽스)
   const [pending, setPending] = useState<{ merchantId: string; merchantName: string; itemId: string; title: string } | null>(null);
+  const [cat, setCat] = useState<string | null>(null); // 카테고리 탭 — 배고픈 사람은 맛집 쿠폰만 (2026-09-08 미팅)
   const [useResult, setUseResult] = useState<{ savedAmount: number } | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -97,7 +109,20 @@ export default function BenefitsScreen() {
           </View>
         )}
 
-        {data?.merchants.map((g) => (
+        {data && catTabsOf(data.merchants).length > 1 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }} contentContainerStyle={{ gap: 7 }}>
+            <Pressable style={[st.tab, cat === null && st.tabOn]} onPress={() => setCat(null)}>
+              <Text style={[st.tabText, cat === null && st.tabTextOn]}>{t('all')}</Text>
+            </Pressable>
+            {catTabsOf(data.merchants).map((ct) => (
+              <Pressable key={ct.name} style={[st.tab, cat === ct.name && st.tabOn]} onPress={() => setCat(ct.name)}>
+                <Text style={[st.tabText, cat === ct.name && st.tabTextOn]}>{ct.emoji} {ct.name}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        )}
+
+        {data?.merchants.filter((g) => !cat || g.merchant.category.name === cat).map((g) => (
           <Card key={g.merchant.id}>
             <View style={st.rowBetween}>
               <Text style={st.merchantName}>
@@ -178,6 +203,13 @@ const st = StyleSheet.create({
   validTo: { fontSize: 11, color: C.ink3, marginTop: 1 },
   hint: { textAlign: 'center', color: C.ink3, fontSize: 12, marginTop: 8, marginBottom: 24 },
   useBtn: { backgroundColor: C.brand, borderRadius: 9, paddingHorizontal: 14, paddingVertical: 8 },
+  tab: {
+    paddingHorizontal: 13, paddingVertical: 7, borderRadius: 999,
+    backgroundColor: C.white, borderWidth: 1, borderColor: C.line,
+  },
+  tabOn: { backgroundColor: C.brand, borderColor: C.brand },
+  tabText: { fontSize: 13, fontWeight: '700', color: C.ink2 },
+  tabTextOn: { color: '#fff' },
   useBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
   modalBack: { flex: 1, backgroundColor: 'rgba(10,20,30,0.55)', alignItems: 'center', justifyContent: 'center', padding: 28 },
   modalCard: { backgroundColor: C.white, borderRadius: 18, padding: 24, width: '100%', maxWidth: 360, alignItems: 'stretch' },
