@@ -138,9 +138,18 @@ export default function CouponsScreen() {
         {/* 카테고리는 홈 타일에서 이미 골랐다 — 여기서는 표시만 하고 다시 고르게 하지 않는다 (2026-09-08) */}
         {cat != null && (
           <View style={st.catHead}>
-            <Text style={st.catHeadText}>
-              {cats.find((c) => c.name === cat)?.emoji ?? '🎟️'} {cat}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              {/* 홈 타일로 들어온 화면 — 뒤로가면 홈 */}
+              <Pressable
+                hitSlop={10}
+                onPress={() => { setCat(null); if (router.canGoBack()) router.back(); else router.push('/(tabs)'); }}
+              >
+                <Text style={st.catBack}>←</Text>
+              </Pressable>
+              <Text style={st.catHeadText}>
+                {cats.find((c) => c.name === cat)?.emoji ?? '🎟️'} {cat}
+              </Text>
+            </View>
             <Pressable style={st.catClear} onPress={() => setCat(null)}>
               <Text style={st.catClearText}>{t('all')} ›</Text>
             </Pressable>
@@ -261,6 +270,7 @@ const st = StyleSheet.create({
   },
   catHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, marginTop: 2 },
   catHeadText: { fontSize: 17, fontWeight: '700', color: C.ink },
+  catBack: { fontSize: 22, fontWeight: '700', color: C.ink, paddingRight: 2, marginTop: -2 },
   catClear: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: C.white, borderWidth: 1, borderColor: C.line },
   catClearText: { fontSize: 12.5, fontWeight: '700', color: C.ink2 },
   tabOn: { backgroundColor: C.brand, borderColor: C.brand },
