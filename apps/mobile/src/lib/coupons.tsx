@@ -20,7 +20,7 @@ type BenefitGroup = {
 };
 
 /** 할인값을 쿠폰답게 크게 — 10% / 3,000원 / 무료 */
-function couponValue(b: { type: string; value: number }) {
+export function couponValue(b: { type: string; value: number }) {
   if (b.type === 'PERCENT') return `${b.value}%`;
   if (b.type === 'AMOUNT') return `${b.value.toLocaleString()}원`;
   return null; // FREEBIE는 i18n 라벨로
@@ -135,25 +135,18 @@ export default function CouponsScreen() {
           </ScrollView>
         )}
 
-        {/* 카테고리는 홈 타일에서 이미 골랐다 — 여기서는 표시만 하고 다시 고르게 하지 않는다 (2026-09-08) */}
-        {cat != null && (
-          <View style={st.catHead}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              {/* 홈 타일로 들어온 화면 — 뒤로가면 홈 */}
-              <Pressable
-                hitSlop={10}
-                onPress={() => { setCat(null); if (router.canGoBack()) router.back(); else router.push('/(tabs)'); }}
-              >
-                <Text style={st.catBack}>←</Text>
-              </Pressable>
-              <Text style={st.catHeadText}>
-                {cats.find((c) => c.name === cat)?.emoji ?? '🎟️'} {cat}
-              </Text>
-            </View>
-            <Pressable style={st.catClear} onPress={() => setCat(null)}>
-              <Text style={st.catClearText}>{t('all')} ›</Text>
+        {/* 카테고리 탭 — 홈은 쿠폰 슬라이드만 보여주고, 종류별 탐색은 여기서 한다 (2026-09-08 확정 구조) */}
+        {cats.length > 1 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }} contentContainerStyle={{ gap: 7 }}>
+            <Pressable style={[st.tab, cat === null && st.tabOn]} onPress={() => setCat(null)}>
+              <Text style={[st.tabText, cat === null && st.tabTextOn]}>{t('all')}</Text>
             </Pressable>
-          </View>
+            {cats.map((ct) => (
+              <Pressable key={ct.name} style={[st.tab, cat === ct.name && st.tabOn]} onPress={() => setCat(ct.name)}>
+                <Text style={[st.tabText, cat === ct.name && st.tabTextOn]}>{ct.emoji} {ct.name}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
         )}
 
         {data && data.totalCount > 0 && shown.length === 0 && <EmptyText text={t('noMerchants')} />}

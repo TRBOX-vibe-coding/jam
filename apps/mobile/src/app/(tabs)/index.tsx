@@ -34,7 +34,7 @@ type Product = {
 };
 type BenefitGroup = {
   merchant: { id: string; name: string; thumbnailUrl: string | null; region: { name: string }; category: { emoji: string } };
-  items: { title: string }[];
+  items: { id: string; title: string; type: string; value: number }[];
 };
 type Campaign = { id: string; title: string; subtitle: string | null; bannerImageUrl: string | null; subsidyLabel: string | null; endAt: string | null };
 type CouponSlot = { time: string; opensAt: string; closesAt: string; state: 'upcoming' | 'open' | 'soldout' | 'ended'; remaining: number; total: number };
@@ -342,44 +342,47 @@ export default function HomeScreen() {
           ))}
         </HScroll>
 
-        {/* ③ 할인 쿠폰 — 이 앱의 정체성. 카테고리 타일을 누르면 그 종류의 쿠폰이 바로 열린다 (2026-09-08 통합) */}
-        <View style={st.sectionHead}>
-          <View>
-            <Text style={st.sectionTitle}>{t('couponSectionHome')}</Text>
-            <Text style={st.sectionSub}>{t('couponSectionHomeSub')}</Text>
-          </View>
-          <Pressable onPress={() => router.push('/(tabs)/store')}>
-            <Text style={st.more}>{t('more')}</Text>
-          </Pressable>
-        </View>
-        <HScroll contentContainerStyle={{ paddingHorizontal: 16, gap: 14 }}>
-          <Pressable style={st.cat} onPress={() => router.push('/(tabs)/store')}>
-            <LinearGradient
-              colors={['#F59E0B', '#DC2626']}
-              start={{ x: 0.1, y: 0 }}
-              end={{ x: 0.9, y: 1 }}
-              style={st.catTile}
-            >
-              <View style={st.catGloss} />
-              <Text style={st.catEmoji}>🎟️</Text>
-            </LinearGradient>
-            <Text style={[st.catLabel, { color: '#C2410C', fontWeight: '700' }]}>{t('all')}</Text>
-          </Pressable>
-          {cats.map((c, i) => (
-            <Pressable key={c.id} style={st.cat} onPress={() => router.push(`/(tabs)/store?cat=${encodeURIComponent(c.name)}` as never)}>
-              <LinearGradient
-                colors={CAT_COLORS[i % CAT_COLORS.length]}
-                start={{ x: 0.1, y: 0 }}
-                end={{ x: 0.9, y: 1 }}
-                style={st.catTile}
-              >
-                <View style={st.catGloss} />
-                <Text style={st.catEmoji}>{c.emoji ?? '✨'}</Text>
-              </LinearGradient>
-              <Text style={st.catLabel}>{c.name}</Text>
-            </Pressable>
-          ))}
-        </HScroll>
+        {/* ③ 할인 쿠폰 — DROP처럼 쿠폰 자체를 사진 카드 슬라이드로. 전체보기에서 카테고리를 고른다 (2026-09-08 확정 구조) */}
+        {me && benefits.length > 0 && (
+          <>
+            <View style={st.sectionHead}>
+              <View>
+                <Text style={st.sectionTitle}>{t('couponSectionHome')}</Text>
+                <Text style={st.sectionSub}>{t('couponSectionHomeSub')}</Text>
+              </View>
+              <Pressable onPress={() => router.push('/(tabs)/store')}>
+                <Text style={st.more}>{t('more')}</Text>
+              </Pressable>
+            </View>
+            <HScroll contentContainerStyle={{ paddingHorizontal: 16, gap: 10 }}>
+              {benefits
+                .flatMap((g) => g.items.map((b) => ({ g, b })))
+                .slice(0, 10)
+                .map(({ g, b }) => (
+                  <Pressable key={b.id} style={st.dropCard} onPress={() => router.push(`/store/${g.merchant.id}`)}>
+                    <View>
+                      {g.merchant.thumbnailUrl ? (
+                        <Image source={{ uri: img(g.merchant.thumbnailUrl, 480) }} style={st.dropImg} />
+                      ) : (
+                        <View style={[st.dropImg, { backgroundColor: C.brandSoft, alignItems: 'center', justifyContent: 'center' }]}>
+                          <Text style={{ fontSize: 30 }}>{g.merchant.category.emoji}</Text>
+                        </View>
+                      )}
+                      <View style={st.couponBadge}>
+                        <Text style={st.couponBadgeText}>
+                          {b.type === 'PERCENT' ? `${b.value}% ${t('offLabel')}` : b.type === 'AMOUNT' ? `${b.value.toLocaleString()}원 ${t('offLabel')}` : t('freeLabel')}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={{ padding: 10 }}>
+                      <Text style={st.dropTitle} numberOfLines={1}>{b.title}</Text>
+                      <Text style={st.dropMerchant} numberOfLines={1}>{g.merchant.name} · {g.merchant.region.name}</Text>
+                    </View>
+                  </Pressable>
+                ))}
+            </HScroll>
+          </>
+        )}
 
         {/* ④ 액티비티 예약 — 결제하면 예약까지 (상품) */}
         <View style={st.sectionHead}>
@@ -502,6 +505,11 @@ const st = StyleSheet.create({
   lockEmoji: { fontSize: 26 },
   dropTitle: { fontSize: 13.5, fontWeight: '700', color: C.ink },
   dropMerchant: { fontSize: 11, color: C.ink3, marginTop: 2 },
+  couponBadge: {
+    position: 'absolute', left: 8, bottom: 8, backgroundColor: '#E8503A',
+    borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3,
+  },
+  couponBadgeText: { color: '#fff', fontSize: 11, fontWeight: '800' },
   dropPriceRow: { flexDirection: 'row', alignItems: 'baseline', gap: 5, marginTop: 5 },
   dropRate: { fontSize: 14, fontWeight: '700', color: '#E8503A' },
   dropPrice: { fontSize: 14, fontWeight: '700', color: C.ink },
