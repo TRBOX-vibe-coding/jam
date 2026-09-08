@@ -12,6 +12,7 @@ import { api, img } from './api';
 import { useAuth } from './auth';
 import { useI18n } from './i18n';
 import { C } from './theme';
+import { HScroll } from './hscroll';
 import { Btn, Card, EmptyText, Loading, Screen } from './ui';
 
 type BenefitGroup = {
@@ -123,7 +124,7 @@ export default function CouponsScreen() {
 
         {/* 지역 필터 */}
         {regions.length > 1 && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }} contentContainerStyle={{ gap: 7 }}>
+          <HScroll horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }} contentContainerStyle={{ gap: 7 }}>
             <Pressable style={[st.tab, region === null && st.tabOn]} onPress={() => setRegion(null)}>
               <Text style={[st.tabText, region === null && st.tabTextOn]}>{t('allRegions')}</Text>
             </Pressable>
@@ -132,12 +133,12 @@ export default function CouponsScreen() {
                 <Text style={[st.tabText, region === r && st.tabTextOn]}>{r}</Text>
               </Pressable>
             ))}
-          </ScrollView>
+          </HScroll>
         )}
 
         {/* 카테고리 탭 — 홈은 쿠폰 슬라이드만 보여주고, 종류별 탐색은 여기서 한다 (2026-09-08 확정 구조) */}
         {cats.length > 1 && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }} contentContainerStyle={{ gap: 7 }}>
+          <HScroll horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }} contentContainerStyle={{ gap: 7 }}>
             <Pressable style={[st.tab, cat === null && st.tabOn]} onPress={() => setCat(null)}>
               <Text style={[st.tabText, cat === null && st.tabTextOn]}>{t('all')}</Text>
             </Pressable>
@@ -146,7 +147,7 @@ export default function CouponsScreen() {
                 <Text style={[st.tabText, cat === ct.name && st.tabTextOn]}>{ct.emoji} {ct.name}</Text>
               </Pressable>
             ))}
-          </ScrollView>
+          </HScroll>
         )}
 
         {data && data.totalCount > 0 && shown.length === 0 && <EmptyText text={t('noMerchants')} />}
