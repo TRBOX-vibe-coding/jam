@@ -384,40 +384,41 @@ export default function HomeScreen() {
           ))}
         </HScroll>
 
-        {/* ④ 액티비티 예약 — 결제하면 예약까지 (상품) */}
+        {/* ④ 액티비티 예약 — 쿠폰·DROP과 같은 패턴: 슬라이드 + 전체보기(필터) (2026-09-08 UI 통일) */}
         <View style={st.sectionHead}>
           <View>
             <Text style={st.sectionTitle}>{t('activitySection')}</Text>
             <Text style={st.sectionSub}>{t('activitySectionSub')}</Text>
           </View>
+          <Pressable onPress={() => router.push('/products' as never)}>
+            <Text style={st.more}>{t('more')}</Text>
+          </Pressable>
         </View>
-        <View style={{ paddingHorizontal: 16, marginTop: 2, gap: 12 }}>
-          {products === null && [1, 2].map((k) => (
+        <HScroll contentContainerStyle={{ paddingHorizontal: 16, gap: 10 }}>
+          {products === null && [1, 2, 3].map((k) => (
             <View key={k} style={st.prodCard}>
               <View style={[st.prodImg, st.skel]} />
-              <View style={[st.prodBody, { gap: 8 }]}>
-                <View style={[st.skel, { height: 15, width: '70%' }]} />
-                <View style={[st.skel, { height: 12, width: '45%' }]} />
-                <View style={[st.skel, { height: 16, width: '55%' }]} />
+              <View style={{ padding: 10, gap: 7 }}>
+                <View style={[st.skel, { height: 14, width: '85%' }]} />
+                <View style={[st.skel, { height: 11, width: '60%' }]} />
               </View>
             </View>
           ))}
-          {(products ?? []).slice(0, 3).map((p) => (
+          {(products ?? []).slice(0, 6).map((p) => (
             <Pressable key={p.id} style={st.prodCard} onPress={() => router.push(`/product/${p.id}`)}>
               {p.imageUrl ? (
-                <Image source={{ uri: img(p.imageUrl, 640) }} style={st.prodImg} />
+                <Image source={{ uri: img(p.imageUrl, 480) }} style={st.prodImg} />
               ) : (
                 <View style={[st.prodImg, { backgroundColor: C.brandSoft }]} />
               )}
-              <View style={st.prodBody}>
-                <Text style={st.prodName} numberOfLines={1}>{p.name}</Text>
-                <Text style={st.prodMerchant}>{p.merchant.region.name} · {p.merchant.name}</Text>
+              <View style={{ padding: 10 }}>
+                <Text style={st.dropTitle} numberOfLines={1}>{p.name}</Text>
+                <Text style={st.dropMerchant} numberOfLines={1}>{p.merchant.region.name} · {p.merchant.name}</Text>
                 <View style={st.dropPriceRow}>
                   {p.memberPrice != null ? (
                     <>
                       <Text style={st.memberTag}>{t('memberPrice')}</Text>
                       <Text style={st.prodPrice}>{won(p.memberPrice)}</Text>
-                      <Text style={st.prodNormal}>{won(p.basePrice)}</Text>
                     </>
                   ) : (
                     <Text style={st.prodPrice}>{won(p.basePrice)}</Text>
@@ -426,7 +427,7 @@ export default function HomeScreen() {
               </View>
             </Pressable>
           ))}
-        </View>
+        </HScroll>
 
         {/* (구) "지금 쓸 수 있는 내 혜택" 섹션은 할인 쿠폰 섹션과 중복이라 제거 (2026-09-08) */}
       </ScrollView>
@@ -526,8 +527,8 @@ const st = StyleSheet.create({
   catLabel: { fontSize: 11.5, fontWeight: '700', color: C.ink2, letterSpacing: -0.2 },
   catEmoji: { fontSize: 24 },
 
-  prodCard: { backgroundColor: C.white, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: C.line },
-  prodImg: { width: '100%', height: 150 },
+  prodCard: { width: 200, backgroundColor: C.white, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: C.line },
+  prodImg: { width: '100%', height: 120 },
   prodBody: { padding: 12 },
   prodName: { fontSize: 15.5, fontWeight: '700', color: C.ink },
   prodMerchant: { fontSize: 12, color: C.ink3, marginTop: 2 },
