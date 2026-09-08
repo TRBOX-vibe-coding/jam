@@ -7,7 +7,7 @@ import {
   BadRequestException, Body, Controller, ForbiddenException, Get, Module,
   NotFoundException, Param, Post, Query, Res, UseGuards,
 } from '@nestjs/common';
-import { IsEmail, IsIn, IsInt, IsOptional, IsString, Matches, Max, Min, MinLength } from 'class-validator';
+import { IsEmail, IsIn, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min, MinLength } from 'class-validator';
 import { Type } from 'class-transformer';
 import * as XLSX from 'xlsx';
 import { PrismaService } from './prisma.service';
@@ -38,6 +38,11 @@ class CreateDropDto {
 
 class VerifyDto {
   @IsString() @MinLength(4) token!: string;
+}
+
+class SetPinDto {
+  /** 자릿수는 점주 자유 (2~10자, 숫자·영문) */
+  @IsString() @MinLength(2) @MaxLength(10) pin!: string;
 }
 
 class CreateMerchantProductDto {
@@ -155,8 +160,18 @@ export class MerchantController {
       id: m.id, name: m.name, status: m.status,
       region: m.region.name, category: m.category.name,
       address: m.address, commissionRate: m.commissionRate,
+      usePin: m.usePin,
       qrCodes: m.qrCodes.map((q) => ({ id: q.id, code: q.code, label: q.label })),
     };
+  }
+
+  /** 사용 확인 코드 설정 — 결제 상품을 QR 없이 사용 처리할 때 손님이 입력하는 코드 (2026-09-08 픽스: 점주가 직접 정한다) */
+  @Post('my/pin')
+  async setPin(@UserId() userId: string, @Body() dto: SetPinDto) {
+    const m = await this.myMerchant(userId);
+    const pin = dto.pin.trim();
+    await this.prisma.client.merchant.update({ where: { id: m.id }, data: { usePin: pin } });
+    return { ok: true, usePin: pin, message: '사용 확인 코드를 저장했습니다. 직원분들께 공유해 주세요.' };
   }
 
   /** 오늘/이번달 사용 현황 요약 */

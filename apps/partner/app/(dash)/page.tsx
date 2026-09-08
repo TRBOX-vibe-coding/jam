@@ -2,18 +2,33 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api, dt } from '@/lib/api';
-import { Badge, Card, CardHeader, Empty, Stat, StatSkeleton, Table, TableSkeleton, Td } from '@/components/ui';
+import { Badge, Button, Card, CardHeader, Empty, Stat, StatSkeleton, Table, TableSkeleton, Td } from '@/components/ui';
 
 const TYPE_LABEL: Record<string, string> = { BENEFIT: '혜택', DROP: 'DROP', VOUCHER: '이용권' };
 
 export default function Dashboard() {
   const [summary, setSummary] = useState<any | null>(null);
   const [redemptions, setRedemptions] = useState<any[] | null>(null);
+  const [usePin, setUsePin] = useState<string | null>(null);
+  const [pinInput, setPinInput] = useState('');
+  const [pinMsg, setPinMsg] = useState('');
 
   useEffect(() => {
     api<any>('/merchant/my/summary').then(setSummary).catch(() => {});
     api<any[]>('/merchant/my/redemptions?days=7').then(setRedemptions).catch(() => setRedemptions([]));
+    api<any>('/merchant/my').then((m) => setUsePin(m.usePin ?? null)).catch(() => {});
   }, []);
+
+  async function savePin() {
+    try {
+      const r = await api<{ usePin: string; message: string }>('/merchant/my/pin', { method: 'POST', body: { pin: pinInput.trim() } });
+      setUsePin(r.usePin);
+      setPinInput('');
+      setPinMsg(r.message);
+    } catch (e: any) {
+      setPinMsg(e.message);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -28,6 +43,30 @@ export default function Dashboard() {
           <Stat label="진행 중 DROP" value={`${(summary.drops ?? []).filter((d: any) => d.status === 'OPEN').length}개`} sub={`승인 대기 ${(summary.drops ?? []).filter((d: any) => d.status === 'PENDING').length}건`} />
         </div>
       )}
+
+      {/* 사용 확인 코드 — 결제 상품을 QR 없이 처리할 때 손님이 입력하는 우리 매장 코드 (2026-09-08 픽스) */}
+      <Card className="p-5">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="min-w-[220px] flex-1">
+            <div className="text-sm font-bold">사용 확인 코드</div>
+            <div className="mt-0.5 text-xs text-ink-3">
+              손님이 결제 상품을 QR 없이 사용 처리할 때 입력하는 코드입니다. 자릿수 자유(2~10자) — 직원분들과 공유하세요.
+            </div>
+          </div>
+          <div className="text-sm">
+            현재: {usePin ? <b className="text-brand tracking-widest">{usePin}</b> : <span className="text-ink-3">미설정</span>}
+          </div>
+          <input
+            className="w-28 rounded-md border border-line bg-white px-3 py-2 text-center text-sm font-bold tracking-widest outline-none focus:border-brand"
+            placeholder="1234"
+            maxLength={10}
+            value={pinInput}
+            onChange={(e) => setPinInput(e.target.value)}
+          />
+          <Button small onClick={savePin} disabled={pinInput.trim().length < 2}>{usePin ? '변경' : '저장'}</Button>
+          {pinMsg && <span className="text-xs font-semibold text-ok">{pinMsg}</span>}
+        </div>
+      </Card>
 
       <Card>
         <CardHeader title="내 DROP 현황" right={<Link href="/drops" className="text-xs font-bold text-brand">전체 보기 →</Link>} />

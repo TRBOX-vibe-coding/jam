@@ -24,6 +24,20 @@ export default function MerchantMode() {
   const [error, setError] = useState('');
   const [token, setToken] = useState('');
   const [verifyResult, setVerifyResult] = useState<any | null>(null);
+  const [pinInput, setPinInput] = useState('');
+  const [pinMsg, setPinMsg] = useState('');
+
+  /** 사용 확인 코드 저장 — 결제 상품을 QR 없이 처리할 때 손님이 입력하는 코드 (점주가 직접 정한다) */
+  async function savePin() {
+    try {
+      const r = await api<{ message: string }>('/merchant/my/pin', { method: 'POST', body: { pin: pinInput.trim() } });
+      setPinMsg(r.message);
+      setPinInput('');
+      api<any>('/merchant/my').then(setMy).catch(() => {});
+    } catch (e: any) {
+      setPinMsg(e.message);
+    }
+  }
 
   useFocusEffect(
     useCallback(() => {
@@ -106,6 +120,29 @@ export default function MerchantMode() {
             <Text style={st.redMoreHint}>목록 안에서 위아래로 밀면 {reds.length}건 모두 볼 수 있어요</Text>
           </View>
         )}
+
+        <Text style={st.section}>사용 확인 코드 (우리 매장 코드)</Text>
+        <Card>
+          <Text style={st.hint}>
+            결제 상품(티켓·예약)을 손님이 QR 없이 사용 처리할 때 입력하는 코드예요.
+            자릿수는 자유(2~10자) — 직원분들과 공유해 주세요.
+          </Text>
+          <Text style={st.pinCurrent}>
+            현재 코드: {my.usePin ? <Text style={{ color: C.brand }}>{my.usePin}</Text> : '아직 없음 (설정해 주세요)'}
+          </Text>
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+            <TextInput
+              value={pinInput}
+              onChangeText={setPinInput}
+              placeholder="예: 1234"
+              placeholderTextColor={C.ink3}
+              maxLength={10}
+              style={st.input}
+            />
+            <Btn title={my.usePin ? '변경' : '저장'} small onPress={savePin} disabled={pinInput.trim().length < 2} />
+          </View>
+          {!!pinMsg && <Text style={[st.hint, { color: C.ok, marginTop: 6 }]}>{pinMsg}</Text>}
+        </Card>
 
         <Text style={st.section}>직원 확인 코드 조회</Text>
         <Card>
@@ -239,6 +276,7 @@ const st = StyleSheet.create({
   statValue: { fontSize: 22, fontWeight: '700', color: C.ink, marginTop: 2 },
   section: { fontSize: 13, fontWeight: '700', color: C.ink3, marginTop: 14, marginBottom: 8 },
   hint: { fontSize: 12, color: C.ink3, lineHeight: 18, marginBottom: 8 },
+  pinCurrent: { fontSize: 14, fontWeight: '700', color: C.ink, marginTop: 8 },
   input: {
     flex: 1, borderWidth: 1, borderColor: C.line, borderRadius: 10,
     paddingHorizontal: 12, paddingVertical: 9, fontSize: 16, fontWeight: '700',

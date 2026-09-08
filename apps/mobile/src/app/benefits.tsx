@@ -3,7 +3,7 @@
  * 상단에 절약 요약(멤버십 가치의 증거)을 먼저 보여준다.
  */
 import { useCallback, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
@@ -28,15 +28,38 @@ export default function BenefitsScreen() {
   const { t, won, locale, lang } = useI18n();
   const [data, setData] = useState<{ totalCount: number; merchants: BenefitGroup[] } | null>(null);
   const [error, setError] = useState('');
+  // 쿠폰 사용 모달 — QR 스캔 없이 [확인] 버튼만으로 처리한다 (2026-09-08 픽스)
+  const [pending, setPending] = useState<{ merchantId: string; merchantName: string; itemId: string; title: string } | null>(null);
+  const [useResult, setUseResult] = useState<{ savedAmount: number } | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  useFocusEffect(
-    useCallback(() => {
-      setError('');
-      api<{ totalCount: number; merchants: BenefitGroup[] }>('/me/benefits')
-        .then(setData)
-        .catch((e) => setError(e.message));
-    }, [lang]),
-  );
+  const load = useCallback(() => {
+    setError('');
+    api<{ totalCount: number; merchants: BenefitGroup[] }>('/me/benefits')
+      .then(setData)
+      .catch((e) => setError(e.message));
+  }, [lang]);
+  useFocusEffect(load);
+
+  async function confirmUse() {
+    if (!pending) return;
+    setBusy(true);
+    try {
+      const r = await api<{ savedAmount: number }>('/redeem', {
+        method: 'POST',
+        body: { merchantId: pending.merchantId, itemType: 'BENEFIT', itemId: pending.itemId },
+      });
+      setUseResult({ savedAmount: r.savedAmount });
+      load();
+    } catch (e: any) {
+      setPending(null);
+      setUseResult(null);
+      if (Platform.OS === 'web') window.alert(e.message);
+      else Alert.alert('', e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   if (!me) {
     return (
@@ -93,6 +116,12 @@ export default function BenefitsScreen() {
                   )}
                 </View>
                 <Tag text={SOURCE_KEY[b.sourceType] ? t(SOURCE_KEY[b.sourceType]) : b.sourceType} tone="ok" />
+                <Pressable
+                  style={st.useBtn}
+                  onPress={() => { setUseResult(null); setPending({ merchantId: g.merchant.id, merchantName: g.merchant.name, itemId: b.id, title: b.title }); }}
+                >
+                  <Text style={st.useBtnText}>{t('useNow')}</Text>
+                </Pressable>
               </View>
             ))}
           </Card>
@@ -102,6 +131,34 @@ export default function BenefitsScreen() {
           <Text style={st.hint}>{t('benefitsHint')}</Text>
         )}
       </ScrollView>
+
+      {/* 쿠폰 사용 모달 — 직원에게 보여주고 확인 버튼 한 번이면 끝 */}
+      <Modal visible={pending != null} transparent animationType="fade" onRequestClose={() => !busy && setPending(null)}>
+        <View style={st.modalBack}>
+          <View style={st.modalCard}>
+            {useResult ? (
+              <>
+                <Text style={st.modalDone}>✓ {t('usedDoneTitle')}</Text>
+                {useResult.savedAmount > 0 && (
+                  <Text style={st.modalSaved}>{t('usedSaved', { amt: won(useResult.savedAmount) })}</Text>
+                )}
+                <Text style={st.modalItem}>{pending?.merchantName} · {pending?.title}</Text>
+                <Btn title={t('close')} onPress={() => { setPending(null); setUseResult(null); }} />
+              </>
+            ) : (
+              <>
+                <Text style={st.modalMerchant}>{pending?.merchantName}</Text>
+                <Text style={st.modalTitle}>{pending?.title}</Text>
+                <Text style={st.modalGuide}>{t('showStaffFirst')}</Text>
+                <Btn title={busy ? '…' : t('confirmUse')} onPress={confirmUse} disabled={busy} />
+                <Pressable onPress={() => !busy && setPending(null)} style={{ marginTop: 10 }}>
+                  <Text style={st.modalCancel}>{t('close')}</Text>
+                </Pressable>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
     </Screen>
   );
 }
@@ -120,4 +177,15 @@ const st = StyleSheet.create({
   benefitTitle: { fontSize: 14, fontWeight: '600', color: C.ink2 },
   validTo: { fontSize: 11, color: C.ink3, marginTop: 1 },
   hint: { textAlign: 'center', color: C.ink3, fontSize: 12, marginTop: 8, marginBottom: 24 },
+  useBtn: { backgroundColor: C.brand, borderRadius: 9, paddingHorizontal: 14, paddingVertical: 8 },
+  useBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  modalBack: { flex: 1, backgroundColor: 'rgba(10,20,30,0.55)', alignItems: 'center', justifyContent: 'center', padding: 28 },
+  modalCard: { backgroundColor: C.white, borderRadius: 18, padding: 24, width: '100%', maxWidth: 360, alignItems: 'stretch' },
+  modalMerchant: { fontSize: 13, fontWeight: '700', color: C.ink3, textAlign: 'center' },
+  modalTitle: { fontSize: 19, fontWeight: '700', color: C.ink, textAlign: 'center', marginTop: 4, marginBottom: 12 },
+  modalGuide: { fontSize: 14, color: C.ink2, textAlign: 'center', lineHeight: 21, marginBottom: 16 },
+  modalCancel: { fontSize: 13, color: C.ink3, textAlign: 'center', fontWeight: '600' },
+  modalDone: { fontSize: 24, fontWeight: '700', color: C.ok, textAlign: 'center' },
+  modalSaved: { fontSize: 16, fontWeight: '700', color: C.ink, textAlign: 'center', marginTop: 6 },
+  modalItem: { fontSize: 13, color: C.ink3, textAlign: 'center', marginTop: 4, marginBottom: 16 },
 });

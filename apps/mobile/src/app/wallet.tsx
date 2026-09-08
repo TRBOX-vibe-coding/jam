@@ -1,6 +1,6 @@
 /** 이용권 · 예약 · 받은 딜을 한 곳에서 */
 import { useCallback, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
@@ -29,14 +29,37 @@ export default function WalletScreen() {
   const { t, won, locale, lang } = useI18n();
   const [vouchers, setVouchers] = useState<any[] | null>(null);
   const [claims, setClaims] = useState<any[] | null>(null);
+  // 결제 상품(이용권)의 QR 없는 사용 — 점주가 정한 매장 코드를 입력해 처리한다 (2026-09-08 픽스)
+  const [pinTarget, setPinTarget] = useState<{ voucherId: string; merchantId: string; name: string } | null>(null);
+  const [pin, setPin] = useState('');
+  const [pinBusy, setPinBusy] = useState(false);
 
-  useFocusEffect(
-    useCallback(() => {
-      if (!me) return;
-      api<any[]>('/me/vouchers').then(setVouchers).catch(() => setVouchers([]));
-      api<any[]>('/me/claims').then(setClaims).catch(() => setClaims([]));
-    }, [me, lang]),
-  );
+  const load = useCallback(() => {
+    if (!me) return;
+    api<any[]>('/me/vouchers').then(setVouchers).catch(() => setVouchers([]));
+    api<any[]>('/me/claims').then(setClaims).catch(() => setClaims([]));
+  }, [me, lang]);
+  useFocusEffect(load);
+
+  async function usePinRedeem() {
+    if (!pinTarget) return;
+    setPinBusy(true);
+    try {
+      const r = await api<{ savedAmount: number; itemTitle: string }>('/redeem', {
+        method: 'POST',
+        body: { merchantId: pinTarget.merchantId, itemType: 'VOUCHER', itemId: pinTarget.voucherId, pin: pin.trim() },
+      });
+      setPinTarget(null);
+      setPin('');
+      load();
+      const msg = `${t('usedDoneTitle')}\n${r.itemTitle}`;
+      if (Platform.OS === 'web') window.alert(msg); else Alert.alert(t('usedDoneTitle'), r.itemTitle);
+    } catch (e: any) {
+      if (Platform.OS === 'web') window.alert(e.message); else Alert.alert('', e.message);
+    } finally {
+      setPinBusy(false);
+    }
+  }
 
   if (!me) {
     return (
@@ -76,6 +99,15 @@ export default function WalletScreen() {
                 </Text>
               )}
               <Text style={st.code}>{t('codeAndDate', { code: v.code, date: new Date(v.validTo).toLocaleDateString(locale) })}</Text>
+              {['ISSUED', 'RESERVED'].includes(v.status) && (
+                <View style={{ marginTop: 10 }}>
+                  <Btn
+                    title={t('useWithPin')}
+                    small
+                    onPress={() => { setPin(''); setPinTarget({ voucherId: v.id, merchantId: v.product.merchant.id, name: v.product.name }); }}
+                  />
+                </View>
+              )}
             </Card>
           );
         })}
@@ -99,6 +131,29 @@ export default function WalletScreen() {
           );
         })}
       </ScrollView>
+
+      {/* 매장 코드 입력 모달 */}
+      <Modal visible={pinTarget != null} transparent animationType="fade" onRequestClose={() => !pinBusy && setPinTarget(null)}>
+        <View style={st.modalBack}>
+          <View style={st.modalCard}>
+            <Text style={st.modalTitle}>{pinTarget?.name}</Text>
+            <Text style={st.modalGuide}>{t('askStaffPin')}</Text>
+            <TextInput
+              value={pin}
+              onChangeText={setPin}
+              placeholder="****"
+              placeholderTextColor={C.ink3}
+              maxLength={10}
+              autoFocus
+              style={st.pinInput}
+            />
+            <Btn title={pinBusy ? '…' : t('confirmUse')} onPress={usePinRedeem} disabled={pin.trim().length < 2 || pinBusy} />
+            <Pressable onPress={() => !pinBusy && setPinTarget(null)} style={{ marginTop: 10 }}>
+              <Text style={st.modalCancel}>{t('close')}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </Screen>
   );
 }
@@ -110,4 +165,14 @@ const st = StyleSheet.create({
   sub: { fontSize: 13, color: C.ink2, marginTop: 4 },
   reserve: { fontSize: 13, color: C.brand, fontWeight: '700', marginTop: 6 },
   code: { fontSize: 11, color: C.ink3, marginTop: 6 },
+  modalBack: { flex: 1, backgroundColor: 'rgba(10,20,30,0.55)', alignItems: 'center', justifyContent: 'center', padding: 28 },
+  modalCard: { backgroundColor: C.white, borderRadius: 18, padding: 24, width: '100%', maxWidth: 360 },
+  modalTitle: { fontSize: 18, fontWeight: '700', color: C.ink, textAlign: 'center' },
+  modalGuide: { fontSize: 13.5, color: C.ink2, textAlign: 'center', lineHeight: 20, marginTop: 8, marginBottom: 12 },
+  modalCancel: { fontSize: 13, color: C.ink3, textAlign: 'center', fontWeight: '600' },
+  pinInput: {
+    backgroundColor: C.ground, borderWidth: 1, borderColor: C.line, borderRadius: 12,
+    paddingVertical: 12, fontSize: 22, fontWeight: '700', color: C.ink,
+    textAlign: 'center', letterSpacing: 6, marginBottom: 12,
+  },
 });

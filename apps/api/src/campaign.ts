@@ -284,7 +284,7 @@ export class CampaignController {
         drops: {
           where: { status: { in: ['OPEN', 'SOLD_OUT'] }, closeAt: { gt: now } },
           orderBy: { closeAt: 'asc' },
-          include: { merchant: { select: { name: true, i18n: true } } },
+          include: { merchant: { select: { name: true, i18n: true, category: { select: { id: true, name: true, emoji: true, i18n: true } } } } },
         },
       },
     });
@@ -297,21 +297,27 @@ export class CampaignController {
       subsidyLabel: c.subsidyLabel,
       endAt: c.endAt,
       i18n: (c as any).i18n,
-      drops: c.drops.map((d) => ({
-        id: d.id,
-        title: d.title,
-        imageUrl: d.imageUrl,
-        normalPrice: d.normalPrice,
-        dropPrice: d.dropPrice,
-        discountRate: Math.round((1 - d.dropPrice / d.normalPrice) * 100),
-        remainingQty: d.remainingQty,
-        totalQty: d.totalQty,
-        maxPerUser: d.maxPerUser,
-        closeAt: d.closeAt,
-        soldOut: d.status === 'SOLD_OUT' || d.remainingQty <= 0,
-        merchantName: trField(d.merchant, 'name', lang),
-        i18n: (d as any).i18n,
-      })),
+      drops: c.drops
+        .map((d) => ({
+          id: d.id,
+          title: d.title,
+          imageUrl: d.imageUrl,
+          normalPrice: d.normalPrice,
+          dropPrice: d.dropPrice,
+          discountRate: Math.round((1 - d.dropPrice / d.normalPrice) * 100),
+          remainingQty: d.remainingQty,
+          totalQty: d.totalQty,
+          maxPerUser: d.maxPerUser,
+          closeAt: d.closeAt,
+          soldOut: d.status === 'SOLD_OUT' || d.remainingQty <= 0,
+          merchantName: trField(d.merchant, 'name', lang),
+          categoryId: (d.merchant as any).category?.id ?? null,
+          categoryName: trField((d.merchant as any).category ?? {}, 'name', lang),
+          categoryEmoji: (d.merchant as any).category?.emoji ?? null,
+          i18n: (d as any).i18n,
+        }))
+        // 품절은 지우지 않고 맨 밑으로 (홍보 목적 — 2026-09-08 픽스)
+        .sort((a, b) => Number(a.soldOut) - Number(b.soldOut)),
     };
   }
 }

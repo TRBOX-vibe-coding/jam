@@ -172,6 +172,10 @@ export class AuthController {
     }
     await db.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
 
+    // 무료 오픈(2026-09-08 픽스): 멤버십이 없으면 무료 회원 자격을 자동으로 열어준다.
+    // 등급 구조는 그대로 두고, 유료 전환은 추후 — 무료 플랜(FREE)의 혜택 규칙이 전부 지급된다.
+    await this.ensureFreeMembership(user.id);
+
     const ownedMerchant = await db.merchant.findFirst({
       where: { ownerUserId: user.id },
       select: { id: true, name: true, status: true },
@@ -179,6 +183,39 @@ export class AuthController {
 
     const token = this.jwt.sign({ sub: user.id, typ: 'user' } satisfies UserToken);
     return { token, isNew, user: { id: user.id, nickname: user.nickname, provider: user.provider }, ownedMerchant };
+  }
+
+  /** 활성 멤버십이 없는 유저에게 FREE 플랜 자격과 혜택을 열어준다. FREE 플랜이 없으면 조용히 넘어간다. */
+  private async ensureFreeMembership(userId: string) {
+    const db = this.prisma.client;
+    const now = new Date();
+    const active = await db.userMembership.findFirst({
+      where: { userId, status: 'ACTIVE', endAt: { gt: now } },
+    });
+    if (active) return;
+    const free = await db.membershipPlan.findUnique({ where: { code: 'FREE' } });
+    if (!free) return;
+    const endAt = new Date(now.getTime() + free.durationDays * 86_400_000);
+    const membership = await db.userMembership.create({
+      data: { userId, planId: free.id, startAt: now, endAt },
+    });
+    const rules = await db.benefitGrantRule.findMany({
+      where: { trigger: 'MEMBERSHIP_PLAN', membershipPlanId: free.id, isActive: true },
+    });
+    for (const rule of rules) {
+      await db.userBenefit.upsert({
+        where: {
+          userId_benefitId_sourceType_sourceId: {
+            userId, benefitId: rule.benefitId, sourceType: 'MEMBERSHIP_PLAN', sourceId: membership.id,
+          },
+        },
+        update: {},
+        create: {
+          userId, benefitId: rule.benefitId, sourceType: 'MEMBERSHIP_PLAN', sourceId: membership.id,
+          validFrom: now, validTo: endAt,
+        },
+      });
+    }
   }
 
   @Post('admin/login')

@@ -19,6 +19,7 @@ type CampaignDetail = {
     normalPrice: number; dropPrice: number; discountRate: number;
     remainingQty: number; totalQty: number; maxPerUser: number;
     closeAt: string; soldOut: boolean; merchantName: string;
+    categoryId: string | null; categoryName: string; categoryEmoji: string | null;
   }[];
 };
 
@@ -27,6 +28,7 @@ export default function CampaignScreen() {
   const { t, won, locale, lang } = useI18n();
   const [c, setC] = useState<CampaignDetail | null>(null);
   const [failed, setFailed] = useState(false);
+  const [cat, setCat] = useState<string | null>(null);
 
   const load = useCallback(() => {
     setFailed(false);
@@ -40,6 +42,15 @@ export default function CampaignScreen() {
   if (!c) {
     return <Screen>{failed ? <LoadError text={t('loadFailed')} retryLabel={t('retry')} onRetry={load} /> : <Loading />}</Screen>;
   }
+
+  // 카테고리 탭 목록(중복 제거)과 현재 탭의 상품
+  const catTabs = c.drops.reduce<{ id: string; name: string; emoji: string | null }[]>((acc, d) => {
+    if (d.categoryId && !acc.some((x) => x.id === d.categoryId)) {
+      acc.push({ id: d.categoryId, name: d.categoryName, emoji: d.categoryEmoji });
+    }
+    return acc;
+  }, []);
+  const shownDrops = cat ? c.drops.filter((d) => d.categoryId === cat) : c.drops;
 
   return (
     <Screen>
@@ -71,9 +82,23 @@ export default function CampaignScreen() {
           </View>
         )}
 
+        {/* 종류별 탭 — 전체는 필수, 탭을 누르면 그 종류만 (2026-09-08 픽스) */}
+        {catTabs.length > 1 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }} contentContainerStyle={{ paddingHorizontal: 16, gap: 7 }}>
+            <Pressable style={[st.tab, cat === null && st.tabOn]} onPress={() => setCat(null)}>
+              <Text style={[st.tabText, cat === null && st.tabTextOn]}>{t('all')}</Text>
+            </Pressable>
+            {catTabs.map((ct) => (
+              <Pressable key={ct.id} style={[st.tab, cat === ct.id && st.tabOn]} onPress={() => setCat(ct.id)}>
+                <Text style={[st.tabText, cat === ct.id && st.tabTextOn]}>{ct.emoji ? `${ct.emoji} ` : ''}{ct.name}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        )}
+
         {/* 상품 목록 */}
         <View style={{ paddingHorizontal: 16, gap: 10, marginTop: 12 }}>
-          {c.drops.map((d) => (
+          {shownDrops.map((d) => (
             <Pressable
               key={d.id}
               style={[st.card, d.soldOut && { opacity: 0.55 }]}
@@ -121,6 +146,13 @@ const st = StyleSheet.create({
   heroTitle: { color: '#fff', fontSize: 23, fontWeight: '700', letterSpacing: -0.4 },
   heroSub: { color: 'rgba(255,255,255,0.9)', fontSize: 12.5, marginTop: 3 },
   heroUntil: { color: 'rgba(255,255,255,0.75)', fontSize: 11, marginTop: 5 },
+  tab: {
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999,
+    backgroundColor: C.white, borderWidth: 1, borderColor: C.line,
+  },
+  tabOn: { backgroundColor: C.brand, borderColor: C.brand },
+  tabText: { fontSize: 13, fontWeight: '700', color: C.ink2 },
+  tabTextOn: { color: '#fff' },
   notice: { backgroundColor: C.brandSoft, paddingHorizontal: 16, paddingVertical: 10 },
   noticeText: { color: C.brand, fontSize: 12.5, fontWeight: '700' },
   card: {

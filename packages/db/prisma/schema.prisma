@@ -243,6 +243,9 @@ model Merchant {
   intro         String?
   thumbnailUrl  String?
 
+  /// 결제 상품 사용 확인 코드 — 점주가 직접 정한다 (QR 없이 코드 입력으로 사용 처리).
+  usePin String?
+
   /// 거래 수수료율(%). 상품 판매에만 적용하고 상시 할인 혜택에는 수수료가 없다.
   commissionRate Decimal @default(0) @db.Decimal(5, 2)
 
@@ -376,6 +379,7 @@ enum GrantTrigger {
   PRODUCT
   REGION_PASS
   MANUAL
+  FREE_OPEN
 }
 
 /// "어떤 조건에서 이 혜택이 열리는가"를 정의한다.

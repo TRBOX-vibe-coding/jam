@@ -77,7 +77,7 @@ function hoursLeft(t: Tr, closeAt: string) {
 
 export default function HomeScreen() {
   const { me } = useAuth();
-  const { t, won, lang } = useI18n();
+  const { t, won, lang, locale } = useI18n();
   // null = 아직 로딩(스켈레톤 표시), [] = 진짜 없음
   const [drops, setDrops] = useState<Drop[] | null>(null);
   const [products, setProducts] = useState<Product[] | null>(null);
@@ -195,10 +195,15 @@ export default function HomeScreen() {
             )}
         </Pressable>
 
-        {/* ①-a 기획전 배너 — 키마위크·수변영화관 같은 공공사업. 관리자가 노출·순서·기간을 제어한다 */}
+        {/* ①-a 기획전 배너 — 가로 슬라이드(2026-09-08 픽스). 관리자가 노출·순서·기간을 제어하고 기간이 지나면 자동으로 사라진다 */}
         {campaigns.length > 0 && (
-          <View style={{ marginTop: 18, gap: 10 }}>
-            {campaigns.slice(0, 3).map((c) => (
+          <HScroll
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={{ marginTop: 18 }}
+            contentContainerStyle={{ paddingHorizontal: 16, gap: 10 }}
+          >
+            {campaigns.map((c) => (
               <Pressable
                 key={c.id}
                 style={st.campCard}
@@ -216,13 +221,18 @@ export default function HomeScreen() {
                 {!!c.subsidyLabel && (
                   <View style={st.campChip}><Text style={st.campChipText}>🏛 {c.subsidyLabel}</Text></View>
                 )}
+                {!!c.endAt && (
+                  <View style={st.campEnd}><Text style={st.campEndText}>
+                    ~{new Date(c.endAt).toLocaleDateString(locale, { month: 'numeric', day: 'numeric' })}
+                  </Text></View>
+                )}
                 <View style={st.campBody}>
                   <Text style={st.campTitle} numberOfLines={1}>{c.title}</Text>
                   {!!c.subtitle && <Text style={st.campSub} numberOfLines={1}>{c.subtitle}</Text>}
                 </View>
               </Pressable>
             ))}
-          </View>
+          </HScroll>
         )}
 
         {/* ①-b 오늘의 무료 쿠폰 — 비멤버 전용. 시간 한정·선착순으로 멤버십 전환을 유도한다 */}
@@ -452,7 +462,12 @@ const st = StyleSheet.create({
   loginBtn: { backgroundColor: C.brand, color: '#fff', fontSize: 13, fontWeight: '700', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, overflow: 'hidden' },
 
   sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', paddingHorizontal: 16, marginTop: 24, marginBottom: 11 },
-  campCard: { height: 118, borderRadius: 16, overflow: 'hidden', marginHorizontal: 16, backgroundColor: C.ink },
+  campCard: { height: 118, width: 300, borderRadius: 16, overflow: 'hidden', backgroundColor: C.ink },
+  campEnd: {
+    position: 'absolute', top: 10, right: 10, backgroundColor: 'rgba(10,18,26,0.55)',
+    borderRadius: 99, paddingHorizontal: 9, paddingVertical: 3,
+  },
+  campEndText: { fontSize: 10.5, fontWeight: '700', color: '#fff' },
   campImg: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
   campChip: {
     position: 'absolute', top: 10, left: 10, backgroundColor: '#fff',

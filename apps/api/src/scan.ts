@@ -23,7 +23,11 @@ import { makeVerifyToken, minutesOfDay } from './util';
 const VERIFY_TTL_MS = 90_000;
 
 class RedeemDto {
-  @IsString() qrCode!: string;
+  /** 매장 QR 스캔 경로. 쿠폰(혜택·드랍)은 QR 없이 merchantId만으로도 사용할 수 있다(2026-09-08 픽스). */
+  @IsOptional() @IsString() qrCode?: string;
+  @IsOptional() @IsString() merchantId?: string;
+  /** 결제 상품(이용권)을 QR 없이 쓸 때는 점주가 정한 사용 확인 코드가 필요하다. */
+  @IsOptional() @IsString() pin?: string;
   @IsIn(['BENEFIT', 'DROP', 'VOUCHER']) itemType!: 'BENEFIT' | 'DROP' | 'VOUCHER';
   @IsString() itemId!: string; // userBenefitId | dropClaimId | voucherId
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(20) headcount?: number;
@@ -168,14 +172,32 @@ export class ScanController {
     const db = this.prisma.client;
     const now = new Date();
 
-    const qr = await db.merchantQr.findUnique({
-      where: { code: dto.qrCode },
-      include: { merchant: true },
-    });
-    if (!qr || !qr.isActive || qr.merchant.status !== 'ACTIVE') {
-      throw new NotFoundException('등록되지 않은 매장 QR입니다');
+    let merchant: any = null;
+    let qrId: string | null = null;
+    if (dto.qrCode) {
+      const qr = await db.merchantQr.findUnique({
+        where: { code: dto.qrCode },
+        include: { merchant: true },
+      });
+      if (!qr || !qr.isActive || qr.merchant.status !== 'ACTIVE') {
+        throw new NotFoundException('등록되지 않은 매장 QR입니다');
+      }
+      merchant = qr.merchant;
+      qrId = qr.id;
+    } else {
+      // QR 없는 경로 — 쿠폰은 확인 버튼만으로, 결제 상품은 매장 확인 코드로
+      if (!dto.merchantId) throw new BadRequestException('매장 정보가 필요합니다');
+      merchant = await db.merchant.findUnique({ where: { id: dto.merchantId } });
+      if (!merchant || merchant.status !== 'ACTIVE') throw new NotFoundException('이용할 수 없는 매장입니다');
+      if (dto.itemType === 'VOUCHER') {
+        if (!merchant.usePin) {
+          throw new BadRequestException('이 매장은 아직 사용 확인 코드가 없습니다. 매장 QR을 스캔해 주세요.');
+        }
+        if (!dto.pin || dto.pin.trim() !== merchant.usePin) {
+          throw new BadRequestException('사용 확인 코드가 맞지 않습니다. 직원에게 확인해 주세요.');
+        }
+      }
     }
-    const merchant = qr.merchant;
     const headcount = dto.headcount ?? 1;
     const verifyToken = makeVerifyToken();
     const verifyExpires = new Date(now.getTime() + VERIFY_TTL_MS);
@@ -223,7 +245,7 @@ export class ScanController {
         const r = await tx.redemption.create({
           data: {
             userId, merchantId: merchant.id, type: 'BENEFIT',
-            userBenefitId: ub.id, merchantQrId: qr.id,
+            userBenefitId: ub.id, merchantQrId: qrId,
             headcount, savedAmount: saved, verifyToken, verifyExpires,
           },
         });
@@ -256,7 +278,7 @@ export class ScanController {
         const r = await tx.redemption.create({
           data: {
             userId, merchantId: merchant.id, type: 'DROP',
-            dropClaimId: claim.id, merchantQrId: qr.id,
+            dropClaimId: claim.id, merchantQrId: qrId,
             headcount: d.personsPerUnit * claim.qty, savedAmount: saved,
             verifyToken, verifyExpires,
           },
@@ -294,7 +316,7 @@ export class ScanController {
       const r = await tx.redemption.create({
         data: {
           userId, merchantId: merchant.id, type: 'VOUCHER',
-          voucherId: voucher.id, merchantQrId: qr.id,
+          voucherId: voucher.id, merchantQrId: qrId,
           headcount: voucher.headcount, savedAmount: saved,
           verifyToken, verifyExpires,
         },

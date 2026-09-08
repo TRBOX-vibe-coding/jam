@@ -39,8 +39,14 @@ export class MembershipController {
 
     const existing = await db.userMembership.findFirst({
       where: { userId, status: 'ACTIVE', endAt: { gt: new Date() } },
+      include: { plan: { select: { price: true } } },
     });
-    if (existing) throw new BadRequestException('이미 사용 중인 멤버십이 있습니다');
+    // 무료 회원은 언제든 유료로 올라탈 수 있다 — 무료 자격은 종료 처리하고 진행
+    if (existing && existing.plan.price === 0) {
+      await db.userMembership.update({ where: { id: existing.id }, data: { status: 'EXPIRED', endAt: new Date() } });
+    } else if (existing) {
+      throw new BadRequestException('이미 사용 중인 멤버십이 있습니다');
+    }
 
     const now = new Date();
     const endAt = addDays(now, plan.durationDays);
