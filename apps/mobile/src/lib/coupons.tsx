@@ -135,18 +135,16 @@ export default function CouponsScreen() {
           </ScrollView>
         )}
 
-        {/* 카테고리 필터 */}
-        {cats.length > 1 && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }} contentContainerStyle={{ gap: 7 }}>
-            <Pressable style={[st.tab, cat === null && st.tabOn]} onPress={() => setCat(null)}>
-              <Text style={[st.tabText, cat === null && st.tabTextOn]}>{t('all')}</Text>
+        {/* 카테고리는 홈 타일에서 이미 골랐다 — 여기서는 표시만 하고 다시 고르게 하지 않는다 (2026-09-08) */}
+        {cat != null && (
+          <View style={st.catHead}>
+            <Text style={st.catHeadText}>
+              {cats.find((c) => c.name === cat)?.emoji ?? '🎟️'} {cat}
+            </Text>
+            <Pressable style={st.catClear} onPress={() => setCat(null)}>
+              <Text style={st.catClearText}>{t('all')} ›</Text>
             </Pressable>
-            {cats.map((ct) => (
-              <Pressable key={ct.name} style={[st.tab, cat === ct.name && st.tabOn]} onPress={() => setCat(ct.name)}>
-                <Text style={[st.tabText, cat === ct.name && st.tabTextOn]}>{ct.emoji} {ct.name}</Text>
-              </Pressable>
-            ))}
-          </ScrollView>
+          </View>
         )}
 
         {data && data.totalCount > 0 && shown.length === 0 && <EmptyText text={t('noMerchants')} />}
@@ -261,6 +259,10 @@ const st = StyleSheet.create({
     paddingHorizontal: 13, paddingVertical: 7, borderRadius: 999,
     backgroundColor: C.white, borderWidth: 1, borderColor: C.line,
   },
+  catHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, marginTop: 2 },
+  catHeadText: { fontSize: 17, fontWeight: '700', color: C.ink },
+  catClear: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: C.white, borderWidth: 1, borderColor: C.line },
+  catClearText: { fontSize: 12.5, fontWeight: '700', color: C.ink2 },
   tabOn: { backgroundColor: C.brand, borderColor: C.brand },
   tabText: { fontSize: 13, fontWeight: '700', color: C.ink2 },
   tabTextOn: { color: '#fff' },
