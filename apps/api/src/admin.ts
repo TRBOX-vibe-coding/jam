@@ -92,6 +92,8 @@ class PatchMerchantDto {
   @IsOptional() @IsString() regionId?: string;
   @IsOptional() @IsString() categoryId?: string;
   @IsOptional() @IsString() thumbnailBase64?: string;
+  /** 1인 평균 이용금액 — % 쿠폰 예상 절약액 계산 기준 (2026-09-09 픽스) */
+  @IsOptional() @Type(() => Number) @IsInt() @Min(0) @Max(10000000) avgSpendPerPerson?: number;
 }
 class PatchUserDto {
   @IsIn(['ACTIVE', 'DORMANT', 'WITHDRAWN']) status!: string;
@@ -347,6 +349,7 @@ export class AdminController {
         ...(dto.regionId ? { regionId: dto.regionId } : {}),
         ...(dto.categoryId ? { categoryId: dto.categoryId } : {}),
         ...(dto.thumbnailBase64 ? { thumbnailUrl: saveImageDataUrl(dto.thumbnailBase64, 'merchant') } : {}),
+        ...(dto.avgSpendPerPerson != null ? { avgSpendPerPerson: dto.avgSpendPerPerson } : {}),
       },
     });
     await this.audit(adminId, 'MERCHANT_UPDATE', 'Merchant', id, JSON.stringify({ ...dto, thumbnailBase64: dto.thumbnailBase64 ? '(사진)' : undefined }));

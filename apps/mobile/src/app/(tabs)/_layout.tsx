@@ -33,12 +33,12 @@ export default function TabsLayout() {
           tabBarIcon: tabIcon('home', 'home-outline'),
         }}
       />
+      {/* DROP은 하단 탭에서 빼고 홈 섹션으로만 노출 (2026-09-09 픽스). 라우트는 전체보기용으로 유지 */}
       <Tabs.Screen
         name="drops"
         options={{
           title: t('titleDrops'),
-          tabBarLabel: t('tabDrop'),
-          tabBarIcon: tabIcon('flash', 'flash-outline'),
+          href: null,
         }}
       />
       <Tabs.Screen
@@ -47,6 +47,14 @@ export default function TabsLayout() {
           title: t('titleStore'),
           tabBarLabel: t('tabStore'),
           tabBarIcon: tabIcon('pricetags', 'pricetags-outline'),
+        }}
+      />
+      <Tabs.Screen
+        name="trip"
+        options={{
+          title: t('titleTrip'),
+          tabBarLabel: t('tabTrip'),
+          tabBarIcon: tabIcon('calendar', 'calendar-outline'),
         }}
       />
       <Tabs.Screen

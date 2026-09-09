@@ -65,10 +65,24 @@ export default function MyScreen() {
   }
 
   async function buy(plan: Plan) {
+    // 기간잼은 사용 시작일을 정한다 (2026-09-09 픽스) — 여행이 있으면 여행 시작일이 기본값.
+    let startDate: string | undefined;
+    if (plan.durationDays <= 30) {
+      const d = new Date();
+      const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const tripRes = await api<any>('/me/trip').catch(() => null);
+      const tripStart = tripRes?.trip?.startDate?.slice(0, 10);
+      startDate = tripStart && tripStart >= todayStr ? tripStart : todayStr;
+      if (Platform.OS === 'web') {
+        const inp = window.prompt(t('jamStartPrompt'), startDate);
+        if (inp == null) return;
+        if (/^\d{4}-\d{2}-\d{2}$/.test(inp.trim())) startDate = inp.trim();
+      }
+    }
     const run = async () => {
       setBusy(true);
       try {
-        const r = await api<any>('/membership/purchase', { method: 'POST', body: { planCode: plan.code } });
+        const r = await api<any>('/membership/purchase', { method: 'POST', body: { planCode: plan.code, startDate } });
         track('membership_purchase', { type: 'plan', id: plan.code });
         await refresh();
         notify(t('memberStarted'), r.message);
@@ -79,9 +93,9 @@ export default function MyScreen() {
       }
     };
     if (Platform.OS === 'web') {
-      if (window.confirm(t('buyConfirmWeb', { plan: plan.name, price: won(plan.price) }))) await run();
+      if (window.confirm(t('buyConfirmWeb', { plan: plan.name, price: won(plan.price) }) + (startDate ? `\n(${t('jamStartDate')}: ${startDate})` : ''))) await run();
     } else {
-      Alert.alert(plan.name, t('buyConfirmNative', { price: won(plan.price), days: plan.durationDays }), [
+      Alert.alert(plan.name, t('buyConfirmNative', { price: won(plan.price), days: plan.durationDays }) + (startDate ? `\n${t('jamStartDate')}: ${startDate}` : ''), [
         { text: t('cancel'), style: 'cancel' },
         { text: t('start'), onPress: run },
       ]);

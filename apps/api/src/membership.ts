@@ -8,13 +8,15 @@ import {
   BadRequestException, Body, Controller, Get, Module, NotFoundException,
   Post, UseGuards,
 } from '@nestjs/common';
-import { IsString } from 'class-validator';
+import { IsOptional, IsString, Matches } from 'class-validator';
 import { PrismaService } from './prisma.service';
 import { AuthModule, UserGuard, UserId } from './auth';
 import { addDays, makeOrderNo } from './util';
 
 class PurchaseDto {
   @IsString() planCode!: string;
+  /** 기간잼(3일/5일)의 사용 시작일. 미리 결제해도 이 날 00시부터 개시된다 (2026-09-09 픽스). 없으면 오늘. */
+  @IsOptional() @IsString() @Matches(/^\d{4}-\d{2}-\d{2}$/) startDate?: string;
 }
 
 @Controller('membership')
@@ -49,7 +51,19 @@ export class MembershipController {
     }
 
     const now = new Date();
-    const endAt = addDays(now, plan.durationDays);
+    // 기간잼: 여행 시작일 00시부터 개시하고, N일잼은 N박(N+1)일을 커버한다 (3일잼 = 3박4일).
+    // 잼마스터(연간)는 즉시 시작.
+    const isShortJam = plan.durationDays <= 30;
+    let startAt = now;
+    if (isShortJam && dto.startDate) {
+      const s = new Date(`${dto.startDate}T00:00:00`);
+      if (Number.isNaN(s.getTime())) throw new BadRequestException('시작일이 올바르지 않습니다');
+      const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
+      if (s < todayStart) throw new BadRequestException('시작일은 오늘 이후여야 합니다');
+      if (s.getTime() - now.getTime() > 90 * 86_400_000) throw new BadRequestException('시작일은 90일 이내로 선택해 주세요');
+      startAt = s;
+    }
+    const endAt = addDays(startAt, isShortJam ? plan.durationDays + 1 : plan.durationDays);
 
     const result = await db.$transaction(async (tx) => {
       const order = await tx.order.create({
@@ -77,7 +91,7 @@ export class MembershipController {
       });
 
       const membership = await tx.userMembership.create({
-        data: { userId, planId: plan.id, orderId: order.id, startAt: now, endAt },
+        data: { userId, planId: plan.id, orderId: order.id, startAt, endAt },
       });
 
       // 회원 그룹 태그 — 타깃 Push·세그먼트용 (예: plan:JAM3)
@@ -108,7 +122,7 @@ export class MembershipController {
             sourceType: 'MEMBERSHIP_PLAN',
             sourceId: membership.id,
             validFrom: now,
-            validTo: rule.validDays ? addDays(now, rule.validDays) : endAt,
+            validTo: rule.validDays ? addDays(startAt, rule.validDays) : endAt,
           },
         });
       }

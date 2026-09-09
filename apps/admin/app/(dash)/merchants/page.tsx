@@ -18,7 +18,7 @@ function fileToDataUrl(file: File): Promise<string> {
   });
 }
 
-const EMPTY_FORM = { name: '', regionId: '', categoryId: '', address: '', ownerName: '', contactPhone: '', contactEmail: '', intro: '', commissionRate: '0' };
+const EMPTY_FORM = { name: '', regionId: '', categoryId: '', address: '', ownerName: '', contactPhone: '', contactEmail: '', intro: '', commissionRate: '0', avgSpendPerPerson: '' };
 
 export default function MerchantsPage() {
   const [rows, setRows] = useState<any[] | null>(null);
@@ -88,7 +88,7 @@ export default function MerchantsPage() {
     setForm({
       name: m.name, regionId: m.regionId ?? m.region?.id ?? '', categoryId: m.categoryId ?? m.category?.id ?? '',
       address: m.address ?? '', ownerName: m.ownerName ?? '', contactPhone: m.contactPhone ?? '',
-      contactEmail: m.contactEmail ?? '', intro: m.intro ?? '', commissionRate: String(Number(m.commissionRate ?? 0)),
+      contactEmail: m.contactEmail ?? '', intro: m.intro ?? '', commissionRate: String(Number(m.commissionRate ?? 0)), avgSpendPerPerson: m.avgSpendPerPerson != null ? String(m.avgSpendPerPerson) : '',
     });
     setEditing(m);
   }
@@ -98,6 +98,7 @@ export default function MerchantsPage() {
         name: form.name, address: form.address || undefined, ownerName: form.ownerName || undefined,
         contactPhone: form.contactPhone || undefined, contactEmail: form.contactEmail || undefined,
         intro: form.intro || undefined, commissionRate: Number(form.commissionRate) || 0,
+        avgSpendPerPerson: form.avgSpendPerPerson ? Number(form.avgSpendPerPerson) : undefined,
       };
       if (editing === 'new') {
         await api('/admin/merchants', {
@@ -216,6 +217,10 @@ export default function MerchantsPage() {
             <div>
               <label className="mb-1 block text-xs font-semibold text-ink-3">수수료율(%)</label>
               <input className={inputCls} value={form.commissionRate} onChange={(e) => setForm({ ...form, commissionRate: e.target.value.replace(/[^\d.]/g, '') })} />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-ink-3">1인 평균 이용금액(원) — % 쿠폰 절약액 기준</label>
+              <input className={inputCls} placeholder="예: 25000" value={form.avgSpendPerPerson} onChange={(e) => setForm({ ...form, avgSpendPerPerson: e.target.value.replace(/\D/g, '') })} />
             </div>
             <div>
               <label className="mb-1 block text-xs font-semibold text-ink-3">지역 *</label>

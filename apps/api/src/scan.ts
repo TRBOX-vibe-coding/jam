@@ -204,6 +204,17 @@ export class ScanController {
 
     return db.$transaction(async (tx) => {
       if (dto.itemType === 'BENEFIT') {
+        // 할인 쿠폰 '사용'은 유료 잼 전용 (2026-09-09 픽스). 보기·담기는 무료도 가능.
+        const paidJam = await tx.userMembership.findFirst({
+          where: {
+            userId, status: 'ACTIVE',
+            startAt: { lte: now }, endAt: { gt: now },
+            plan: { price: { gt: 0 } },
+          },
+        });
+        if (!paidJam) {
+          throw new BadRequestException('할인 쿠폰은 잼 멤버십 기간에 사용할 수 있어요. MY에서 잼을 시작해 주세요!');
+        }
         const ub = await tx.userBenefit.findFirst({
           where: {
             id: dto.itemId, userId, status: 'ACTIVE',

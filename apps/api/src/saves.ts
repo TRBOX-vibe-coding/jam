@@ -7,6 +7,7 @@ import { IsIn, IsString } from 'class-validator';
 import { PrismaService } from './prisma.service';
 import { AuthModule, UserGuard, UserId } from './auth';
 import { langOf, trField } from './i18n.util';
+import { benefitSaving, productSaving } from './savings.util';
 
 class ToggleSaveDto {
   @IsIn(['BENEFIT', 'PRODUCT']) itemType!: 'BENEFIT' | 'PRODUCT';
@@ -65,13 +66,13 @@ export class SavesController {
     const benefitIds = rows.filter((r) => r.itemType === 'BENEFIT').map((r) => r.refId);
     const productIds = rows.filter((r) => r.itemType === 'PRODUCT').map((r) => r.refId);
 
-    const [benefitRows, productRows, myUbs] = await Promise.all([
+    const [benefitRows, productRows, myUbs, trip] = await Promise.all([
       db.benefit.findMany({
         where: { id: { in: benefitIds } },
         include: {
           merchant: {
             select: {
-              id: true, name: true, thumbnailUrl: true, i18n: true,
+              id: true, name: true, thumbnailUrl: true, avgSpendPerPerson: true, i18n: true,
               region: { select: { name: true, i18n: true } },
               category: { select: { name: true, emoji: true, i18n: true } },
             },
@@ -90,7 +91,9 @@ export class SavesController {
         where: { userId, benefitId: { in: benefitIds }, status: 'ACTIVE' },
         select: { id: true, benefitId: true },
       }),
+      db.trip.findUnique({ where: { userId }, select: { headcount: true } }),
     ]);
+    const headcount = trip?.headcount ?? 1;
     const ubByBenefit = new Map(myUbs.map((u) => [u.benefitId, u.id]));
     const bMap = new Map(benefitRows.map((b) => [b.id, b]));
     const pMap = new Map(productRows.map((p) => [p.id, p]));
@@ -107,6 +110,7 @@ export class SavesController {
             type: b.type,
             value: b.value,
             isActive: b.isActive,
+            estimatedSaving: benefitSaving(b, headcount, b.merchant.avgSpendPerPerson),
             merchant: {
               id: b.merchant.id,
               name: trField(b.merchant, 'name', lang),
@@ -129,6 +133,7 @@ export class SavesController {
             memberPrice: p.memberPrice,
             type: p.type,
             isActive: p.isActive,
+            estimatedSaving: productSaving(p, headcount),
             merchant: { id: p.merchant.id, name: trField(p.merchant, 'name', lang), region: trField(p.merchant.region, 'name', lang) },
             savedAt: r.createdAt,
           };

@@ -84,6 +84,7 @@ export default function HomeScreen() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [cats, setCats] = useState<{ id: string; name: string; emoji: string | null }[]>([]);
   const [benefits, setBenefits] = useState<BenefitGroup[]>([]);
+  const [trip, setTrip] = useState<{ days: number; headcount: number; totalSaving: number; grade: string | null; items: any[] } | null>(null);
   const [coupons, setCoupons] = useState<CouponDrop[]>([]);
   const [couponBusy, setCouponBusy] = useState(false);
   const [nowTick, setNowTick] = useState(Date.now());
@@ -116,7 +117,8 @@ export default function HomeScreen() {
       api<{ merchants: BenefitGroup[] }>('/me/benefits')
         .then((b) => setBenefits(b.merchants))
         .catch(() => setBenefits([]));
-    } else setBenefits([]);
+      api<{ trip: any }>('/me/trip').then((r) => setTrip(r.trip)).catch(() => setTrip(null));
+    } else { setBenefits([]); setTrip(null); }
     // 타임 쿠폰 — 멤버십 회원에겐 안 보여주므로 비멤버/비로그인일 때만 조회
     if (!me?.membership) {
       api<{ drops: CouponDrop[] }>('/coupon-drops/today')
@@ -164,19 +166,35 @@ export default function HomeScreen() {
               t('heroGuest')
             )}
           </Text>
+          {/* 홈 카피 — "로컬처럼 즐기고, 여행비용은 똑똑하게" (2026-09-09 픽스) */}
+          <Text style={st.heroTagline}>{t('heroSub')}</Text>
         </LinearGradient>
 
-        <Pressable style={st.statusCard} onPress={() => router.push(me ? '/benefits' : '/(tabs)/my')}>
+        {/* 상태 카드 — 기간잼·여행이 있으면 '내 여행' 요약, 잼마스터는 누적 절약 (2026-09-09 픽스) */}
+        <Pressable
+          style={st.statusCard}
+          onPress={() => router.push((me ? (trip ? '/(tabs)/trip' : '/benefits') : '/(tabs)/my') as never)}
+        >
             {me ? (
               <View style={st.statusRow}>
                 <View style={{ flex: 1 }}>
                   <Text style={st.statusPlan}>
                     {me.membership ? t('planInUse', { plan: me.membership.planName }) : t('startMembership')}
                   </Text>
-                  <Text style={st.statusSaving}>
-                    {t('savedThisMonth', { amt: won(me.savings.thisMonth) })}
-                    {me.savings.recoveryRate != null ? t('recoveryRate', { r: me.savings.recoveryRate }) : ''}
-                  </Text>
+                  {trip ? (
+                    <Text style={st.statusSaving}>
+                      {t('tripCardLine', {
+                        nights: `${trip.days - 1}`, days: `${trip.days}`, n: trip.headcount,
+                        count: trip.items.length, amt: won(trip.totalSaving),
+                      })}
+                      {trip.grade ? ` · ${trip.grade}` : ''}
+                    </Text>
+                  ) : (
+                    <Text style={st.statusSaving}>
+                      {t('savedThisMonth', { amt: won(me.savings.thisMonth) })}
+                      {me.savings.recoveryRate != null ? t('recoveryRate', { r: me.savings.recoveryRate }) : ''}
+                    </Text>
+                  )}
                 </View>
                 {me.membership && (
                   <View style={{ borderRadius: 999, overflow: 'hidden' }}>
@@ -445,6 +463,7 @@ const st = StyleSheet.create({
   decoSpark: { position: 'absolute', top: 96, right: 52, color: '#FFD983', fontSize: 15 },
   greet: { fontSize: 24, fontWeight: '700', color: '#fff', marginTop: 14, letterSpacing: -0.3, lineHeight: 32 },
   greetName: { fontSize: 15, fontWeight: '700', color: 'rgba(213,236,255,0.95)', letterSpacing: 0 },
+  heroTagline: { fontSize: 13, fontWeight: '600', color: 'rgba(213,236,255,0.9)', marginTop: 7 },
   statusCard: {
     backgroundColor: C.white, borderRadius: 18, padding: 15,
     marginTop: -32, marginHorizontal: 16,
