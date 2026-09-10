@@ -5,7 +5,7 @@
  */
 import {
   BadRequestException, Body, Controller, ForbiddenException, Get, Module,
-  NotFoundException, Param, Post, Query, Res, UseGuards,
+  NotFoundException, Param, Patch, Post, Query, Res, UseGuards,
 } from '@nestjs/common';
 import { IsEmail, IsIn, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min, MinLength } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -43,6 +43,11 @@ class VerifyDto {
 class SetPinDto {
   /** 자릿수는 점주 자유 (2~10자, 숫자·영문) */
   @IsString() @MinLength(2) @MaxLength(10) pin!: string;
+}
+
+class SetQtyDto {
+  /** 새 총 수량 — 남은 수량은 판매분을 유지한 채 자동 재계산 (2026-09-10 픽스: 점주가 직접 조정) */
+  @Type(() => Number) @IsInt() @Min(0) @Max(100000) totalQty!: number;
 }
 
 class CreateMerchantProductDto {
@@ -342,6 +347,106 @@ export class MerchantController {
       orderBy: { createdAt: 'desc' },
       take: 50,
     });
+  }
+
+  /** DROP 수량 조정 — 호텔이 "이 날 방 5개→2개"처럼 직접 줄이고 늘린다 (2026-09-10 픽스) */
+  @Patch('my/drops/:id')
+  async setDropQty(@UserId() userId: string, @Param('id') id: string, @Body() dto: SetQtyDto) {
+    const m = await this.myMerchant(userId);
+    const db = this.prisma.client;
+    const d = await db.drop.findFirst({ where: { id, merchantId: m.id } });
+    if (!d) throw new NotFoundException('내 딜이 아닙니다');
+    const sold = d.totalQty - d.remainingQty;
+    if (dto.totalQty < sold) {
+      throw new BadRequestException(`이미 ${sold}개가 판매되어 그 이하로 줄일 수 없습니다`);
+    }
+    const remaining = dto.totalQty - sold;
+    const updated = await db.drop.update({
+      where: { id },
+      data: {
+        totalQty: dto.totalQty,
+        remainingQty: remaining,
+        // 수량이 다시 생기면 완판 해제, 0이 되면 완판
+        ...(d.status === 'SOLD_OUT' && remaining > 0 ? { status: 'OPEN' } : {}),
+        ...(d.status === 'OPEN' && remaining === 0 ? { status: 'SOLD_OUT' } : {}),
+      },
+    });
+    return { ok: true, totalQty: updated.totalQty, remainingQty: updated.remainingQty, status: updated.status, message: '수량을 변경했습니다' };
+  }
+
+  /** 티켓 상품 수량 조정 */
+  @Patch('my/products/:id')
+  async setProductQty(@UserId() userId: string, @Param('id') id: string, @Body() dto: SetQtyDto) {
+    const m = await this.myMerchant(userId);
+    const db = this.prisma.client;
+    const p = await db.product.findFirst({ where: { id, merchantId: m.id } });
+    if (!p) throw new NotFoundException('내 상품이 아닙니다');
+    if (p.type !== 'TICKET') throw new BadRequestException('티켓형 상품만 수량을 조정할 수 있습니다 (예약형은 회차 정원으로 관리)');
+    if (dto.totalQty !== 0 && dto.totalQty < p.soldQty) {
+      throw new BadRequestException(`이미 ${p.soldQty}개가 판매되어 그 이하로 줄일 수 없습니다`);
+    }
+    const totalQty = dto.totalQty === 0 ? null : dto.totalQty; // 0 = 무제한으로 전환
+    const updated = await db.product.update({
+      where: { id },
+      data: {
+        totalQty,
+        // 수량이 다시 생기면 자동 품절 해제 (승인된 상품만)
+        ...(p.approval === 'ACTIVE' && !p.isActive && (totalQty == null || totalQty > p.soldQty) ? { isActive: true } : {}),
+        ...(totalQty != null && totalQty === p.soldQty ? { isActive: false } : {}),
+      },
+    });
+    return { ok: true, totalQty: updated.totalQty, soldQty: updated.soldQty, isActive: updated.isActive, message: '수량을 변경했습니다' };
+  }
+
+  /**
+   * 최근 판매 알림 — 앱에서 뭔가 팔리면 여기에 쌓인다 (이용권 구매·예약·딜 수령).
+   * 점주 웹은 이걸 주기적으로 읽어 🔔 배지를 띄운다. (실 푸시는 스토어 앱 단계에서)
+   */
+  @Get('my/sales')
+  async mySales(@UserId() userId: string, @Query('days') days?: string) {
+    const m = await this.myMerchant(userId);
+    const db = this.prisma.client;
+    const since = new Date();
+    since.setDate(since.getDate() - (Number(days) || 1));
+    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+
+    const [vouchers, reservations, claims, todayCnt] = await Promise.all([
+      db.voucher.findMany({
+        where: { product: { merchantId: m.id }, createdAt: { gte: since } },
+        orderBy: { createdAt: 'desc' }, take: 50,
+        include: { user: { select: { nickname: true } }, product: { select: { name: true } }, reservation: { select: { id: true } } },
+      }),
+      db.reservation.findMany({
+        where: { product: { merchantId: m.id }, createdAt: { gte: since } },
+        orderBy: { createdAt: 'desc' }, take: 50,
+        include: { user: { select: { nickname: true } }, product: { select: { name: true } }, slot: { select: { startAt: true } } },
+      }),
+      db.dropClaim.findMany({
+        where: { drop: { merchantId: m.id }, claimedAt: { gte: since } },
+        orderBy: { claimedAt: 'desc' }, take: 50,
+        include: { user: { select: { nickname: true } }, drop: { select: { title: true, kind: true } } },
+      }),
+      db.dropClaim.count({ where: { drop: { merchantId: m.id }, claimedAt: { gte: todayStart } } })
+        .then(async (c) => c + await db.voucher.count({ where: { product: { merchantId: m.id }, createdAt: { gte: todayStart }, reservation: null } })
+          + await db.reservation.count({ where: { product: { merchantId: m.id }, createdAt: { gte: todayStart } } })),
+    ]);
+
+    const rows = [
+      // 예약이 붙은 이용권은 예약 쪽으로만 집계 (중복 방지)
+      ...vouchers.filter((v) => !v.reservation).map((v) => ({
+        kind: 'TICKET' as const, at: v.createdAt, title: v.product.name, buyer: v.user.nickname, extra: `${v.headcount}명`,
+      })),
+      ...reservations.map((r) => ({
+        kind: 'RESERVATION' as const, at: r.createdAt, title: r.product.name, buyer: r.user.nickname,
+        extra: `${r.headcount}명 · ${new Date(r.slot.startAt).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`,
+      })),
+      ...claims.map((c) => ({
+        kind: c.drop.kind === 'TICKET' ? ('DROP_TICKET' as const) : ('DROP' as const),
+        at: c.claimedAt, title: c.drop.title, buyer: c.user.nickname, extra: `${c.qty}개`,
+      })),
+    ].sort((a, b) => b.at.getTime() - a.at.getTime()).slice(0, 50);
+
+    return { todayCount: todayCnt, rows };
   }
 
   /** 예약 목록 — 액티비티·숙박 점주가 사무실 PC에서 확인하는 핵심 화면 */

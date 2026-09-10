@@ -26,6 +26,20 @@ export default function MerchantMode() {
   const [verifyResult, setVerifyResult] = useState<any | null>(null);
   const [pinInput, setPinInput] = useState('');
   const [pinMsg, setPinMsg] = useState('');
+  const [sales, setSales] = useState<{ todayCount: number } | null>(null);
+  const [qtyEditId, setQtyEditId] = useState<string | null>(null);
+  const [qtyInput, setQtyInput] = useState('');
+
+  /** DROP 수량 조정 — 호텔이 "이 날 방 5개→2개"처럼 직접 (2026-09-10 픽스) */
+  async function saveQty(dropId: string) {
+    try {
+      await api(`/merchant/my/drops/${dropId}`, { method: 'PATCH', body: { totalQty: Number(qtyInput) } });
+      setQtyEditId(null);
+      api<any>('/merchant/my/summary').then(setSummary).catch(() => {});
+    } catch (e: any) {
+      if (typeof window !== 'undefined' && window.alert) window.alert(e.message);
+    }
+  }
 
   /** 사용 확인 코드 저장 — 결제 상품을 QR 없이 처리할 때 손님이 입력하는 코드 (점주가 직접 정한다) */
   async function savePin() {
@@ -47,6 +61,7 @@ export default function MerchantMode() {
       api<any[]>('/merchant/my/redemptions?days=7').then(setReds).catch(() => {});
       api<any[]>('/merchant/my/products').then(setProducts).catch(() => {});
       api<any[]>('/merchant/my/benefits').then(setBenefits).catch(() => {});
+      api<any>('/merchant/my/sales?days=1').then(setSales).catch(() => {});
     }, []),
   );
 
@@ -92,6 +107,10 @@ export default function MerchantMode() {
 
         {summary && (
           <View style={st.statRow}>
+            <Card style={st.statCard}>
+              <Text style={st.statLabel}>🔔 오늘 판매</Text>
+              <Text style={st.statValue}>{sales?.todayCount ?? 0}건</Text>
+            </Card>
             <Card style={st.statCard}>
               <Text style={st.statLabel}>오늘 사용</Text>
               <Text style={st.statValue}>{summary.todayRedemptions}건</Text>
@@ -194,6 +213,27 @@ export default function MerchantMode() {
             <Text style={st.redSub}>
               남은 수량 {d.remainingQty}/{d.totalQty} · 마감 {new Date(d.closeAt).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
             </Text>
+            {qtyEditId === d.id ? (
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 8, alignItems: 'center' }}>
+                <TextInput
+                  value={qtyInput}
+                  onChangeText={(t) => setQtyInput(t.replace(/\D/g, ''))}
+                  keyboardType="number-pad"
+                  style={[st.input, { flex: 1, paddingVertical: 8 }]}
+                  placeholder="새 총 수량"
+                  placeholderTextColor={C.ink3}
+                />
+                <Btn title="저장" small onPress={() => saveQty(d.id)} disabled={qtyInput === ''} />
+                <Btn title="취소" small tone="ghost" onPress={() => setQtyEditId(null)} />
+              </View>
+            ) : (
+              <Text
+                style={st.qtyEditLink}
+                onPress={() => { setQtyEditId(d.id); setQtyInput(String(d.totalQty)); }}
+              >
+                수량 변경
+              </Text>
+            )}
           </Card>
         ))}
 
@@ -277,6 +317,7 @@ const st = StyleSheet.create({
   section: { fontSize: 13, fontWeight: '700', color: C.ink3, marginTop: 14, marginBottom: 8 },
   hint: { fontSize: 12, color: C.ink3, lineHeight: 18, marginBottom: 8 },
   pinCurrent: { fontSize: 14, fontWeight: '700', color: C.ink, marginTop: 8 },
+  qtyEditLink: { fontSize: 12.5, fontWeight: '700', color: C.brand, marginTop: 8, textDecorationLine: 'underline' },
   input: {
     flex: 1, borderWidth: 1, borderColor: C.line, borderRadius: 10,
     paddingHorizontal: 12, paddingVertical: 9, fontSize: 16, fontWeight: '700',

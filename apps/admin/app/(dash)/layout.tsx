@@ -14,6 +14,7 @@ const DEFAULT_MENU = [
   { href: '/membership', label: '멤버십', icon: '💎' },
   { href: '/users', label: '회원', icon: '👥' },
   { href: '/settlements', label: '정산', icon: '💰' },
+  { href: '/ads', label: '광고', icon: '📣' },
   { href: '/translations', label: '번역', icon: '🌐' },
   { href: '/settings', label: '지역·카테고리', icon: '⚙️' },
   { href: '/audit', label: '감사 로그', icon: '🧾' },

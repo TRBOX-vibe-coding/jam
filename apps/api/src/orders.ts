@@ -13,6 +13,7 @@ import { Type } from 'class-transformer';
 import { PrismaService } from './prisma.service';
 import { AuthModule, OptionalUserGuard, UserGuard, UserId } from './auth';
 import { addDays, makeOrderNo, makeVoucherCode } from './util';
+import { activeAdRanks, clickCounts, rankSort } from './ranking.util';
 
 class PurchaseProductDto {
   @IsOptional() @IsString() slotId?: string;
@@ -43,7 +44,17 @@ export class OrdersController {
       },
       orderBy: { createdAt: 'asc' },
     });
-    return rows;
+    // 상위 노출 — 광고(기간 내 rank) → 클릭수 → 나머지 (2026-09-10 픽스)
+    const [clicks, ads] = await Promise.all([
+      clickCounts(db, ['product_view', 'product_purchase']),
+      activeAdRanks(db),
+    ]);
+    return rankSort(rows, {
+      id: (r) => r.id,
+      clicks,
+      ads,
+      adKey: (r) => `PRODUCT:${r.id}`,
+    }).map((r) => ({ ...r, isAd: ads.has(`PRODUCT:${r.id}`) }));
   }
 
   @Get('products/:id')

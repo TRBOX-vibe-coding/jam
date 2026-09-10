@@ -22,6 +22,7 @@ import * as XLSX from 'xlsx';
 import { PrismaService } from './prisma.service';
 import { AdminGuard, AdminId, AuthModule } from './auth';
 import { langOf, trField } from './i18n.util';
+import { clickCounts } from './ranking.util';
 import { saveImageDataUrl } from './uploads';
 
 class CreateCampaignDto {
@@ -289,6 +290,8 @@ export class CampaignController {
       },
     });
     if (!c) throw new NotFoundException('진행 중인 기획전이 아닙니다');
+    // 클릭수 상위 노출 (2026-09-10 픽스) — 품절 맨 밑은 아래 sort에서 함께 처리
+    const clicks = await clickCounts(this.prisma.client, ['drop_view', 'drop_claim', 'ticket_purchase']);
     return {
       id: c.id,
       title: c.title,
@@ -316,8 +319,8 @@ export class CampaignController {
           categoryEmoji: (d.merchant as any).category?.emoji ?? null,
           i18n: (d as any).i18n,
         }))
-        // 품절은 지우지 않고 맨 밑으로 (홍보 목적 — 2026-09-08 픽스)
-        .sort((a, b) => Number(a.soldOut) - Number(b.soldOut)),
+        // 품절 맨 밑 → 클릭수 많은 순 (2026-09-10 픽스)
+        .sort((a, b) => (Number(a.soldOut) - Number(b.soldOut)) || ((clicks.get(b.id) ?? 0) - (clicks.get(a.id) ?? 0))),
     };
   }
 }

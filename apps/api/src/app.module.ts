@@ -17,6 +17,7 @@ import { EventsModule } from './events';
 import { AdminSettingsModule } from './admin-settings';
 import { SavesModule } from './saves';
 import { TripsModule } from './trips';
+import { AdsModule } from './ads';
 import { UploadsController } from './uploads.controller';
 
 @Controller()
@@ -45,6 +46,7 @@ class HealthController {
     AdminSettingsModule,
     SavesModule,
     TripsModule,
+    AdsModule,
   ],
   controllers: [HealthController, UploadsController],
   providers: [{ provide: APP_INTERCEPTOR, useClass: I18nInterceptor }],

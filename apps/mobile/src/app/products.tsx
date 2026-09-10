@@ -13,6 +13,7 @@ import { HScroll } from '../lib/hscroll';
 
 type Product = {
   id: string; name: string; imageUrl: string | null; basePrice: number; memberPrice: number | null; type: string;
+  isAd?: boolean;
   merchant: { name: string; region: { name: string } };
   category: { name: string; emoji: string | null } | null;
 };
@@ -83,6 +84,7 @@ export default function ProductsScreen() {
               ) : (
                 <View style={[st.cardImg, { backgroundColor: C.brandSoft }]} />
               )}
+              {p.isAd && <View style={st.adBadge}><Text style={st.adBadgeText}>{t('ad')}</Text></View>}
               <View style={st.cardBody}>
                 <Text style={st.cardName} numberOfLines={1}>{p.name}</Text>
                 <Text style={st.cardMerchant}>{p.merchant.region.name} · {p.merchant.name}</Text>
@@ -115,6 +117,8 @@ const st = StyleSheet.create({
   tabText: { fontSize: 13, fontWeight: '700', color: C.ink2 },
   tabTextOn: { color: '#fff' },
   card: { backgroundColor: C.white, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: C.line },
+  adBadge: { position: 'absolute', top: 10, right: 10, backgroundColor: 'rgba(18,24,31,0.7)', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3, zIndex: 1 },
+  adBadgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
   cardImg: { width: '100%', height: 150 },
   cardBody: { padding: 12 },
   cardName: { fontSize: 15.5, fontWeight: '700', color: C.ink },

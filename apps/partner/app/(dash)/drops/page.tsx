@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { API_BASE, api, dt, fileToDataUrl, won } from '@/lib/api';
 import { Badge, Button, Card, CardHeader, Empty, Table, TableSkeleton, Td } from '@/components/ui';
+import { QtyEdit } from '@/components/qty-edit';
 
 const img = (u?: string | null, w = 160) => (u ? (u.startsWith('/') ? `${API_BASE}${u}?w=${w}` : u) : null);
 
@@ -22,6 +23,14 @@ export default function MyDropsPage() {
     api<any[]>('/merchant/my/drops').then(setRows).catch(() => setRows([]));
   }, []);
   useEffect(load, [load]);
+
+  async function changeQty(id: string, totalQty: number) {
+    try {
+      const r = await api<{ message: string }>(`/merchant/my/drops/${id}`, { method: 'PATCH', body: { totalQty } });
+      setMsg(r.message);
+      load();
+    } catch (e: any) { alert(e.message); }
+  }
 
   async function pickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -130,7 +139,10 @@ export default function MyDropsPage() {
                 <Td className="whitespace-nowrap tabular-nums">
                   <span className="text-ink-3 line-through">{won(d.normalPrice)}</span> <b>{won(d.dropPrice)}</b>
                 </Td>
-                <Td className="tabular-nums">{d.remainingQty}/{d.totalQty}</Td>
+                <Td className="whitespace-nowrap tabular-nums">
+                  {d.remainingQty}/{d.totalQty}
+                  <QtyEdit current={d.totalQty} onSave={(q) => changeQty(d.id, q)} />
+                </Td>
                 <Td className="whitespace-nowrap text-xs text-ink-3">{dt(d.closeAt)}</Td>
               </tr>
             ))}

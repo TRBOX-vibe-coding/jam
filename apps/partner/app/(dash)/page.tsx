@@ -13,10 +13,17 @@ export default function Dashboard() {
   const [pinInput, setPinInput] = useState('');
   const [pinMsg, setPinMsg] = useState('');
 
+  const [sales, setSales] = useState<{ todayCount: number; rows: any[] } | null>(null);
+
   useEffect(() => {
     api<any>('/merchant/my/summary').then(setSummary).catch(() => {});
     api<any[]>('/merchant/my/redemptions?days=7').then(setRedemptions).catch(() => setRedemptions([]));
     api<any>('/merchant/my').then((m) => setUsePin(m.usePin ?? null)).catch(() => {});
+    // 판매 알림 — 60초마다 새 판매를 확인한다 (2026-09-10 픽스)
+    const loadSales = () => api<any>('/merchant/my/sales?days=2').then(setSales).catch(() => {});
+    loadSales();
+    const timer = setInterval(loadSales, 60_000);
+    return () => clearInterval(timer);
   }, []);
 
   async function savePin() {
@@ -37,7 +44,8 @@ export default function Dashboard() {
       {!summary ? (
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-3"><StatSkeleton /><StatSkeleton /><StatSkeleton /></div>
       ) : (
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <Stat label="🔔 오늘 판매" value={`${sales?.todayCount ?? 0}건`} sub="앱에서 결제·예약·딜 수령" />
           <Stat label="오늘 사용" value={`${summary.todayRedemptions}건`} sub="손님 QR 사용 처리" />
           <Stat label="이번 달 사용" value={`${summary.monthRedemptions}건`} />
           <Stat label="진행 중 DROP" value={`${(summary.drops ?? []).filter((d: any) => d.status === 'OPEN').length}개`} sub={`승인 대기 ${(summary.drops ?? []).filter((d: any) => d.status === 'PENDING').length}건`} />
@@ -66,6 +74,28 @@ export default function Dashboard() {
           <Button small onClick={savePin} disabled={pinInput.trim().length < 2}>{usePin ? '변경' : '저장'}</Button>
           {pinMsg && <span className="text-xs font-semibold text-ok">{pinMsg}</span>}
         </div>
+      </Card>
+
+      {/* 판매 알림 피드 — 앱에서 팔리면 여기에 실시간(1분 주기)으로 쌓인다 */}
+      <Card>
+        <CardHeader title="🔔 최근 판매 (48시간)" />
+        {sales === null ? (
+          <TableSkeleton rows={3} cols={4} />
+        ) : sales.rows.length === 0 ? (
+          <Empty text="아직 판매가 없습니다. 판매되면 여기에 바로 표시돼요." />
+        ) : (
+          <Table head={['시각', '유형', '항목', '구매자', '내용']}>
+            {sales.rows.slice(0, 8).map((s: any, i: number) => (
+              <tr key={i}>
+                <Td className="whitespace-nowrap text-ink-3">{dt(s.at)}</Td>
+                <Td><Badge>{{ TICKET: '티켓', RESERVATION: '예약', DROP: '딜 수령', DROP_TICKET: '딜 결제' }[s.kind as string] ?? s.kind}</Badge></Td>
+                <Td className="max-w-[260px] truncate font-medium">{s.title}</Td>
+                <Td>{s.buyer}</Td>
+                <Td className="text-xs text-ink-3">{s.extra}</Td>
+              </tr>
+            ))}
+          </Table>
+        )}
       </Card>
 
       <Card>

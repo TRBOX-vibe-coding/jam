@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { API_BASE, api, fileToDataUrl, won } from '@/lib/api';
 import { Badge, Button, Card, CardHeader, Empty, Table, TableSkeleton, Td } from '@/components/ui';
+import { QtyEdit } from '@/components/qty-edit';
 
 const img = (u?: string | null, w = 160) => (u ? (u.startsWith('/') ? `${API_BASE}${u}?w=${w}` : u) : null);
 const TYPE_LABEL: Record<string, string> = { TICKET: '티켓', RESERVATION: '예약형', PASS: 'PASS' };
@@ -20,6 +21,14 @@ export default function MyProductsPage() {
     api<any[]>('/merchant/my/products').then(setRows).catch(() => setRows([]));
   }, []);
   useEffect(load, [load]);
+
+  async function changeQty(id: string, totalQty: number) {
+    try {
+      const r = await api<{ message: string }>(`/merchant/my/products/${id}`, { method: 'PATCH', body: { totalQty } });
+      setMsg(r.message);
+      load();
+    } catch (e: any) { alert(e.message); }
+  }
 
   async function pickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -146,8 +155,8 @@ export default function MyProductsPage() {
                   {p.type === 'RESERVATION'
                     ? `회차 ${p._count.slots}개${p.defaultCapacity ? ` · 정원 ${p.defaultCapacity}명` : ''}`
                     : p.totalQty != null
-                      ? `남은 ${Math.max(0, p.totalQty - p.soldQty)}/${p.totalQty}`
-                      : <span className="text-ink-3">무제한</span>}
+                      ? <>남은 {Math.max(0, p.totalQty - p.soldQty)}/{p.totalQty}<QtyEdit current={p.totalQty} onSave={(q) => changeQty(p.id, q)} /></>
+                      : <><span className="text-ink-3">무제한</span><QtyEdit current={0} onSave={(q) => changeQty(p.id, q)} /></>}
                 </Td>
               </tr>
             ))}

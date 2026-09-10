@@ -76,6 +76,7 @@ model Category {
   merchants Merchant[]
   drops     Drop[]
   products  Product[]
+  adSlots   AdSlot[]
   interests UserInterestCategory[]
 }
 
@@ -1008,6 +1009,22 @@ model Campaign {
 }
 
 /// 사용자 행동 로그 — 향후 AI/분석용. 처음부터 쌓는다 (대표 요구 8번).
+/// 광고 자리 — 카테고리별 쿠폰/상품 1~10순위, 기간 내에만 상단 고정 (2026-09-10 픽스, 월 정액 수금은 오프라인)
+model AdSlot {
+  id         String        @id @default(cuid())
+  categoryId String
+  category   Category      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  itemType   SavedItemType // BENEFIT(쿠폰) | PRODUCT(상품)
+  refId      String
+  rank       Int // 1~10
+  startAt    DateTime
+  endAt      DateTime
+  createdAt  DateTime      @default(now())
+
+  @@unique([categoryId, itemType, rank])
+  @@index([endAt])
+}
+
 model EventLog {
   id         String   @id @default(cuid())
   userId     String?

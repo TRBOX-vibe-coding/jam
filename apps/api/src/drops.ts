@@ -13,6 +13,7 @@ import { Type } from 'class-transformer';
 import { PrismaService } from './prisma.service';
 import { AuthModule, OptionalUserGuard, UserGuard, UserId } from './auth';
 import { addDays, makeOrderNo, makeVoucherCode } from './util';
+import { clickCounts, rankSort } from './ranking.util';
 
 class ClaimDto {
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(10) qty?: number;
@@ -62,7 +63,15 @@ export class DropsController {
       },
     });
 
-    return drops.map((d) => ({
+    // 클릭수 상위 노출 + 품절 맨 밑 (2026-09-10 픽스)
+    const clicks = await clickCounts(db, ['drop_view', 'drop_claim', 'ticket_purchase']);
+    const sorted = rankSort(drops, {
+      id: (d) => d.id,
+      soldOut: (d) => d.remainingQty <= 0,
+      clicks,
+    });
+
+    return sorted.map((d) => ({
       id: d.id,
       kind: d.kind,
       title: d.title,
