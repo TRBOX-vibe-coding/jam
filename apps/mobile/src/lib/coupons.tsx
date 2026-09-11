@@ -103,6 +103,14 @@ export default function CouponsScreen() {
     );
   }
 
+  // 쿠폰 '사용'은 유료 잼이 시작된 뒤에만 (보기·담기는 누구나)
+  const canUse = !!me.membership?.isPaid && me.membership.started;
+  function onLockedPress() {
+    const go = () => router.push('/(tabs)/my');
+    if (Platform.OS === 'web') { if (window.confirm(t('goStartJam'))) go(); }
+    else Alert.alert('', t('goStartJam'), [{ text: t('close'), style: 'cancel' }, { text: t('start'), onPress: go }]);
+  }
+
   const regions = data ? uniq(data.merchants.map((g) => g.merchant.region.name), (x) => x) : [];
   const cats = data
     ? uniq(data.merchants.map((g) => g.merchant.category), (x) => x.name)
@@ -205,12 +213,23 @@ export default function CouponsScreen() {
                       color={savedIds.has(`BENEFIT:${b.benefitId}`) ? '#E8503A' : C.ink3}
                     />
                   </Pressable>
-                  <Pressable
-                    style={st.useBtn}
-                    onPress={() => { setUseResult(null); setPending({ merchantId: g.merchant.id, merchantName: g.merchant.name, itemId: b.id, title: b.title }); }}
-                  >
-                    <Text style={st.useBtnText}>{t('useNow')}</Text>
-                  </Pressable>
+                  {canUse ? (
+                    <Pressable
+                      style={st.useBtn}
+                      onPress={() => { setUseResult(null); setPending({ merchantId: g.merchant.id, merchantName: g.merchant.name, itemId: b.id, title: b.title }); }}
+                    >
+                      <Text style={st.useBtnText}>{t('useNow')}</Text>
+                    </Pressable>
+                  ) : (
+                    // 무료 회원 또는 시작 전 잼 — 눌러도 서버에서 막히니, 먼저 상태를 보여주고 MY로 안내한다
+                    <Pressable style={[st.useBtn, st.useBtnLocked]} onPress={onLockedPress}>
+                      <Text style={[st.useBtnText, { color: C.ink2 }]}>
+                        {me.membership?.isPaid && !me.membership.started
+                          ? t('useFrom', { date: new Date(me.membership.startAt).toLocaleDateString(locale, { month: 'numeric', day: 'numeric' }) })
+                          : t('useLocked')}
+                      </Text>
+                    </Pressable>
+                  )}
                 </View>
               );
             })}
@@ -261,6 +280,7 @@ const st = StyleSheet.create({
   validTo: { fontSize: 11, color: C.ink3, marginTop: 1 },
   hint: { textAlign: 'center', color: C.ink3, fontSize: 12, marginTop: 8, marginBottom: 24 },
   useBtn: { backgroundColor: C.brand, borderRadius: 9, paddingHorizontal: 14, paddingVertical: 8 },
+  useBtnLocked: { backgroundColor: C.ground, borderWidth: 1, borderColor: C.line },
   useBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
   shopCard: {
     backgroundColor: C.white, borderRadius: 16, borderWidth: 1, borderColor: C.line,

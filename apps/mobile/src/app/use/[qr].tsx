@@ -5,6 +5,7 @@ import { useCallback, useState } from 'react';
 import { Alert, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { api } from '../../lib/api';
+import { useAuth } from '../../lib/auth';
 import { useI18n } from '../../lib/i18n';
 import { C } from '../../lib/theme';
 import { Btn, Card, EmptyText, Loading, Screen, Tag } from '../../lib/ui';
@@ -19,6 +20,7 @@ type ScanResult = {
 
 export default function UseScreen() {
   const { qr } = useLocalSearchParams<{ qr: string }>();
+  const { me } = useAuth();
   const { t, won, locale, lang } = useI18n();
   const [data, setData] = useState<ScanResult | null>(null);
   const [error, setError] = useState('');
@@ -34,6 +36,13 @@ export default function UseScreen() {
   );
 
   async function redeem(itemType: 'BENEFIT' | 'DROP' | 'VOUCHER', itemId: string, title: string) {
+    // 쿠폰 사용은 유료 잼 시작 후에만 — 서버도 막지만, 먼저 안내하고 MY로 보낸다 (2026-09-09 픽스)
+    if (itemType === 'BENEFIT' && !(me?.membership?.isPaid && me.membership.started)) {
+      const go = () => router.push('/(tabs)/my');
+      if (Platform.OS === 'web') { if (window.confirm(t('goStartJam'))) go(); }
+      else Alert.alert('', t('goStartJam'), [{ text: t('close'), style: 'cancel' }, { text: t('start'), onPress: go }]);
+      return;
+    }
     const run = async () => {
       setBusy(true);
       try {

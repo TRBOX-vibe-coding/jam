@@ -3,7 +3,7 @@
  * 여행 만들기(시작일·종료일·인원) → 기간이 잼을 추천 → 담은 항목을 Day에 배치 →
  * 예상 절약액과 잼 가격 대비 배수를 시각화한다. 무료 유저도 전부 가능 = 맛보기잼.
  */
-import { useCallback, useState } from 'react';
+import { createElement, useCallback, useState } from 'react';
 import { Alert, Image, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { api, img } from '../../lib/api';
@@ -33,6 +33,27 @@ type TripT = {
 
 const GRADE_COLOR: Record<string, string> = { GREAT: '#7CF2B0', GOOD: '#9ED2FF', START: '#FFD983' };
 const dstr = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+/**
+ * 날짜 입력 — 웹에서는 브라우저 기본 달력(<input type="date">)을 띄우고,
+ * 네이티브에서는 YYYY-MM-DD 텍스트 입력으로 받는다. (앱 빌드 단계에서 네이티브 달력으로 교체)
+ */
+function DateField({ value, onChange, min }: { value: string; onChange: (v: string) => void; min?: string }) {
+  if (Platform.OS === 'web') {
+    return createElement('input', {
+      type: 'date', value, min,
+      onChange: (e: any) => onChange(e.target.value),
+      style: {
+        flex: 1, minWidth: 0, height: 44, borderRadius: 11, border: `1px solid ${C.line}`,
+        background: C.ground, color: C.ink, fontSize: 15, fontWeight: 700, textAlign: 'center',
+        fontFamily: 'inherit', padding: '0 8px',
+      },
+    });
+  }
+  return (
+    <TextInput style={[st.input, { flex: 1 }]} value={value} onChangeText={onChange} placeholder="2026-10-01" placeholderTextColor={C.ink3} keyboardType="numbers-and-punctuation" />
+  );
+}
 
 export default function TripScreen() {
   const { me } = useAuth();
@@ -101,10 +122,10 @@ export default function TripScreen() {
         <ScrollView contentContainerStyle={{ padding: 16 }}>
           <Card>
             <Text style={st.formTitle}>{t('tripWhen')}</Text>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              <TextInput style={[st.input, { flex: 1 }]} value={start} onChangeText={setStart} placeholder="2026-10-01" placeholderTextColor={C.ink3} />
-              <Text style={{ alignSelf: 'center', color: C.ink3 }}>~</Text>
-              <TextInput style={[st.input, { flex: 1 }]} value={end} onChangeText={setEnd} placeholder="2026-10-04" placeholderTextColor={C.ink3} />
+            <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+              <DateField value={start} onChange={setStart} min={dstr(today)} />
+              <Text style={{ color: C.ink3 }}>~</Text>
+              <DateField value={end} onChange={setEnd} min={start} />
             </View>
             <Text style={st.formTitle}>{t('tripWho')}</Text>
             <View style={st.stepper}>

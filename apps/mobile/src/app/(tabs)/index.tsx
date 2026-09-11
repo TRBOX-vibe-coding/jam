@@ -179,7 +179,11 @@ export default function HomeScreen() {
               <View style={st.statusRow}>
                 <View style={{ flex: 1 }}>
                   <Text style={st.statusPlan}>
-                    {me.membership ? t('planInUse', { plan: me.membership.planName }) : t('startMembership')}
+                    {me.membership?.isPaid
+                      ? (me.membership.started
+                          ? t('planInUse', { plan: me.membership.planName })
+                          : t('cardUpcoming', { plan: me.membership.planName, date: new Date(me.membership.startAt).toLocaleDateString(locale, { month: 'numeric', day: 'numeric' }) }))
+                      : t('startMembership')}
                   </Text>
                   {trip ? (
                     <Text style={st.statusSaving}>
@@ -196,7 +200,7 @@ export default function HomeScreen() {
                     </Text>
                   )}
                 </View>
-                {me.membership && (
+                {me.membership?.isPaid && (
                   <View style={{ borderRadius: 999, overflow: 'hidden' }}>
                     <LinearGradient colors={['#F7C64B', '#B07B1E']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
                       <Text style={st.statusBadge}>💎 {me.membership.planName}</Text>

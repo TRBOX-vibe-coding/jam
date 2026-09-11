@@ -98,6 +98,14 @@ export default function SavedScreen() {
           </View>
         )}
 
+        {/* 여행이 없으면 Day 버튼이 없다 — 왜 없는지 알려주고 만들기로 보낸다 */}
+        {!empty && trip === null && (
+          <Pressable style={st.tripPrompt} onPress={() => router.push('/(tabs)/trip' as never)}>
+            <Text style={st.tripPromptText}>🗓️ {t('noTripYet')}</Text>
+            <Text style={st.tripPromptCta}>{t('tripCreate')} ›</Text>
+          </Pressable>
+        )}
+
         {data.benefits.length > 0 && (
           <>
             <Text style={st.section}>{t('savedCoupons')} ({data.benefits.length})</Text>
@@ -188,6 +196,12 @@ const st = StyleSheet.create({
   dayChipOn: { backgroundColor: C.brand, borderColor: C.brand },
   dayChipText: { fontSize: 11.5, fontWeight: '700', color: C.ink2 },
   dayChipTextOn: { color: '#fff' },
+  tripPrompt: {
+    backgroundColor: C.brandSoft, borderRadius: 12, padding: 12, marginBottom: 12,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+  },
+  tripPromptText: { flex: 1, fontSize: 12.5, color: C.ink2, lineHeight: 18 },
+  tripPromptCta: { fontSize: 13, fontWeight: '800', color: C.brand },
   thumb: { width: 56, height: 56, borderRadius: 12 },
   thumbEmpty: { backgroundColor: C.brandSoft, alignItems: 'center', justifyContent: 'center' },
   value: { fontSize: 13, fontWeight: '800', color: '#E8503A' },

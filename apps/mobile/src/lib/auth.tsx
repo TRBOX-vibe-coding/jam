@@ -5,9 +5,15 @@ export type Me = {
   id: string;
   nickname: string;
   provider: string;
-  membership: { planCode: string; planName: string; source: string; endAt: string } | null;
+  membership: {
+    planCode: string; planName: string; source: string; startAt: string; endAt: string;
+    /** 유료 잼인지 (FREE 플랜이면 false) */
+    isPaid: boolean;
+    /** 사용 시작일이 지났는지 (미리 결제한 잼은 시작 전엔 false) */
+    started: boolean;
+  } | null;
   savings: { thisMonth: number; total: number; recoveryRate: number | null };
-  ownedMerchant: { id: string; name: string } | null;
+  ownedMerchant: { id: string; name: string; status: string } | null;
 };
 
 type AuthCtx = {

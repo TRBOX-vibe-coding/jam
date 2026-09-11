@@ -83,12 +83,17 @@ export class CatalogController {
 
     return {
       ...user,
+      // 무료 회원(FREE)도 membership 객체는 있다 — 상품 멤버십가는 유·무료 동일이라서.
+      // 쿠폰 '사용' 가능 여부는 isPaid && started 로 판단한다 (2026-09-09 픽스).
       membership: membership
         ? {
             planCode: membership.plan.code,
             planName: trField(membership.plan, 'name', lang),
             source: membership.source,
+            startAt: membership.startAt,
             endAt: membership.endAt,
+            isPaid: membership.plan.price > 0,
+            started: membership.startAt <= new Date(),
           }
         : null,
       savings: { thisMonth: savedThisMonth, total: savedTotal, recoveryRate },

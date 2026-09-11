@@ -138,30 +138,32 @@ export default function MyScreen() {
             <Card style={{ backgroundColor: C.ink, borderColor: C.ink }}>
               <View style={st.rowBetween}>
                 <Text style={st.cardBrand}>HOLIC GEM</Text>
-                {me.membership ? (
+                {me.membership?.isPaid ? (
                   <Tag text={me.membership.planName} tone="gold" />
                 ) : (
                   <Tag text={t('freeTier')} tone="warn" />
                 )}
               </View>
               <Text style={st.cardName}>{me.nickname}</Text>
-              {me.membership ? (
+              {me.membership?.isPaid ? (
                 <>
                   <Text style={st.cardSaving}>
-                    {t('cardSaved', { amt: won(me.savings.thisMonth) })}
-                    {me.savings.recoveryRate != null && t('recoveryRate', { r: me.savings.recoveryRate })}
+                    {me.membership.started
+                      ? <>{t('cardSaved', { amt: won(me.savings.thisMonth) })}{me.savings.recoveryRate != null && t('recoveryRate', { r: me.savings.recoveryRate })}</>
+                      : t('cardUpcoming', { plan: me.membership.planName, date: new Date(me.membership.startAt).toLocaleDateString(locale) })}
                   </Text>
                   <Text style={st.cardUntil}>
                     {t('untilDate', { date: new Date(me.membership.endAt).toLocaleDateString(locale) })}
                   </Text>
                 </>
               ) : (
-                <Text style={st.cardSaving}>{t('cardNoPlan')}</Text>
+                // 무료 회원 — 보기·담기·일정·상품 구매는 되고, 쿠폰 사용만 잼 시작 후 (2026-09-09 픽스)
+                <Text style={st.cardSaving}>{me.membership ? t('cardFreeHint') : t('cardNoPlan')}</Text>
               )}
             </Card>
 
-            {/* 멤버십 구매 */}
-            {!me.membership && (
+            {/* 멤버십 구매 — 무료 회원도 여기서 유료 잼으로 올라탄다 */}
+            {!me.membership?.isPaid && (
               <>
                 <Text style={st.section}>{t('startPlanSection')}</Text>
                 {plans.map((p) => (
