@@ -634,6 +634,68 @@ export class AdminController {
     return p;
   }
 
+  /** 상품 복사 — 같은 업체 상품을 매번 처음부터 입력하지 않게 (2026-09-12 대표 요청). 
+   *  설정과 묶인 쿠폰까지 그대로 가져오고, 판매는 꺼둔 채로 만든다.
+   *  회차(날짜·시간)는 상품마다 다르므로 복사하지 않는다. */
+  @Post('products/:id/duplicate')
+  async duplicateProduct(@AdminId() adminId: string, @Param('id') id: string) {
+    const db = this.prisma.client;
+    const src = await db.product.findUnique({ where: { id } });
+    if (!src) throw new NotFoundException('상품을 찾을 수 없습니다');
+
+    const copy = await db.$transaction(async (tx) => {
+      const p = await tx.product.create({
+        data: {
+          merchantId: src.merchantId,
+          categoryId: src.categoryId,
+          campaignId: src.campaignId,
+          type: src.type,
+          name: `${src.name} (복사본)`,
+          description: src.description,
+          imageUrl: src.imageUrl,
+          basePrice: src.basePrice,
+          memberPrice: src.memberPrice,
+          verification: src.verification,
+          totalQty: src.totalQty,
+          defaultCapacity: src.defaultCapacity,
+          couponStartMode: src.couponStartMode,
+          weatherDependent: src.weatherDependent,
+          cancelPolicy: src.cancelPolicy,
+          i18n: (src as any).i18n ?? undefined,
+          approval: 'ACTIVE',
+          // 값을 고치기 전에 팔리면 안 되니 판매는 꺼둔 채로 만든다
+          isActive: false,
+        },
+      });
+      // 묶어둔 근처 할인 쿠폰도 같이 가져온다
+      const rules = await tx.benefitGrantRule.findMany({
+        where: { trigger: 'PRODUCT', productId: id },
+        orderBy: { sortOrder: 'asc' },
+      });
+      for (const r of rules) {
+        await tx.benefitGrantRule.create({
+          data: {
+            benefitId: r.benefitId,
+            trigger: 'PRODUCT',
+            productId: p.id,
+            validDays: r.validDays,
+            sortOrder: r.sortOrder,
+            isActive: r.isActive,
+          },
+        });
+      }
+      return { product: p, copiedCoupons: rules.length };
+    });
+
+    await this.audit(adminId, 'DUPLICATE_PRODUCT', 'Product', copy.product.id, `${src.name} 복사`);
+    return {
+      ok: true,
+      id: copy.product.id,
+      copiedCoupons: copy.copiedCoupons,
+      message: '복사했습니다. 내용을 고친 뒤 판매를 시작하세요.',
+    };
+  }
+
   // ---------------- 상품에 묶는 근처 할인 쿠폰 ----------------
   // 점주는 손댈 수 없다. 자기 상품과 판매 가격까지만 (2026-09-12 대표 확정).
 

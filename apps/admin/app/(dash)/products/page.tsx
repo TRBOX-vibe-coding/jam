@@ -105,6 +105,13 @@ export default function ProductsPage() {
     load();
   }
 
+  async function duplicateProduct(p: any) {
+    if (!confirm(`'${p.name}'을(를) 복사할까요?
+설정과 묶은 쿠폰이 그대로 복사됩니다. 회차는 복사되지 않고, 판매는 꺼진 채로 만들어집니다.`)) return;
+    const r = await api<{ copiedCoupons: number }>(`/admin/products/${p.id}/duplicate`, { method: 'POST' });
+    setMsg(`'${p.name}' 복사 완료${r.copiedCoupons > 0 ? ` · 쿠폰 ${r.copiedCoupons}장 포함` : ''} — 목록 맨 위에서 내용을 고치세요`);
+    load();
+  }
   async function approveProduct(p: any) {
     await api(`/admin/products/${p.id}/approve`, { method: 'POST' });
     setMsg(`'${p.name}' 승인 — 판매가 시작됩니다`);
@@ -318,6 +325,7 @@ export default function ProductsPage() {
                           <Button small onClick={() => openSlots(p)}>회차 관리</Button>
                         )}
                         <Button small onClick={() => setCouponFor(p)}>쿠폰 묶기</Button>
+                        <Button small onClick={() => duplicateProduct(p)}>복사</Button>
                         <label className="cursor-pointer">
                           <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => changeImage(p, e)} />
                           <span className="inline-block rounded-md border border-line bg-white px-2.5 py-1 text-xs font-semibold text-ink-2 hover:bg-ground">사진</span>
