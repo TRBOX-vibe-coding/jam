@@ -56,8 +56,19 @@ export class BenefitsController {
       orderBy: { createdAt: 'desc' },
     });
 
+    // 같은 쿠폰이 FREE 플랜과 상품 결제 양쪽에서 열려 있을 수 있다.
+    // 목록에 두 번 뜨면 헷갈리므로 '쓸 수 있는 쪽'(상품 결제분)만 남긴다.
+    const bestByBenefit = new Map<string, (typeof rows)[number]>();
+    for (const ub of rows) {
+      const prev = bestByBenefit.get(ub.benefitId);
+      if (!prev || (ub.sourceType === 'PRODUCT' && prev.sourceType !== 'PRODUCT')) {
+        bestByBenefit.set(ub.benefitId, ub);
+      }
+    }
+    const unique = [...bestByBenefit.values()];
+
     // 상품 결제로 받은 쿠폰은 '어느 상품에서 왔는지' 같이 보여준다
-    const productIds = [...new Set(rows.filter((r) => r.sourceType === 'PRODUCT' && r.sourceId).map((r) => r.sourceId!))];
+    const productIds = [...new Set(unique.filter((r) => r.sourceType === 'PRODUCT' && r.sourceId).map((r) => r.sourceId!))];
     const products = productIds.length
       ? await db.product.findMany({ where: { id: { in: productIds } }, select: { id: true, name: true, i18n: true } })
       : [];
@@ -65,7 +76,7 @@ export class BenefitsController {
 
     // 가맹점 단위로 그룹
     const byMerchant = new Map<string, { merchant: (typeof rows)[number]['benefit']['merchant']; items: any[] }>();
-    for (const ub of rows) {
+    for (const ub of unique) {
       const m = ub.benefit.merchant;
       if (!byMerchant.has(m.id)) byMerchant.set(m.id, { merchant: m, items: [] });
       const fromProduct = ub.sourceType === 'PRODUCT' && ub.sourceId ? productById.get(ub.sourceId) ?? null : null;
@@ -87,9 +98,9 @@ export class BenefitsController {
     }
 
     return {
-      totalCount: rows.length,
+      totalCount: unique.length,
       /** 결제로 받아서 지금 쓸 수 있는 쿠폰 수 (MY 뱃지용) */
-      grantedCount: rows.filter((r) => r.sourceType === 'PRODUCT').length,
+      grantedCount: unique.filter((r) => r.sourceType === 'PRODUCT').length,
       paidStarted,
       merchants: [...byMerchant.values()],
     };

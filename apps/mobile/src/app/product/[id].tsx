@@ -165,7 +165,7 @@ export default function ProductDetail() {
                   </View>
                 </View>
               ))}
-              <Text style={st.bundledDays}>{t('bundledDays', { n: p.bundledCoupons[0].validDays })}</Text>
+              <Text style={st.bundledDays}>{t('bundledDays', { n: Math.min(...p.bundledCoupons.map((c: any) => c.validDays)) })}</Text>
             </Card>
           </>
         )}

@@ -219,7 +219,7 @@ export function CouponsScreen({ source }: { source?: 'PRODUCT' }) {
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <Text style={st.benefitTitle} numberOfLines={2}>{b.title}</Text>
                     {b.fromProduct && (
-                      <Text style={st.fromProduct} numberOfLines={1}>{t('fromProduct', { name: b.fromProduct.name })}</Text>
+                      <Text style={st.fromProduct} numberOfLines={2}>{t('fromProduct', { name: b.fromProduct.name })}</Text>
                     )}
                     {b.validTo && (
                       <Text style={st.validTo}>

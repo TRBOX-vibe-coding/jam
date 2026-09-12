@@ -99,6 +99,7 @@ function AppStack() {
       <Stack.Screen name="drop/[id]" options={{ title: 'DROP' }} />
       <Stack.Screen name="campaign/[id]" options={{ title: t('titleCampaign') }} />
       <Stack.Screen name="benefits" options={{ title: t('titleBenefits') }} />
+      <Stack.Screen name="my-coupons" options={{ title: t('myCouponsLink') }} />
       <Stack.Screen name="wallet" options={{ title: t('titleWallet') }} />
       <Stack.Screen name="saved" options={{ title: t('savedTitle') }} />
       <Stack.Screen name="products" options={{ title: t('activitySection') }} />

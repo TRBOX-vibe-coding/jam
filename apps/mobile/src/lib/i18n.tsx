@@ -241,7 +241,7 @@ const D: Record<string, [string, string, string, string]> = {
   srcProduct: ['상품구매', 'Purchase', '购买', '購入'],
   srcRegionPass: ['지역패스', 'Area pass', '区域通票', 'エリアパス'],
   srcManual: ['지급', 'Granted', '发放', '付与'],
-  benefitsHint: ['매장에 가면 [사용] 탭에서 매장 QR을 스캔하세요.', 'At the store, scan its QR from the [Use] tab.', '到店后请在[使用]标签扫描店铺二维码。', '店舗では[使う]タブでQRをスキャン。'],
+  benefitsHint: ['매장에서 [사용하기]를 누르고 직원에게 화면을 보여주세요.', 'At the shop, tap [Use] and show the screen to staff.', '在店内点击[使用]并向店员出示画面。', '店で[使う]を押してスタッフに画面を見せてください。'],
 
   // ── 이용권·예약 ──
   stIssued: ['사용 가능', 'Ready', '可使用', '利用可能'],
