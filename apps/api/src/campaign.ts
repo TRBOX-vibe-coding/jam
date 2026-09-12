@@ -291,7 +291,7 @@ export class CampaignController {
     });
     if (!c) throw new NotFoundException('진행 중인 기획전이 아닙니다');
     // 클릭수 상위 노출 (2026-09-10 픽스) — 품절 맨 밑은 아래 sort에서 함께 처리
-    const clicks = await clickCounts(this.prisma.client, ['drop_view', 'drop_claim', 'ticket_purchase']);
+    const clicks = await clickCounts(this.prisma.client, ['drop_view', 'drop_claim', 'ticket_purchase', 'drop_redeem']);
     return {
       id: c.id,
       title: c.title,

@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { API_BASE, api, dt, won } from '@/lib/api';
 import { Badge, Button, Card, CardHeader, Empty, Modal, Table, TableSkeleton, Td } from '@/components/ui';
+import { ProductCouponsModal } from '@/components/product-coupons';
 
 const TYPE_LABEL: Record<string, string> = { TICKET: '티켓', RESERVATION: '예약형', PASS: 'PASS' };
 const VERIF_LABEL: Record<string, string> = { QR_ONLY: 'QR만', QR_PIN: 'QR+직원확인', STAFF_CONFIRM: '직원확인' };
@@ -44,6 +45,8 @@ export default function ProductsPage() {
 
   // 회차 모달
   const [slotFor, setSlotFor] = useState<any | null>(null);
+  const [couponFor, setCouponFor] = useState<any | null>(null);
+  // 상품에 묶는 근처 할인 쿠폰 — 슈퍼 관리자 전용 (2026-09-12 대표 확정)
   const [slots, setSlots] = useState<any[] | null>(null);
   const [slotForm, setSlotForm] = useState({ date: '', time: '10:00', durationMinutes: '120', capacity: '10' });
   const [slotEdit, setSlotEdit] = useState<any | null>(null);
@@ -220,7 +223,7 @@ export default function ProductsPage() {
           {(rows ?? []).some((p) => p.approval === 'PENDING') && (
             <Card>
               <CardHeader title={`점주 등록 승인 대기 (${(rows ?? []).filter((p) => p.approval === 'PENDING').length})`} />
-              <Table head={['가맹점', '상품', '유형', '정상가', '멤버십가', '처리']}>
+              <Table head={['가맹점', '상품', '유형', '정상가', '유료 회원가', '처리']}>
                 {(rows ?? []).filter((p) => p.approval === 'PENDING').map((p) => (
                   <tr key={p.id}>
                     <Td className="whitespace-nowrap font-medium">{p.merchant.name}</Td>
@@ -262,7 +265,7 @@ export default function ProductsPage() {
                   <option value="PASS">PASS (혜택 자동오픈)</option>
                 </select>
                 <input className={inputCls} placeholder="정상가" value={form.basePrice} onChange={(e) => setForm({ ...form, basePrice: e.target.value.replace(/\D/g, '') })} />
-                <input className={inputCls} placeholder="멤버십가(선택)" value={form.memberPrice} onChange={(e) => setForm({ ...form, memberPrice: e.target.value.replace(/\D/g, '') })} />
+                <input className={inputCls} placeholder="유료 회원 할인가(선택)" value={form.memberPrice} onChange={(e) => setForm({ ...form, memberPrice: e.target.value.replace(/\D/g, '') })} />
               </div>
               <div className="mt-3 flex flex-wrap items-center gap-3">
                 <select className={inputCls} value={form.verification} onChange={(e) => setForm({ ...form, verification: e.target.value })}>
@@ -286,7 +289,7 @@ export default function ProductsPage() {
             ) : rows.length === 0 ? (
               <Empty text="등록된 상품이 없습니다" />
             ) : (
-              <Table head={['상태', '가맹점', '상품명', '유형', '정상가', '멤버십가', '검증', '회차', '관리']}>
+              <Table head={['상태', '가맹점', '상품명', '유형', '정상가', '유료 회원가', '검증', '회차', '관리']}>
                 {rows.map((p) => (
                   <tr key={p.id} className={p.approval === 'REJECTED' ? 'opacity-60' : ''}>
                     <Td>
@@ -314,6 +317,7 @@ export default function ProductsPage() {
                         {p.type === 'RESERVATION' && (
                           <Button small onClick={() => openSlots(p)}>회차 관리</Button>
                         )}
+                        <Button small onClick={() => setCouponFor(p)}>쿠폰 묶기</Button>
                         <label className="cursor-pointer">
                           <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => changeImage(p, e)} />
                           <span className="inline-block rounded-md border border-line bg-white px-2.5 py-1 text-xs font-semibold text-ink-2 hover:bg-ground">사진</span>
@@ -470,6 +474,9 @@ export default function ProductsPage() {
             </div>
           </div>
         </Modal>
+      )}
+      {couponFor && (
+        <ProductCouponsModal product={couponFor} onClose={() => setCouponFor(null)} />
       )}
     </div>
   );

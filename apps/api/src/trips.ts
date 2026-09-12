@@ -13,6 +13,12 @@ import { AuthModule, UserGuard, UserId } from './auth';
 import { langOf, trField } from './i18n.util';
 import { benefitSaving, productSaving } from './savings.util';
 
+/**
+ * 여행 등급 기준 — 2026-09-12 대표: 'GREAT/GOOD/START 기준은 아직 확정 아님. 표현은 쓰되 나중에 조정 가능하게'.
+ * 잼 가격 대비 예상 절약 배수로 매긴다. 이 숫자만 바꾸면 앱 전체 등급이 따라 바뀐다.
+ */
+export const TRIP_GRADE_THRESHOLDS = { GREAT: 2, GOOD: 1 };
+
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 class UpsertTripDto {
@@ -156,7 +162,12 @@ export class TripsController {
     const recommended = recommendPlan(days);
     const plan = plans.find((pl) => pl.code === recommended) ?? null;
     const multiple = plan && plan.price > 0 ? Math.round((totalSaving / plan.price) * 10) / 10 : null;
-    const grade = multiple == null ? null : multiple >= 2 ? 'GREAT' : multiple >= 1 ? 'GOOD' : 'START';
+    const grade =
+      multiple == null
+        ? null
+        : multiple >= TRIP_GRADE_THRESHOLDS.GREAT ? 'GREAT'
+        : multiple >= TRIP_GRADE_THRESHOLDS.GOOD ? 'GOOD'
+        : 'START';
 
     return {
       trip: {

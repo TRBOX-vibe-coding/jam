@@ -164,11 +164,12 @@ export default function MerchantProductCreate() {
             />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={st.label}>멤버십가 (선택)</Text>
+            <Text style={st.label}>유료 회원 할인가 (선택)</Text>
             <TextInput
               style={st.input} value={memberPrice} onChangeText={setMemberPrice}
               placeholder="38000" placeholderTextColor={C.ink3} keyboardType="number-pad"
             />
+            <Text style={st.hint}>비우면 유료·무료 회원 모두 정상가로 판매됩니다</Text>
           </View>
         </View>
         {saveRate != null && (
@@ -237,6 +238,7 @@ export default function MerchantProductCreate() {
 
 const st = StyleSheet.create({
   guide: { fontSize: 13.5, color: C.brand, fontWeight: '700', lineHeight: 20, textAlign: 'center' },
+  hint: { fontSize: 11, color: C.ink3, marginTop: 4, lineHeight: 15 },
   label: { fontSize: 12.5, fontWeight: '700', color: C.ink3, marginTop: 14, marginBottom: 6 },
   input: {
     backgroundColor: C.white, borderWidth: 1, borderColor: C.line, borderRadius: 11,

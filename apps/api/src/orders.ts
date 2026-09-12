@@ -14,6 +14,7 @@ import { PrismaService } from './prisma.service';
 import { AuthModule, OptionalUserGuard, UserGuard, UserId } from './auth';
 import { addDays, makeOrderNo, makeVoucherCode } from './util';
 import { activeAdRanks, clickCounts, rankSort } from './ranking.util';
+import { isPaidMember, PRODUCT_COUPON_VALID_DAYS } from './membership.util';
 
 class PurchaseProductDto {
   @IsOptional() @IsString() slotId?: string;
@@ -46,7 +47,7 @@ export class OrdersController {
     });
     // 상위 노출 — 광고(기간 내 rank) → 클릭수 → 나머지 (2026-09-10 픽스)
     const [clicks, ads] = await Promise.all([
-      clickCounts(db, ['product_view', 'product_purchase']),
+      clickCounts(db, ['product_view', 'product_purchase', 'product_redeem']),
       activeAdRanks(db),
     ]);
     return rankSort(rows, {
@@ -72,11 +73,45 @@ export class OrdersController {
       },
     });
     if (!p) throw new NotFoundException('상품을 찾을 수 없습니다');
+
+    // 결제하면 함께 받는 '근처 할인 쿠폰' — 슈퍼 관리자만 연결한다 (2026-09-12 대표 확정).
+    // 구매 전에 미리 보여줘 결제를 밀어주고, 결제하면 무료 회원도 실제로 쓸 수 있게 발급된다.
+    const links = await db.benefitGrantRule.findMany({
+      where: {
+        trigger: 'PRODUCT', productId: id, isActive: true,
+        benefit: { isActive: true, approval: 'ACTIVE', merchant: { status: 'ACTIVE' } },
+      },
+      orderBy: { sortOrder: 'asc' },
+      include: {
+        benefit: {
+          include: {
+            merchant: {
+              select: {
+                id: true, name: true, thumbnailUrl: true, i18n: true, avgSpendPerPerson: true,
+                region: { select: { name: true, i18n: true } },
+                category: { select: { name: true, emoji: true, i18n: true } },
+              },
+            },
+          },
+        },
+      },
+    });
     return {
       ...p,
       // 티켓형 남은 수량 (null=무제한)
       remainingQty: p.totalQty != null ? Math.max(0, p.totalQty - p.soldQty) : null,
       slots: p.slots.map((s) => ({ ...s, remaining: s.capacity - s.reserved })),
+      bundledCoupons: links.filter((l, i, a) => a.findIndex((x) => x.benefitId === l.benefitId) === i).map((l) => ({
+        benefitId: l.benefitId,
+        title: l.benefit.title,
+        type: l.benefit.type,
+        value: l.benefit.value,
+        freebieName: l.benefit.freebieName,
+        companionLimit: l.benefit.companionLimit,
+        validDays: l.validDays ?? PRODUCT_COUPON_VALID_DAYS,
+        merchant: l.benefit.merchant,
+        i18n: (l.benefit as any).i18n,
+      })),
     };
   }
 
@@ -90,9 +125,8 @@ export class OrdersController {
     const product = await db.product.findUnique({ where: { id } });
     if (!product || !product.isActive) throw new NotFoundException('판매 중인 상품이 아닙니다');
 
-    const isMember = !!(await db.userMembership.findFirst({
-      where: { userId, status: 'ACTIVE', endAt: { gt: now } },
-    }));
+    // 2026-09-12 대표 확정: 상품 '유료 회원 가격'은 유료 잼 보유자만. 무료 회원은 기본 판매가로 산다.
+    const isMember = await isPaidMember(db, userId);
     const unitPrice = isMember && product.memberPrice != null ? product.memberPrice : product.basePrice;
 
     if (product.type === 'RESERVATION' && !dto.slotId) {
@@ -185,23 +219,27 @@ export class OrdersController {
 
       // PASS 상품: 연결된 혜택 자동 오픈 (부산 바다 PASS 방식)
       let grantedBenefits = 0;
+      const seen = new Set<string>();
       const rules = await tx.benefitGrantRule.findMany({
         where: { trigger: 'PRODUCT', productId: id, isActive: true },
+        orderBy: { sortOrder: 'asc' },
       });
       for (const rule of rules) {
+        if (seen.has(rule.benefitId)) continue;
+        seen.add(rule.benefitId);
         await tx.userBenefit.upsert({
           where: {
             userId_benefitId_sourceType_sourceId: {
-              userId, benefitId: rule.benefitId, sourceType: 'PRODUCT', sourceId: order.id,
+              userId, benefitId: rule.benefitId, sourceType: 'PRODUCT', sourceId: id,
             },
           },
-          update: {},
+          update: { status: 'ACTIVE', validTo: addDays(now, rule.validDays ?? PRODUCT_COUPON_VALID_DAYS) },
           create: {
             userId,
             benefitId: rule.benefitId,
             sourceType: 'PRODUCT',
-            sourceId: order.id,
-            validTo: rule.validDays ? addDays(now, rule.validDays) : addDays(now, 30),
+            sourceId: id,
+            validTo: addDays(now, rule.validDays ?? PRODUCT_COUPON_VALID_DAYS),
           },
         });
         grantedBenefits++;
@@ -220,7 +258,7 @@ export class OrdersController {
         message: reservation
           ? '결제와 예약이 함께 확정되었습니다.'
           : grantedBenefits > 0
-            ? `결제 완료! 지역 혜택 ${grantedBenefits}개가 자동으로 열렸습니다.`
+            ? `결제 완료! 근처에서 바로 쓸 수 있는 할인 쿠폰 ${grantedBenefits}장을 함께 받았어요.`
             : '결제 완료! 이용권이 발급되었습니다.',
       };
     });

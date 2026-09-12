@@ -149,7 +149,7 @@ export default function MyScreen() {
                 <>
                   <Text style={st.cardSaving}>
                     {me.membership.started
-                      ? <>{t('cardSaved', { amt: won(me.savings.thisMonth) })}{me.savings.recoveryRate != null && t('recoveryRate', { r: me.savings.recoveryRate })}</>
+                      ? <>{t('savedYearTotal', { amt: won(me.savings.total) })}{me.savings.multiple != null && ` · ${t('savedMultiple', { x: me.savings.multiple })}`}</>
                       : t('cardUpcoming', { plan: me.membership.planName, date: new Date(me.membership.startAt).toLocaleDateString(locale) })}
                   </Text>
                   <Text style={st.cardUntil}>
@@ -188,10 +188,10 @@ export default function MyScreen() {
             <Card>
               <View style={st.rowBetween}>
                 <View>
-                  <Text style={st.planName}>{t('myBenefitsAll')}</Text>
-                  <Text style={st.planDesc}>{t('myBenefitsAllSub')}</Text>
+                  <Text style={st.planName}>{t('myCouponsLink')}</Text>
+                  <Text style={st.planDesc}>{t('myCouponsLinkSub')}</Text>
                 </View>
-                <Btn title={t('view')} small onPress={() => router.push('/benefits')} />
+                <Btn title={t('view')} small onPress={() => router.push('/my-coupons' as never)} />
               </View>
             </Card>
             <Card>

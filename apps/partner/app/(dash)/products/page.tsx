@@ -99,7 +99,7 @@ export default function MyProductsPage() {
             </select>
             <input className={`${inputCls} col-span-2 lg:col-span-4`} placeholder="설명" value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} />
             <input className={inputCls} placeholder="정상가 *" value={f.basePrice} onChange={(e) => setF({ ...f, basePrice: e.target.value.replace(/\D/g, '') })} />
-            <input className={inputCls} placeholder="멤버십가 (선택)" value={f.memberPrice} onChange={(e) => setF({ ...f, memberPrice: e.target.value.replace(/\D/g, '') })} />
+            <input className={inputCls} placeholder="유료 회원 할인가 (선택)" title="비우면 유료·무료 회원 모두 정상가로 판매됩니다" value={f.memberPrice} onChange={(e) => setF({ ...f, memberPrice: e.target.value.replace(/\D/g, '') })} />
             {f.type === 'TICKET' ? (
               <input className={inputCls} placeholder="총 판매 수량 (비우면 무제한)" title="다 팔리면 자동 품절됩니다" value={f.totalQty} onChange={(e) => setF({ ...f, totalQty: e.target.value.replace(/\D/g, '') })} />
             ) : (
@@ -126,7 +126,7 @@ export default function MyProductsPage() {
         ) : rows.length === 0 ? (
           <Empty text="등록한 상품이 없습니다" />
         ) : (
-          <Table head={['상태', '상품', '유형', '정상가', '멤버십가', '수량·회차']}>
+          <Table head={['상태', '상품', '유형', '정상가', '유료 회원가', '수량·회차']}>
             {rows.map((p) => (
               <tr key={p.id} className={p.approval === 'REJECTED' ? 'opacity-60' : ''}>
                 <Td>

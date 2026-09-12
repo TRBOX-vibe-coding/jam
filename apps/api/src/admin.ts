@@ -142,6 +142,12 @@ class PatchProductDto {
   @IsOptional() @IsString() @MinLength(2) name?: string;
   @IsOptional() @IsString() imageBase64?: string;
 }
+/** 결제 상품에 묶어 파는 '근처 할인 쿠폰' 설정 — 슈퍼 관리자 전용 (2026-09-12 대표 확정) */
+class SetProductCouponsDto {
+  @IsString({ each: true }) benefitIds!: string[];
+  /** 발급 후 사용 기간(일). 비우면 기본 90일 */
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(365) validDays?: number;
+}
 class CreateSlotDto {
   @IsString() startAt!: string; // ISO
   @Type(() => Number) @IsInt() @Min(15) @Max(600) durationMinutes!: number;
@@ -624,6 +630,66 @@ export class AdminController {
     });
     await this.audit(adminId, 'PRODUCT_UPDATE', 'Product', id, JSON.stringify(dto));
     return p;
+  }
+
+  // ---------------- 상품에 묶는 근처 할인 쿠폰 ----------------
+  // 점주는 손댈 수 없다. 자기 상품과 판매 가격까지만 (2026-09-12 대표 확정).
+
+  @Get('products/:id/coupons')
+  async productCoupons(@Param('id') id: string) {
+    const db = this.prisma.client;
+    const product = await db.product.findUnique({
+      where: { id },
+      select: { id: true, name: true, merchant: { select: { id: true, name: true, regionId: true } } },
+    });
+    if (!product) throw new NotFoundException('상품을 찾을 수 없습니다');
+
+    const merchantSel = {
+      id: true, name: true, thumbnailUrl: true,
+      region: { select: { name: true } },
+      category: { select: { name: true, emoji: true } },
+    };
+    const [linked, candidates] = await Promise.all([
+      db.benefitGrantRule.findMany({
+        where: { trigger: 'PRODUCT', productId: id },
+        orderBy: { sortOrder: 'asc' },
+        include: { benefit: { include: { merchant: { select: merchantSel } } } },
+      }),
+      // 후보는 같은 지역의 '다른' 가맹점 쿠폰 — 자기 매장 쿠폰을 스스로 묶는 건 의미가 없다
+      db.benefit.findMany({
+        where: {
+          isActive: true, approval: 'ACTIVE',
+          merchant: { status: 'ACTIVE', regionId: product.merchant.regionId, id: { not: product.merchant.id } },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 300,
+        include: { merchant: { select: merchantSel } },
+      }),
+    ]);
+    return { product, validDays: linked[0]?.validDays ?? null, linked, candidates };
+  }
+
+  @Post('products/:id/coupons')
+  async setProductCoupons(@AdminId() adminId: string, @Param('id') id: string, @Body() dto: SetProductCouponsDto) {
+    const db = this.prisma.client;
+    const product = await db.product.findUnique({ where: { id }, select: { name: true } });
+    if (!product) throw new NotFoundException('상품을 찾을 수 없습니다');
+    const ids = [...new Set(dto.benefitIds ?? [])];
+    if (ids.length > 10) throw new BadRequestException('한 상품에 최대 10장까지 묶을 수 있습니다');
+
+    await db.$transaction(async (tx) => {
+      await tx.benefitGrantRule.deleteMany({ where: { trigger: 'PRODUCT', productId: id } });
+      for (let i = 0; i < ids.length; i++) {
+        await tx.benefitGrantRule.create({
+          data: {
+            benefitId: ids[i], trigger: 'PRODUCT', productId: id,
+            validDays: dto.validDays ?? null, sortOrder: i, isActive: true,
+          },
+        });
+      }
+    });
+    await this.audit(adminId, 'SET_PRODUCT_COUPONS', 'Product', id, `${product.name} · ${ids.length}장`);
+    return { ok: true, count: ids.length };
   }
 
   @Get('products/:id/slots')

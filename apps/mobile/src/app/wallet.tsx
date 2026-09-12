@@ -98,6 +98,26 @@ export default function WalletScreen() {
                   })}
                 </Text>
               )}
+              {['ISSUED', 'RESERVED'].includes(v.status) && (
+                <View style={st.facts}>
+                  <View style={st.fact}>
+                    <Text style={st.factLabel}>{t('factWhen')}</Text>
+                    <Text style={st.factValue} numberOfLines={1}>
+                      {v.reservation
+                        ? new Date(v.reservation.slot.startAt).toLocaleString(locale, { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                        : t('anytime')}
+                    </Text>
+                  </View>
+                  <View style={st.fact}>
+                    <Text style={st.factLabel}>{t('factWho')}</Text>
+                    <Text style={st.factValue}>{t('people', { n: v.headcount })}</Text>
+                  </View>
+                  <View style={st.fact}>
+                    <Text style={st.factLabel}>{t('factStatus')}</Text>
+                    <Text style={[st.factValue, { color: C.ok }]}>{t('usableNow')}</Text>
+                  </View>
+                </View>
+              )}
               <Text style={st.code}>{t('codeAndDate', { code: v.code, date: new Date(v.validTo).toLocaleDateString(locale) })}</Text>
               {['ISSUED', 'RESERVED'].includes(v.status) && (
                 <View style={{ marginTop: 10 }}>
@@ -161,7 +181,14 @@ export default function WalletScreen() {
 const st = StyleSheet.create({
   section: { fontSize: 13, fontWeight: '700', color: C.ink3, marginBottom: 8 },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
-  title: { fontSize: 15, fontWeight: '700', color: C.ink, flex: 1 },
+  title: { fontSize: 18, fontWeight: '800', color: C.ink, flex: 1, letterSpacing: -0.3 },
+  facts: {
+    flexDirection: 'row', gap: 8, marginTop: 10,
+    borderTopWidth: 1, borderTopColor: C.line, paddingTop: 10,
+  },
+  fact: { flex: 1, minWidth: 0, alignItems: 'center' },
+  factLabel: { fontSize: 10.5, fontWeight: '700', color: C.ink3 },
+  factValue: { fontSize: 14.5, fontWeight: '800', color: C.ink, marginTop: 3 },
   sub: { fontSize: 13, color: C.ink2, marginTop: 4 },
   reserve: { fontSize: 13, color: C.brand, fontWeight: '700', marginTop: 6 },
   code: { fontSize: 11, color: C.ink3, marginTop: 6 },

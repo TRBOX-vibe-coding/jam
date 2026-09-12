@@ -64,7 +64,7 @@ export class DropsController {
     });
 
     // 클릭수 상위 노출 + 품절 맨 밑 (2026-09-10 픽스)
-    const clicks = await clickCounts(db, ['drop_view', 'drop_claim', 'ticket_purchase']);
+    const clicks = await clickCounts(db, ['drop_view', 'drop_claim', 'ticket_purchase', 'drop_redeem']);
     const sorted = rankSort(drops, {
       id: (d) => d.id,
       soldOut: (d) => d.remainingQty <= 0,

@@ -204,17 +204,6 @@ export class ScanController {
 
     return db.$transaction(async (tx) => {
       if (dto.itemType === 'BENEFIT') {
-        // 할인 쿠폰 '사용'은 유료 잼 전용 (2026-09-09 픽스). 보기·담기는 무료도 가능.
-        const paidJam = await tx.userMembership.findFirst({
-          where: {
-            userId, status: 'ACTIVE',
-            startAt: { lte: now }, endAt: { gt: now },
-            plan: { price: { gt: 0 } },
-          },
-        });
-        if (!paidJam) {
-          throw new BadRequestException('할인 쿠폰은 잼 멤버십 기간에 사용할 수 있어요. MY에서 잼을 시작해 주세요!');
-        }
         const ub = await tx.userBenefit.findFirst({
           where: {
             id: dto.itemId, userId, status: 'ACTIVE',
@@ -224,6 +213,22 @@ export class ScanController {
           include: { benefit: true },
         });
         if (!ub) throw new BadRequestException('사용할 수 없는 혜택입니다');
+
+        // 할인 쿠폰 '사용'은 유료 잼 전용 (2026-09-09 픽스). 보기·담기·일정 배치는 무료도 가능.
+        // 단 결제 상품에 묶여 발급된 쿠폰(sourceType=PRODUCT)은 무료 회원도 쓴다.
+        // 2026-09-12 대표 확정 — 결제한 무료 회원에게 근처 쿠폰을 실제로 열어주는 유료 전환 유도.
+        if (ub.sourceType !== 'PRODUCT') {
+          const paidJam = await tx.userMembership.findFirst({
+            where: {
+              userId, status: 'ACTIVE',
+              startAt: { lte: now }, endAt: { gt: now },
+              plan: { price: { gt: 0 } },
+            },
+          });
+          if (!paidJam) {
+            throw new BadRequestException('할인 쿠폰은 잼 멤버십 기간에 사용할 수 있어요. MY에서 잼을 시작해 주세요!');
+          }
+        }
         if (ub.benefit.companionLimit != null && headcount > ub.benefit.companionLimit + 1) {
           throw new BadRequestException(`본인 포함 최대 ${ub.benefit.companionLimit + 1}명까지 적용됩니다`);
         }
@@ -239,6 +244,7 @@ export class ScanController {
 
         let saved = 0;
         if (ub.benefit.type === 'AMOUNT') saved = ub.benefit.value;
+        if (ub.benefit.type === 'AMOUNT_PER_PERSON') saved = ub.benefit.value * headcount;
         if (ub.benefit.type === 'PERCENT' && dto.billAmount) {
           saved = Math.floor((dto.billAmount * ub.benefit.value) / 100);
         }
@@ -260,6 +266,7 @@ export class ScanController {
             headcount, savedAmount: saved, verifyToken, verifyExpires,
           },
         });
+        await tx.eventLog.create({ data: { userId, event: 'benefit_redeem', entityType: 'benefit', entityId: ub.benefitId } });
         return this.done(r.id, trField(merchant, 'name', lang), trField(ub.benefit, 'title', lang), saved, verifyToken, verifyExpires, 'QR_ONLY');
       }
 
@@ -294,6 +301,7 @@ export class ScanController {
             verifyToken, verifyExpires,
           },
         });
+        await tx.eventLog.create({ data: { userId, event: 'drop_redeem', entityType: 'drop', entityId: d.id } });
         return this.done(r.id, trField(merchant, 'name', lang), trField(d, 'title', lang), saved, verifyToken, verifyExpires, 'QR_ONLY');
       }
 
@@ -332,6 +340,7 @@ export class ScanController {
           verifyToken, verifyExpires,
         },
       });
+      await tx.eventLog.create({ data: { userId, event: 'product_redeem', entityType: 'product', entityId: voucher.productId } });
       return this.done(
         r.id, trField(merchant, 'name', lang), trField(voucher.product, 'name', lang), saved,
         verifyToken, verifyExpires, voucher.product.verification,

@@ -16,7 +16,7 @@ class UpsertAdDto {
   @IsString() categoryId!: string;
   @IsIn(['BENEFIT', 'PRODUCT']) itemType!: 'BENEFIT' | 'PRODUCT';
   @IsString() refId!: string;
-  @Type(() => Number) @IsInt() @Min(1) @Max(10) rank!: number;
+  @Type(() => Number) @IsInt() @Min(1) @Max(5) rank!: number;
   @IsISO8601() startAt!: string;
   @IsISO8601() endAt!: string;
 }

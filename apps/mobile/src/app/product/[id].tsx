@@ -11,6 +11,7 @@ import { useAuth } from '../../lib/auth';
 import { useI18n } from '../../lib/i18n';
 import { C } from '../../lib/theme';
 import { Btn, Card, LoadError, Loading, Screen, Tag } from '../../lib/ui';
+import { couponValue } from '../../lib/coupons';
 
 function notify(title: string, msg: string) {
   if (Platform.OS === 'web') window.alert(`${title}\n${msg}`);
@@ -77,7 +78,7 @@ export default function ProductDetail() {
     return <Screen>{failed ? <LoadError text={t('loadFailed')} retryLabel={t('retry')} onRetry={load} /> : <Loading />}</Screen>;
   }
 
-  const unit = me?.membership && p.memberPrice != null ? p.memberPrice : p.basePrice;
+  const unit = me?.membership?.isPaid && p.memberPrice != null ? p.memberPrice : p.basePrice;
   const total = p.type === 'RESERVATION' ? unit * headcount : unit;
 
   return (
@@ -101,7 +102,7 @@ export default function ProductDetail() {
           {p.description && <Text style={st.desc}>{p.description}</Text>}
 
           <View style={st.priceRow}>
-            {me?.membership && p.memberPrice != null ? (
+            {me?.membership?.isPaid && p.memberPrice != null ? (
               <>
                 <Tag text={t('memberPrice')} tone="gold" />
                 <Text style={st.price}>{won(p.memberPrice)}</Text>
@@ -142,6 +143,30 @@ export default function ProductDetail() {
               );
             })}
 
+          </>
+        )}
+
+        {/* 결제하면 함께 받는 '근처 할인 쿠폰' — 무료 회원도 이건 그대로 쓴다 (2026-09-12 대표 확정) */}
+        {p.bundledCoupons?.length > 0 && (
+          <>
+            <Text style={st.section}>{t('bundledTitle')}</Text>
+            <Card>
+              <Text style={st.bundledSub}>{t('bundledSub')}</Text>
+              {p.bundledCoupons.map((c: any, i: number) => (
+                <View key={c.benefitId} style={[st.bundledRow, i > 0 && st.bundledDivider]}>
+                  <View style={st.bundledValueBox}>
+                    <Text style={st.bundledValue}>{couponValue(c) ?? t('freeLabel')}</Text>
+                  </View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={st.bundledName} numberOfLines={1}>{c.title}</Text>
+                    <Text style={st.bundledMerchant} numberOfLines={1}>
+                      {c.merchant.category.emoji} {c.merchant.name} · {c.merchant.region.name}
+                    </Text>
+                  </View>
+                </View>
+              ))}
+              <Text style={st.bundledDays}>{t('bundledDays', { n: p.bundledCoupons[0].validDays })}</Text>
+            </Card>
           </>
         )}
       </ScrollView>
@@ -190,6 +215,17 @@ const st = StyleSheet.create({
   stepBtn: { fontSize: 24, fontWeight: '700', color: C.brand, paddingHorizontal: 14 },
   headcount: { fontSize: 17, fontWeight: '700', color: C.ink, minWidth: 52, textAlign: 'center' },
   note: { fontSize: 11.5, color: C.ink3, textAlign: 'center', marginTop: 8, lineHeight: 16 },
+  bundledSub: { fontSize: 12.5, color: C.ink2, marginBottom: 10, lineHeight: 18 },
+  bundledRow: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 9 },
+  bundledDivider: { borderTopWidth: 1, borderTopColor: C.line },
+  bundledValueBox: {
+    minWidth: 56, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#FFF1EC', borderRadius: 10, paddingVertical: 7, paddingHorizontal: 6,
+  },
+  bundledValue: { fontSize: 15, fontWeight: '800', color: '#E8503A', letterSpacing: -0.4 },
+  bundledName: { fontSize: 13.5, fontWeight: '700', color: C.ink },
+  bundledMerchant: { fontSize: 11.5, color: C.ink3, marginTop: 1 },
+  bundledDays: { fontSize: 11, color: C.ink3, marginTop: 8, textAlign: 'right' },
   payBar: {
     position: 'absolute', left: 0, right: 0, bottom: 0,
     backgroundColor: C.white, borderTopWidth: 1, borderTopColor: C.line,

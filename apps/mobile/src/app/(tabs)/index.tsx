@@ -437,7 +437,7 @@ export default function HomeScreen() {
                 <Text style={st.dropTitle} numberOfLines={1}>{p.name}</Text>
                 <Text style={st.dropMerchant} numberOfLines={1}>{p.merchant.region.name} · {p.merchant.name}</Text>
                 <View style={st.dropPriceRow}>
-                  {p.memberPrice != null ? (
+                  {me?.membership?.isPaid && p.memberPrice != null ? (
                     <>
                       <Text style={st.memberTag}>{t('memberPrice')}</Text>
                       <Text style={st.prodPrice}>{won(p.memberPrice)}</Text>

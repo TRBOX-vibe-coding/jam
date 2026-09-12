@@ -18,13 +18,14 @@ import { Btn, Card, EmptyText, Loading, Screen } from './ui';
 
 type BenefitGroup = {
   merchant: { id: string; name: string; address: string | null; thumbnailUrl: string | null; region: { name: string }; category: { name: string; emoji: string } };
-  items: { id: string; benefitId: string; title: string; type: string; value: number; freebieName: string | null; validTo: string | null; sourceType: string }[];
+  items: { id: string; benefitId: string; title: string; type: string; value: number; freebieName: string | null; validTo: string | null; sourceType: string; canUse: boolean; fromProduct: { id: string; name: string } | null }[];
 };
 
 /** 할인값을 쿠폰답게 크게 — 10% / 3,000원 / 무료 */
 export function couponValue(b: { type: string; value: number }) {
   if (b.type === 'PERCENT') return `${b.value}%`;
   if (b.type === 'AMOUNT') return `${b.value.toLocaleString()}원`;
+  if (b.type === 'AMOUNT_PER_PERSON') return `${b.value.toLocaleString()}원`;
   return null; // FREEBIE는 i18n 라벨로
 }
 
@@ -33,11 +34,16 @@ function uniq<T>(rows: T[], key: (r: T) => string) {
   return rows.filter((r) => (seen.has(key(r)) ? false : (seen.add(key(r)), true)));
 }
 
-export default function CouponsScreen() {
+/**
+ * source='PRODUCT'이면 '내 쿠폰' 모드 — 결제 상품에 묶여 받은 쿠폰만 보여준다.
+ * 2026-09-12 대표 확정: 무료 회원도 이 쿠폰들은 실제로 쓴다. 전체 목록과 화면을 갈라
+ * "둘러보는 곳"과 "내가 받아서 쓰는 곳"을 헷갈리지 않게 한다.
+ */
+export function CouponsScreen({ source }: { source?: 'PRODUCT' }) {
   const { me } = useAuth();
   const { t, won, locale, lang } = useI18n();
   const { cat: catParam } = useLocalSearchParams<{ cat?: string }>();
-  const [data, setData] = useState<{ totalCount: number; merchants: BenefitGroup[] } | null>(null);
+  const [data, setData] = useState<{ totalCount: number; grantedCount: number; paidStarted: boolean; merchants: BenefitGroup[] } | null>(null);
   const [error, setError] = useState('');
   const [region, setRegion] = useState<string | null>(null);
   const [cat, setCat] = useState<string | null>(null);
@@ -65,11 +71,11 @@ export default function CouponsScreen() {
 
   const load = useCallback(() => {
     setError('');
-    api<{ totalCount: number; merchants: BenefitGroup[] }>('/me/benefits')
+    api<{ totalCount: number; grantedCount: number; paidStarted: boolean; merchants: BenefitGroup[] }>(`/me/benefits${source ? '?source=PRODUCT' : ''}`)
       .then(setData)
       .catch((e) => setError(e.message));
     api<string[]>('/me/saves/ids').then((ids) => setSavedIds(new Set(ids))).catch(() => {});
-  }, [lang]);
+  }, [lang, source]);
   useFocusEffect(load);
 
   async function confirmUse() {
@@ -103,8 +109,8 @@ export default function CouponsScreen() {
     );
   }
 
-  // 쿠폰 '사용'은 유료 잼이 시작된 뒤에만 (보기·담기는 누구나)
-  const canUse = !!me.membership?.isPaid && me.membership.started;
+  // 쿠폰 '사용'은 유료 잼이 시작된 뒤에만 (보기·담기·일정 배치는 누구나).
+  // 단 결제 상품에 묶여 받은 쿠폰은 무료 회원도 쓴다 — 그래서 서버가 항목마다 canUse를 준다.
   function onLockedPress() {
     const go = () => router.push('/(tabs)/my');
     if (Platform.OS === 'web') { if (window.confirm(t('goStartJam'))) go(); }
@@ -122,25 +128,37 @@ export default function CouponsScreen() {
   return (
     <Screen>
       <ScrollView contentContainerStyle={{ padding: 16 }}>
-        {/* 절약 요약 — 사용자가 계산하지 않게 앱이 계산해서 보여준다 */}
-        <Card style={{ backgroundColor: C.brand, borderColor: C.brand }}>
-          <Text style={st.savingLabel}>{t('savedLabel')}</Text>
-          <Text style={st.savingValue}>{won(me.savings.thisMonth)}</Text>
-          <View style={{ flexDirection: 'row', gap: 14, marginTop: 6 }}>
-            <Text style={st.savingSub}>{t('savedTotal', { amt: won(me.savings.total) })}</Text>
-            {me.savings.recoveryRate != null && (
-              <Text style={st.savingSub}>{t('savedRecovery', { r: me.savings.recoveryRate })}</Text>
-            )}
-          </View>
-        </Card>
+        {source ? (
+          /* 내 쿠폰 — 결제로 받아 지금 바로 쓸 수 있는 쿠폰만 (2026-09-12 대표 확정) */
+          <Card style={{ backgroundColor: C.brand, borderColor: C.brand }}>
+            <Text style={st.savingLabel}>{t('myCouponsLabel')}</Text>
+            <Text style={st.savingValue}>{t('nCoupons', { n: data?.grantedCount ?? 0 })}</Text>
+            <Text style={[st.savingSub, { marginTop: 6 }]}>{t('myCouponsSub')}</Text>
+          </Card>
+        ) : (
+          /* 절약 요약 — 사용자가 계산하지 않게 앱이 계산해서 보여준다 */
+          <Card style={{ backgroundColor: C.brand, borderColor: C.brand }}>
+            <Text style={st.savingLabel}>{t('savedLabel')}</Text>
+            <Text style={st.savingValue}>{won(me.savings.thisMonth)}</Text>
+            <View style={{ flexDirection: 'row', gap: 14, marginTop: 6 }}>
+              <Text style={st.savingSub}>{t('savedYearTotal', { amt: won(me.savings.total) })}</Text>
+              {me.savings.multiple != null && (
+                <Text style={st.savingSub}>{t('savedMultiple', { x: me.savings.multiple })}</Text>
+              )}
+            </View>
+          </Card>
+        )}
 
         {!data && !error && <Loading />}
         {error !== '' && <EmptyText text={error} />}
 
         {data && data.totalCount === 0 && (
           <View>
-            <EmptyText text={t('noBenefitsYet')} />
-            <Btn title={t('seePlans')} onPress={() => router.push('/(tabs)/my')} />
+            <EmptyText text={source ? t('myCouponsEmpty') : t('noBenefitsYet')} />
+            <Btn
+              title={source ? t('seeProducts') : t('seePlans')}
+              onPress={() => router.push(source ? ('/products' as never) : '/(tabs)/my')}
+            />
           </View>
         )}
 
@@ -196,10 +214,13 @@ export default function CouponsScreen() {
                 <View key={b.id} style={[st.couponRow, i > 0 && st.couponDivider]}>
                   <View style={st.couponValueBox}>
                     <Text style={st.couponValue}>{v ?? t('freeLabel')}</Text>
-                    {v && <Text style={st.couponValueSub}>{t('offLabel')}</Text>}
+                    {v && <Text style={st.couponValueSub}>{b.type === 'AMOUNT_PER_PERSON' ? t('perPersonOff') : t('offLabel')}</Text>}
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <Text style={st.benefitTitle} numberOfLines={2}>{b.title}</Text>
+                    {b.fromProduct && (
+                      <Text style={st.fromProduct} numberOfLines={1}>{t('fromProduct', { name: b.fromProduct.name })}</Text>
+                    )}
                     {b.validTo && (
                       <Text style={st.validTo}>
                         {t('untilDate', { date: new Date(b.validTo).toLocaleDateString(locale) })}
@@ -213,7 +234,7 @@ export default function CouponsScreen() {
                       color={savedIds.has(`BENEFIT:${b.benefitId}`) ? '#E8503A' : C.ink3}
                     />
                   </Pressable>
-                  {canUse ? (
+                  {b.canUse ? (
                     <Pressable
                       style={st.useBtn}
                       onPress={() => { setUseResult(null); setPending({ merchantId: g.merchant.id, merchantName: g.merchant.name, itemId: b.id, title: b.title }); }}
@@ -236,8 +257,16 @@ export default function CouponsScreen() {
           </View>
         ))}
 
-        {data && data.totalCount > 0 && (
+        {data && data.totalCount > 0 && !source && (
           <Text style={st.hint}>{t('benefitsHint')}</Text>
+        )}
+
+        {/* 세 장을 실제로 써본 사람에게 "부산 전체가 이렇게 열린다"를 보여준다 (2026-09-12 대표 유도 설계) */}
+        {source && !me.membership?.isPaid && (
+          <Pressable style={st.promo} onPress={() => router.push('/(tabs)/my')}>
+            <Text style={st.promoText}>{t('myCouponsPromo')}</Text>
+            <Text style={st.promoCta}>{t('start')} ›</Text>
+          </Pressable>
         )}
       </ScrollView>
 
@@ -272,13 +301,25 @@ export default function CouponsScreen() {
   );
 }
 
+/** 하단 탭 '할인 쿠폰' — 부산 전체 쿠폰을 둘러보는 화면 */
+export default function CouponsTabScreen() {
+  return <CouponsScreen />;
+}
+
 const st = StyleSheet.create({
   savingLabel: { color: '#CFE1F2', fontSize: 12, fontWeight: '700' },
   savingValue: { color: '#FFFFFF', fontSize: 30, fontWeight: '700', marginTop: 3, letterSpacing: -0.5 },
   savingSub: { color: '#BCD6EC', fontSize: 12, fontWeight: '600' },
   benefitTitle: { fontSize: 14, fontWeight: '600', color: C.ink2 },
   validTo: { fontSize: 11, color: C.ink3, marginTop: 1 },
+  fromProduct: { fontSize: 11, fontWeight: '700', color: C.brand, marginTop: 2 },
   hint: { textAlign: 'center', color: C.ink3, fontSize: 12, marginTop: 8, marginBottom: 24 },
+  promo: {
+    backgroundColor: C.brandSoft, borderRadius: 14, padding: 14, marginTop: 4, marginBottom: 24,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+  },
+  promoText: { flex: 1, fontSize: 13, color: C.ink2, lineHeight: 19 },
+  promoCta: { fontSize: 14, fontWeight: '800', color: C.brand },
   useBtn: { backgroundColor: C.brand, borderRadius: 9, paddingHorizontal: 14, paddingVertical: 8 },
   useBtnLocked: { backgroundColor: C.ground, borderWidth: 1, borderColor: C.line },
   useBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },

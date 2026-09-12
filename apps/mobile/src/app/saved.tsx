@@ -152,7 +152,7 @@ export default function SavedScreen() {
                     <Text style={st.title} numberOfLines={1}>{p.name}</Text>
                     <Text style={st.sub} numberOfLines={1}>{p.merchant.name} · {p.merchant.region}</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                      {p.memberPrice != null ? (
+                      {me?.membership?.isPaid && p.memberPrice != null ? (
                         <>
                           <Tag text={t('memberPrice')} tone="gold" />
                           <Text style={st.price}>{won(p.memberPrice)}</Text>

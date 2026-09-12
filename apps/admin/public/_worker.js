@@ -3,7 +3,7 @@
  * 프론트는 항상 같은 주소(/api/...)만 부르고, 실제 API 터널 주소는 여기 한 줄에만 있다.
  * → 터널이 바뀌어도 프론트 재빌드 없이 이 파일의 API 값만 바꿔 재배포하면 끝 (10초).
  */
-const API = 'https://ports-markets-street-illustrations.trycloudflare.com';
+const API = 'https://developer-cute-bundle-contrast.trycloudflare.com';
 
 export default {
   async fetch(request, env) {

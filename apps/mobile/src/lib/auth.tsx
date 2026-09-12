@@ -12,7 +12,15 @@ export type Me = {
     /** 사용 시작일이 지났는지 (미리 결제한 잼은 시작 전엔 false) */
     started: boolean;
   } | null;
-  savings: { thisMonth: number; total: number; recoveryRate: number | null };
+  savings: {
+    thisMonth: number;
+    /** 올해 누적 혜택금액 (2026-09-12 대표 문구 픽스) */
+    total: number;
+    recoveryRate: number | null;
+    /** 잼 가격 대비 몇 배를 돌려받았는지 */
+    multiple: number | null;
+    planPrice: number | null;
+  };
   ownedMerchant: { id: string; name: string; status: string } | null;
 };
 

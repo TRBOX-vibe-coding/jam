@@ -214,7 +214,7 @@ export default function TripScreen() {
                       <Text style={st.itemTitle} numberOfLines={1}>{it.title}</Text>
                       <Text style={st.itemSub} numberOfLines={1}>{it.merchant.name} · {it.merchant.region}</Text>
                     </View>
-                    <Text style={st.itemSaving}>{it.saving != null && it.saving > 0 ? `-${won(it.saving)}` : '+α'}</Text>
+                    <Text style={st.itemSaving}>{it.saving != null && it.saving > 0 ? t('tripSaving', { amt: won(it.saving) }) : '+α'}</Text>
                     <Pressable hitSlop={10} onPress={() => removeItem(it)}>
                       <Text style={st.itemRemove}>✕</Text>
                     </Pressable>

@@ -6,6 +6,7 @@ import { useCallback, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { api, img } from '../lib/api';
+import { useAuth } from '../lib/auth';
 import { useI18n } from '../lib/i18n';
 import { C, won } from '../lib/theme';
 import { EmptyText, LoadError, Loading, Screen, Tag } from '../lib/ui';
@@ -25,6 +26,7 @@ function uniq<T>(rows: T[], key: (r: T) => string) {
 
 export default function ProductsScreen() {
   const { t, lang } = useI18n();
+  const { me } = useAuth();
   const [rows, setRows] = useState<Product[] | null>(null);
   const [failed, setFailed] = useState(false);
   const [region, setRegion] = useState<string | null>(null);
@@ -89,14 +91,19 @@ export default function ProductsScreen() {
                 <Text style={st.cardName} numberOfLines={1}>{p.name}</Text>
                 <Text style={st.cardMerchant}>{p.merchant.region.name} · {p.merchant.name}</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
-                  {p.memberPrice != null ? (
+                  {me?.membership?.isPaid && p.memberPrice != null ? (
                     <>
                       <Tag text={t('memberPrice')} tone="gold" />
                       <Text style={st.cardPrice}>{won(p.memberPrice)}</Text>
                       <Text style={st.cardNormal}>{won(p.basePrice)}</Text>
                     </>
                   ) : (
-                    <Text style={st.cardPrice}>{won(p.basePrice)}</Text>
+                    <>
+                      <Text style={st.cardPrice}>{won(p.basePrice)}</Text>
+                      {p.memberPrice != null && (
+                        <Text style={st.cardMemberHint}>{t('memberPriceShort', { price: won(p.memberPrice) })}</Text>
+                      )}
+                    </>
                   )}
                 </View>
               </View>
@@ -125,4 +132,5 @@ const st = StyleSheet.create({
   cardMerchant: { fontSize: 12, color: C.ink3, marginTop: 2 },
   cardPrice: { fontSize: 15, fontWeight: '700', color: C.ink },
   cardNormal: { fontSize: 12, color: C.ink3, textDecorationLine: 'line-through' },
+  cardMemberHint: { fontSize: 11.5, fontWeight: '700', color: C.brand },
 });

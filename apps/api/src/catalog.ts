@@ -54,17 +54,18 @@ export class CatalogController {
       include: { plan: { select: { code: true, name: true, price: true, i18n: true } } },
     });
 
-    // 이번 달 절약액 + 누적 절약액: 멤버십 가치를 숫자로 보여주는 핵심 값
+    // 이번 달 + 올해 누적 혜택금액: 멤버십 가치를 숫자로 보여주는 핵심 값 (2026-09-12 대표 픽스)
     const monthStart = new Date();
     monthStart.setDate(1);
     monthStart.setHours(0, 0, 0, 0);
+    const yearStart = new Date(new Date().getFullYear(), 0, 1);
     const [monthAgg, totalAgg] = await Promise.all([
       db.redemption.aggregate({
         where: { userId, status: 'DONE', createdAt: { gte: monthStart } },
         _sum: { savedAmount: true },
       }),
       db.redemption.aggregate({
-        where: { userId, status: 'DONE' },
+        where: { userId, status: 'DONE', createdAt: { gte: yearStart } },
         _sum: { savedAmount: true },
       }),
     ]);
@@ -75,6 +76,10 @@ export class CatalogController {
       membership && membership.plan.price > 0
         ? Math.round((savedTotal / membership.plan.price) * 100)
         : null;
+    const savedMultiple =
+      membership && membership.plan.price > 0
+        ? Math.round((savedTotal / membership.plan.price) * 10) / 10
+        : null;
 
     const ownedMerchant = await db.merchant.findFirst({
       where: { ownerUserId: userId },
@@ -83,8 +88,8 @@ export class CatalogController {
 
     return {
       ...user,
-      // 무료 회원(FREE)도 membership 객체는 있다 — 상품 멤버십가는 유·무료 동일이라서.
-      // 쿠폰 '사용' 가능 여부는 isPaid && started 로 판단한다 (2026-09-09 픽스).
+      // 무료 회원(FREE)도 membership 객체는 있다 — 혜택 규칙을 붙이려고 만든다.
+      // 2026-09-12 대표 확정: 상품 '유료 회원 가격'과 쿠폰 사용은 isPaid 기준. 쿠폰은 started까지 본다.
       membership: membership
         ? {
             planCode: membership.plan.code,
@@ -96,7 +101,7 @@ export class CatalogController {
             started: membership.startAt <= new Date(),
           }
         : null,
-      savings: { thisMonth: savedThisMonth, total: savedTotal, recoveryRate },
+      savings: { thisMonth: savedThisMonth, total: savedTotal, recoveryRate, multiple: savedMultiple, planPrice: membership?.plan.price ?? null },
       ownedMerchant,
     };
   }
