@@ -217,8 +217,14 @@ export class OrdersController {
         });
       }
 
-      // PASS 상품: 연결된 혜택 자동 오픈 (부산 바다 PASS 방식)
+      // 상품에 묶인 '근처 할인 쿠폰'을 구매자에게 발급한다.
+      // 언제부터 열리는지는 상품 설정을 따른다 (2026-09-12 대표 확정):
+      //   PURCHASE    결제 즉시
+      //   REDEEM      현장에서 이용권을 '사용 처리'하는 순간 (날짜 미정 티켓) — 지금은 담아만 둔다
+      //   RESERVATION 예약 확정일 00시
+      // 고객이 날짜를 입력하는 화면은 만들지 않는다. 결제·예약·현장 사용이 곧 신호다.
       let grantedBenefits = 0;
+      let pendingBenefits = 0;
       const seen = new Set<string>();
       const rules = await tx.benefitGrantRule.findMany({
         where: { trigger: 'PRODUCT', productId: id, isActive: true },
@@ -227,24 +233,42 @@ export class OrdersController {
       for (const rule of rules) {
         if (seen.has(rule.benefitId)) continue;
         seen.add(rule.benefitId);
+        const days = rule.validDays ?? PRODUCT_COUPON_VALID_DAYS;
+
+        let status: 'ACTIVE' | 'PENDING' = 'ACTIVE';
+        let validFrom = now;
+        let validTo = addDays(now, days);
+        if (product.couponStartMode === 'REDEEM') {
+          // 아직 열지 않는다 — 이용권을 쓰는 날이 이 손님의 여행 시작일이다.
+          // 이용권이 살아 있는 동안은 사라지지 않게 이용권 기한을 따라간다.
+          status = 'PENDING';
+          validTo = voucher.validTo;
+        } else if (product.couponStartMode === 'RESERVATION' && slot) {
+          const day = new Date(slot.startAt);
+          day.setHours(0, 0, 0, 0);
+          validFrom = day;
+          validTo = addDays(day, days);
+        }
+
         await tx.userBenefit.upsert({
           where: {
             userId_benefitId_sourceType_sourceId: {
               userId, benefitId: rule.benefitId, sourceType: 'PRODUCT', sourceId: id,
             },
           },
-          update: { status: 'ACTIVE', validTo: addDays(now, rule.validDays ?? PRODUCT_COUPON_VALID_DAYS) },
+          update: { status, validFrom, validTo },
           create: {
             userId,
             benefitId: rule.benefitId,
             sourceType: 'PRODUCT',
             sourceId: id,
-            validTo: addDays(now, rule.validDays ?? PRODUCT_COUPON_VALID_DAYS),
+            status,
+            validFrom,
+            validTo,
           },
         });
-        grantedBenefits++;
+        if (status === 'PENDING') pendingBenefits++; else grantedBenefits++;
       }
-
       return {
         ok: true,
         orderNo: order.orderNo,
@@ -255,11 +279,17 @@ export class OrdersController {
           ? { id: reservation.id, startAt: slot!.startAt, headcount: reservation.headcount, status: reservation.status }
           : null,
         grantedBenefits,
-        message: reservation
-          ? '결제와 예약이 함께 확정되었습니다.'
-          : grantedBenefits > 0
-            ? `결제 완료! 근처에서 바로 쓸 수 있는 할인 쿠폰 ${grantedBenefits}장을 함께 받았어요.`
-            : '결제 완료! 이용권이 발급되었습니다.',
+        /** 아직 열리지 않은 쿠폰 — 현장에서 이용권을 쓰면 열린다 */
+        pendingBenefits,
+        message: pendingBenefits > 0
+          ? `결제 완료! 할인 쿠폰 ${pendingBenefits}장을 담았어요. 현장에서 이용권을 쓰면 바로 열립니다.`
+          : reservation
+            ? grantedBenefits > 0
+              ? `예약이 확정됐어요! 할인 쿠폰 ${grantedBenefits}장은 이용일부터 쓸 수 있어요.`
+              : '결제와 예약이 함께 확정되었습니다.'
+            : grantedBenefits > 0
+              ? `결제 완료! 근처에서 바로 쓸 수 있는 할인 쿠폰 ${grantedBenefits}장을 함께 받았어요.`
+              : '결제 완료! 이용권이 발급되었습니다.',
       };
     });
   }

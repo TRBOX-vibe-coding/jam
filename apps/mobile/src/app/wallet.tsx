@@ -45,15 +45,18 @@ export default function WalletScreen() {
     if (!pinTarget) return;
     setPinBusy(true);
     try {
-      const r = await api<{ savedAmount: number; itemTitle: string }>('/redeem', {
+      const r = await api<{ savedAmount: number; itemTitle: string; openedCoupons: number }>('/redeem', {
         method: 'POST',
         body: { merchantId: pinTarget.merchantId, itemType: 'VOUCHER', itemId: pinTarget.voucherId, pin: pin.trim() },
       });
       setPinTarget(null);
       setPin('');
       load();
-      const msg = `${t('usedDoneTitle')}\n${r.itemTitle}`;
-      if (Platform.OS === 'web') window.alert(msg); else Alert.alert(t('usedDoneTitle'), r.itemTitle);
+      const opened = r.openedCoupons > 0 ? `
+${t('couponsOpened', { n: r.openedCoupons })}` : '';
+      const msg = `${t('usedDoneTitle')}
+${r.itemTitle}${opened}`;
+      if (Platform.OS === 'web') window.alert(msg); else Alert.alert(t('usedDoneTitle'), `${r.itemTitle}${opened}`);
     } catch (e: any) {
       if (Platform.OS === 'web') window.alert(e.message); else Alert.alert('', e.message);
     } finally {

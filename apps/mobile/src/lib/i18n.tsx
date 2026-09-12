@@ -161,6 +161,13 @@ const D: Record<string, [string, string, string, string]> = {
   factStatus: ['상태', 'Status', '状态', 'ステータス'],
   usableNow: ['사용 가능', 'Ready', '可使用', '利用可'],
   anytime: ['기간 내 아무때나', 'Anytime within period', '有效期内随时', '期間内いつでも'],
+  // --- 아직 열리지 않은 쿠폰 (현장에서 이용권을 써야 열림) · 2026-09-12 대표 확정 ---
+  pendingUse: ['이용권 쓰면', 'After using pass', '使用券使用后', '利用券の後'],
+  pendingHint: ['{name} 이용권을 현장에서 사용하면 이 쿠폰이 열려요', 'Use the {name} pass at the shop to open this coupon', '在店内使用{name}使用券后开启', '店で{name}利用券を使うと開きます'],
+  pendingGuide: ['현장에서 이용권을 쓰면 쿠폰이 열려요', 'Your coupons open when you use the pass', '在现场使用使用券后优惠券开启', '現場で利用券を使うとクーポンが開きます'],
+  couponsOpened: ['할인 쿠폰 {n}장이 열렸어요', '{n} coupons just opened', '{n}张优惠券已开启', 'クーポン{n}枚が開きました'],
+  seeMyCoupons: ['내 쿠폰 보기', 'See my coupons', '查看我的优惠券', 'マイクーポンを見る'],
+  nOpenNPending: ['쓸 수 있는 {a}장 · 잠긴 {b}장', '{a} ready · {b} locked', '可用{a}张 · 未开启{b}张', '使える{a}枚 · 未開放{b}枚'],
   myCouponsLink: ['내 쿠폰', 'My coupons', '我的优惠券', 'マイクーポン'],
   myCouponsLinkSub: ['결제하고 받은 쿠폰', 'Coupons you got with a purchase', '购买商品获得的优惠券', '購入でもらったクーポン'],
   myCouponsLabel: ['결제하고 받은 쿠폰', 'Coupons you received', '已获得的优惠券', 'もらったクーポン'],

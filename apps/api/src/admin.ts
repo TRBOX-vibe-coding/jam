@@ -147,6 +147,8 @@ class SetProductCouponsDto {
   @IsString({ each: true }) benefitIds!: string[];
   /** 발급 후 사용 기간(일). 비우면 기본 90일 */
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(365) validDays?: number;
+  /** 쿠폰이 언제부터 열리는가 — 날짜 미정 티켓은 REDEEM(현장 사용 시)이 기본 */
+  @IsOptional() @IsIn(['PURCHASE', 'REDEEM', 'RESERVATION']) startMode?: string;
 }
 class CreateSlotDto {
   @IsString() startAt!: string; // ISO
@@ -640,7 +642,7 @@ export class AdminController {
     const db = this.prisma.client;
     const product = await db.product.findUnique({
       where: { id },
-      select: { id: true, name: true, merchant: { select: { id: true, name: true, regionId: true } } },
+      select: { id: true, name: true, type: true, couponStartMode: true, merchant: { select: { id: true, name: true, regionId: true } } },
     });
     if (!product) throw new NotFoundException('상품을 찾을 수 없습니다');
 
@@ -678,6 +680,9 @@ export class AdminController {
     if (ids.length > 10) throw new BadRequestException('한 상품에 최대 10장까지 묶을 수 있습니다');
 
     await db.$transaction(async (tx) => {
+      if (dto.startMode) {
+        await tx.product.update({ where: { id }, data: { couponStartMode: dto.startMode as never } });
+      }
       await tx.benefitGrantRule.deleteMany({ where: { trigger: 'PRODUCT', productId: id } });
       for (let i = 0; i < ids.length; i++) {
         await tx.benefitGrantRule.create({

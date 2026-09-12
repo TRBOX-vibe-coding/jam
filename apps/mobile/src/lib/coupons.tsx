@@ -18,7 +18,7 @@ import { Btn, Card, EmptyText, Loading, Screen } from './ui';
 
 type BenefitGroup = {
   merchant: { id: string; name: string; address: string | null; thumbnailUrl: string | null; region: { name: string }; category: { name: string; emoji: string } };
-  items: { id: string; benefitId: string; title: string; type: string; value: number; freebieName: string | null; validTo: string | null; sourceType: string; canUse: boolean; fromProduct: { id: string; name: string } | null }[];
+  items: { id: string; benefitId: string; title: string; type: string; value: number; freebieName: string | null; validTo: string | null; sourceType: string; status: string; canUse: boolean; pending: boolean; fromProduct: { id: string; name: string } | null }[];
 };
 
 /** 할인값을 쿠폰답게 크게 — 10% / 3,000원 / 무료 */
@@ -43,7 +43,7 @@ export function CouponsScreen({ source }: { source?: 'PRODUCT' }) {
   const { me } = useAuth();
   const { t, won, locale, lang } = useI18n();
   const { cat: catParam } = useLocalSearchParams<{ cat?: string }>();
-  const [data, setData] = useState<{ totalCount: number; grantedCount: number; paidStarted: boolean; merchants: BenefitGroup[] } | null>(null);
+  const [data, setData] = useState<{ totalCount: number; grantedCount: number; openCount: number; pendingCount: number; paidStarted: boolean; merchants: BenefitGroup[] } | null>(null);
   const [error, setError] = useState('');
   const [region, setRegion] = useState<string | null>(null);
   const [cat, setCat] = useState<string | null>(null);
@@ -71,7 +71,7 @@ export function CouponsScreen({ source }: { source?: 'PRODUCT' }) {
 
   const load = useCallback(() => {
     setError('');
-    api<{ totalCount: number; grantedCount: number; paidStarted: boolean; merchants: BenefitGroup[] }>(`/me/benefits${source ? '?source=PRODUCT' : ''}`)
+    api<{ totalCount: number; grantedCount: number; openCount: number; pendingCount: number; paidStarted: boolean; merchants: BenefitGroup[] }>(`/me/benefits${source ? '?source=PRODUCT' : ''}`)
       .then(setData)
       .catch((e) => setError(e.message));
     api<string[]>('/me/saves/ids').then((ids) => setSavedIds(new Set(ids))).catch(() => {});
@@ -111,6 +111,14 @@ export function CouponsScreen({ source }: { source?: 'PRODUCT' }) {
 
   // 쿠폰 '사용'은 유료 잼이 시작된 뒤에만 (보기·담기·일정 배치는 누구나).
   // 단 결제 상품에 묶여 받은 쿠폰은 무료 회원도 쓴다 — 그래서 서버가 항목마다 canUse를 준다.
+  /** 아직 안 열린 쿠폰 — 현장에서 이용권을 쓰면 열린다고 알려주고 지갑으로 보낸다 */
+  function onPendingPress(productName: string) {
+    const msg = t('pendingHint', { name: productName });
+    const go = () => router.push('/wallet' as never);
+    if (Platform.OS === 'web') { if (window.confirm(msg)) go(); }
+    else Alert.alert('', msg, [{ text: t('close'), style: 'cancel' }, { text: t('titleWallet'), onPress: go }]);
+  }
+
   function onLockedPress() {
     const go = () => router.push('/(tabs)/my');
     if (Platform.OS === 'web') { if (window.confirm(t('goStartJam'))) go(); }
@@ -133,7 +141,11 @@ export function CouponsScreen({ source }: { source?: 'PRODUCT' }) {
           <Card style={{ backgroundColor: C.brand, borderColor: C.brand }}>
             <Text style={st.savingLabel}>{t('myCouponsLabel')}</Text>
             <Text style={st.savingValue}>{t('nCoupons', { n: data?.grantedCount ?? 0 })}</Text>
-            <Text style={[st.savingSub, { marginTop: 6 }]}>{t('myCouponsSub')}</Text>
+            <Text style={[st.savingSub, { marginTop: 6 }]}>
+              {(data?.pendingCount ?? 0) > 0
+                ? t('nOpenNPending', { a: data?.openCount ?? 0, b: data?.pendingCount ?? 0 })
+                : t('myCouponsSub')}
+            </Text>
           </Card>
         ) : (
           /* 절약 요약 — 사용자가 계산하지 않게 앱이 계산해서 보여준다 */
@@ -227,6 +239,7 @@ export function CouponsScreen({ source }: { source?: 'PRODUCT' }) {
                       </Text>
                     )}
                   </View>
+                  {!source && (
                   <Pressable hitSlop={8} onPress={() => toggleSave(b.benefitId)}>
                     <Ionicons
                       name={savedIds.has(`BENEFIT:${b.benefitId}`) ? 'heart' : 'heart-outline'}
@@ -234,12 +247,21 @@ export function CouponsScreen({ source }: { source?: 'PRODUCT' }) {
                       color={savedIds.has(`BENEFIT:${b.benefitId}`) ? '#E8503A' : C.ink3}
                     />
                   </Pressable>
+                  )}
                   {b.canUse ? (
                     <Pressable
                       style={st.useBtn}
                       onPress={() => { setUseResult(null); setPending({ merchantId: g.merchant.id, merchantName: g.merchant.name, itemId: b.id, title: b.title }); }}
                     >
                       <Text style={st.useBtnText}>{t('useNow')}</Text>
+                    </Pressable>
+                  ) : b.pending ? (
+                    // 결제로 담긴 쿠폰인데 아직 안 열렸다 — 현장에서 이용권을 쓰면 열린다
+                    <Pressable
+                      style={[st.useBtn, st.useBtnLocked]}
+                      onPress={() => onPendingPress(b.fromProduct?.name ?? '')}
+                    >
+                      <Text style={[st.useBtnText, { color: C.ink2 }]}>{t('pendingUse')}</Text>
                     </Pressable>
                   ) : (
                     // 무료 회원 또는 시작 전 잼 — 눌러도 서버에서 막히니, 먼저 상태를 보여주고 MY로 안내한다

@@ -31,6 +31,7 @@ export function ProductCouponsModal({
   const [data, setData] = useState<any | null>(null);
   const [picked, setPicked] = useState<string[]>([]);
   const [validDays, setValidDays] = useState('');
+  const [startMode, setStartMode] = useState('PURCHASE');
   const [q, setQ] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
@@ -41,6 +42,7 @@ export function ProductCouponsModal({
         setData(r);
         setPicked(r.linked.map((l: any) => l.benefitId));
         setValidDays(r.validDays ? String(r.validDays) : '');
+        setStartMode(r.product?.couponStartMode ?? 'PURCHASE');
       })
       .catch((e) => setMsg(e.message));
   }, [product.id]);
@@ -55,7 +57,7 @@ export function ProductCouponsModal({
     try {
       await api(`/admin/products/${product.id}/coupons`, {
         method: 'POST',
-        body: { benefitIds: picked, validDays: validDays ? Number(validDays) : undefined },
+        body: { benefitIds: picked, validDays: validDays ? Number(validDays) : undefined, startMode },
       });
       onClose(true);
     } catch (e: any) {
@@ -77,6 +79,30 @@ export function ProductCouponsModal({
         <b className="text-ink"> 무료 회원도 이 쿠폰은 실제로 씁니다.</b> 근처 2~4곳을 골라주세요.
       </p>
 
+      <div className="mb-3 rounded-lg border border-line bg-ground/50 p-3">
+        <p className="mb-2 text-xs font-semibold text-ink-3">쿠폰이 언제부터 열릴까요</p>
+        <div className="flex flex-col gap-1.5">
+          {[
+            ['PURCHASE', '결제하는 순간', '부산에 사는 손님, 바로 쓸 상품'],
+            ['REDEEM', '현장에서 이용권을 쓰는 순간', '날짜가 정해지지 않은 티켓 (권장)'],
+            ['RESERVATION', '예약 확정일 00시', '날짜·시간이 정해진 예약 상품'],
+          ].map(([v, label, hint]) => (
+            <label key={v} className="flex cursor-pointer items-start gap-2 text-sm">
+              <input
+                type="radio"
+                name="startMode"
+                checked={startMode === v}
+                onChange={() => setStartMode(v)}
+                className="mt-1 size-4"
+              />
+              <span>
+                <span className="font-medium">{label}</span>
+                <span className="ml-2 text-xs text-ink-3">{hint}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+      </div>
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <input
           className={`${inputCls} max-w-[220px]`}

@@ -464,6 +464,9 @@ model BenefitGrantRule {
 }
 
 enum UserBenefitStatus {
+  /// 상품 결제로 받았지만 아직 열리지 않음 — 이용권을 현장에서 쓰는 순간 ACTIVE가 된다.
+  /// 2026-09-12 대표 확정: 날짜 미정 티켓은 '현장 사용'이 곧 여행 시작 신호다.
+  PENDING
   ACTIVE
   EXHAUSTED
   EXPIRED
@@ -624,6 +627,19 @@ enum VerificationLevel {
   STAFF_CONFIRM
 }
 
+/**
+ * 상품에 묶인 '근처 할인 쿠폰'이 언제부터 열리는가 (2026-09-12 대표 확정).
+ * 고객이 날짜를 입력하는 UI는 만들지 않는다 — 결제·예약·현장 사용이 곧 신호다.
+ */
+enum CouponStartMode {
+  /// 결제 즉시 개시
+  PURCHASE
+  /// 현장에서 이용권을 사용 처리하는 순간 개시 (날짜가 정해지지 않은 티켓형)
+  REDEEM
+  /// 예약 확정일(회차 시작일) 00시 개시 (날짜가 정해진 상품)
+  RESERVATION
+}
+
 model Product {
   i18n Json?
   campaignId String?
@@ -646,6 +662,9 @@ model Product {
   /// 티켓형 총 판매 수량 (null=무제한). 소진되면 자동 품절 처리한다.
   totalQty Int?
   soldQty  Int  @default(0)
+  /// 묶인 쿠폰이 언제부터 열리는지. 쿠폰 연결과 마찬가지로 본사만 설정한다.
+  couponStartMode CouponStartMode @default(PURCHASE)
+
   /// 예약형 회차당 기본 정원 — 본사가 회차를 만들 때 기본값으로 쓴다.
   defaultCapacity Int?
 

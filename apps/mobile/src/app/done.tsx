@@ -4,7 +4,7 @@
  * 직원은 초가 흘러가는지만 보면 되고, 고가 상품은 가맹점 모드에서 코드를 조회해 확인한다.
  */
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { track } from '../lib/analytics';
 import { useAuth } from '../lib/auth';
@@ -16,7 +16,7 @@ export default function DoneScreen() {
   const { me } = useAuth();
   const { t, won, locale } = useI18n();
   const p = useLocalSearchParams<{
-    merchantName: string; itemTitle: string; savedAmount: string; verifyToken: string; staff: string;
+    merchantName: string; itemTitle: string; savedAmount: string; verifyToken: string; staff: string; opened?: string;
   }>();
   const [now, setNow] = useState(new Date());
   const [left, setLeft] = useState(90);
@@ -66,6 +66,14 @@ export default function DoneScreen() {
           </View>
         )}
 
+        {/* 이용권을 쓰면서 묶인 쿠폰이 함께 열렸다 (2026-09-12 대표 확정) */}
+        {Number(p.opened || 0) > 0 && (
+          <Pressable style={st.openedBox} onPress={() => router.replace('/my-coupons' as never)}>
+            <Text style={st.openedTitle}>{t('couponsOpened', { n: Number(p.opened) })}</Text>
+            <Text style={st.openedCta}>{t('seeMyCoupons')} ›</Text>
+          </Pressable>
+        )}
+
         {saved > 0 && (
           <Text style={st.saved}>{t('doneSaved', { amt: won(saved) })}</Text>
         )}
@@ -88,6 +96,12 @@ const st = StyleSheet.create({
   badgeText: { color: '#fff', fontWeight: '700', fontSize: 15 },
   merchant: { fontSize: 22, fontWeight: '700', color: C.ink, marginTop: 18 },
   item: { fontSize: 14, color: C.ink2, marginTop: 4, textAlign: 'center' },
+  openedBox: {
+    backgroundColor: C.brandSoft, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 16,
+    marginTop: 18, alignItems: 'center', alignSelf: 'stretch',
+  },
+  openedTitle: { fontSize: 15, fontWeight: '800', color: C.brand, textAlign: 'center' },
+  openedCta: { fontSize: 12.5, fontWeight: '700', color: C.ink2, marginTop: 4 },
   nickPill: {
     marginTop: 12, backgroundColor: C.brandSoft, borderRadius: 999,
     paddingHorizontal: 18, paddingVertical: 8,

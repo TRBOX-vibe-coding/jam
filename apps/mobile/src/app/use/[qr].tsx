@@ -58,6 +58,7 @@ export default function UseScreen() {
             savedAmount: String(r.savedAmount),
             verifyToken: r.verifyToken,
             staff: r.staffCheckRequired ? '1' : '0',
+            opened: String(r.openedCoupons ?? 0),
           },
         });
       } catch (e: any) {

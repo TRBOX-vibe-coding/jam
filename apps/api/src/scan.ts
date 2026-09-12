@@ -18,7 +18,8 @@ import { Type } from 'class-transformer';
 import { PrismaService } from './prisma.service';
 import { AuthModule, UserGuard, UserId } from './auth';
 import { langOf, trField } from './i18n.util';
-import { makeVerifyToken, minutesOfDay } from './util';
+import { addDays, makeVerifyToken, minutesOfDay } from './util';
+import { PRODUCT_COUPON_VALID_DAYS } from './membership.util';
 
 const VERIFY_TTL_MS = 90_000;
 
@@ -77,6 +78,9 @@ export class ScanController {
           where: { userBenefitId: ub.id, status: 'DONE', createdAt: { gte: todayStart } },
         });
         if (todayUsed >= ub.benefit.maxUsePerDay) blocked = '오늘 사용 횟수를 모두 썼습니다';
+      }
+      if (ub.sourceType === 'PRODUCT' && ub.usedCount >= 1) {
+        blocked = '이미 사용한 쿠폰입니다';
       }
       if (ub.benefit.maxUsePerUser && ub.usedCount >= ub.benefit.maxUsePerUser) {
         blocked = '사용 횟수를 모두 썼습니다';
@@ -253,6 +257,9 @@ export class ScanController {
           where: { id: ub.id },
           data: {
             usedCount: { increment: 1 },
+            // 상품 결제로 받은 쿠폰은 한 장당 한 번만 쓴다 (무료 회원 기준, 2026-09-12 대표 확정).
+            // 유료 잼 회원은 자기 멤버십으로 열린 쿠폰을 기간 내내 반복해서 쓴다.
+            ...(ub.sourceType === 'PRODUCT' ? { status: 'EXHAUSTED' as const } : {}),
             ...(ub.benefit.maxUsePerUser && ub.usedCount + 1 >= ub.benefit.maxUsePerUser
               ? { status: 'EXHAUSTED' }
               : {}),
@@ -340,17 +347,44 @@ export class ScanController {
           verifyToken, verifyExpires,
         },
       });
+      // 이 상품에 묶여 '잠긴 채' 담겨 있던 쿠폰을 지금 연다.
+      // 2026-09-12 대표 확정: 현장에서 이용권을 쓰는 날이 곧 이 손님의 여행 시작일이다.
+      // 고객은 아무것도 누르지 않는다 — 사용 처리 자체가 신호다.
+      const locked = await tx.userBenefit.findMany({
+        where: { userId, sourceType: 'PRODUCT', sourceId: voucher.productId, status: 'PENDING' },
+        select: { id: true, benefitId: true },
+      });
+      let openedCoupons = 0;
+      if (locked.length > 0) {
+        const rules = await tx.benefitGrantRule.findMany({
+          where: { trigger: 'PRODUCT', productId: voucher.productId, isActive: true },
+          select: { benefitId: true, validDays: true },
+        });
+        const daysOf = new Map(rules.map((r) => [r.benefitId, r.validDays]));
+        for (const ub of locked) {
+          await tx.userBenefit.update({
+            where: { id: ub.id },
+            data: {
+              status: 'ACTIVE',
+              validFrom: now,
+              validTo: addDays(now, daysOf.get(ub.benefitId) ?? PRODUCT_COUPON_VALID_DAYS),
+            },
+          });
+          openedCoupons++;
+        }
+      }
+
       await tx.eventLog.create({ data: { userId, event: 'product_redeem', entityType: 'product', entityId: voucher.productId } });
       return this.done(
         r.id, trField(merchant, 'name', lang), trField(voucher.product, 'name', lang), saved,
-        verifyToken, verifyExpires, voucher.product.verification,
+        verifyToken, verifyExpires, voucher.product.verification, openedCoupons,
       );
     });
   }
 
   private done(
     redemptionId: string, merchantName: string, itemTitle: string, saved: number,
-    verifyToken: string, verifyExpires: Date, verification: string,
+    verifyToken: string, verifyExpires: Date, verification: string, openedCoupons = 0,
   ) {
     return {
       ok: true,
@@ -362,6 +396,8 @@ export class ScanController {
       verifyExpires,
       /** QR_PIN 상품이면 완료화면에 "직원 확인 필요" 안내를 띄운다 */
       staffCheckRequired: verification !== 'QR_ONLY',
+      /** 이 이용권을 쓰면서 함께 열린 '근처 할인 쿠폰' 수 (2026-09-12 대표 확정) */
+      openedCoupons,
       usedAt: new Date(),
     };
   }

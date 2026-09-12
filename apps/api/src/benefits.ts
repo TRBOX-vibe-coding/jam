@@ -34,7 +34,7 @@ export class BenefitsController {
     const rows = await db.userBenefit.findMany({
       where: {
         userId,
-        status: 'ACTIVE',
+        status: { in: ['ACTIVE', 'PENDING'] },
         ...(source === 'PRODUCT' ? { sourceType: 'PRODUCT' as const } : {}),
         OR: [{ validTo: null }, { validTo: { gt: now } }],
         benefit: { isActive: true, merchant: { status: 'ACTIVE' } },
@@ -90,8 +90,11 @@ export class BenefitsController {
         companionLimit: ub.benefit.companionLimit,
         validTo: ub.validTo,
         sourceType: ub.sourceType,
-        /** 결제 상품에 묶여 받은 쿠폰이면 무료 회원도 쓸 수 있다 */
-        canUse: ub.sourceType === 'PRODUCT' ? true : paidStarted,
+        status: ub.status,
+        /** 상품 결제분은 열렸을 때만, 그 외는 유료 잼이 시작됐을 때만 쓸 수 있다 */
+        canUse: ub.sourceType === 'PRODUCT' ? ub.status === 'ACTIVE' : paidStarted,
+        /** 아직 잠긴 이유 — 현장에서 이용권을 쓰면 열린다 */
+        pending: ub.status === 'PENDING',
         fromProduct: fromProduct ? { id: fromProduct.id, name: fromProduct.name, i18n: (fromProduct as any).i18n } : null,
         i18n: (ub.benefit as any).i18n,
       });
@@ -101,6 +104,10 @@ export class BenefitsController {
       totalCount: unique.length,
       /** 결제로 받아서 지금 쓸 수 있는 쿠폰 수 (MY 뱃지용) */
       grantedCount: unique.filter((r) => r.sourceType === 'PRODUCT').length,
+      /** 그중 지금 바로 쓸 수 있는 수 */
+      openCount: unique.filter((r) => r.sourceType === 'PRODUCT' && r.status === 'ACTIVE').length,
+      /** 이용권을 써야 열리는 수 */
+      pendingCount: unique.filter((r) => r.status === 'PENDING').length,
       paidStarted,
       merchants: [...byMerchant.values()],
     };
