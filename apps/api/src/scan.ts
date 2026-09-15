@@ -1,11 +1,12 @@
 /**
  * 현장 사용 — 서비스의 마지막 1미터.
  *
- * 흐름: 손님이 매장 고정 QR을 스캔
- *   → GET /scan/:qrCode : "이 매장에서 지금 쓸 수 있는 것"만 계산해서 돌려준다
- *   → POST /redeem      : 선택한 항목을 사용처리하고 Redemption을 남긴다
- *   → 완료화면에는 verifyToken(6자리) + 실시간 시계 표시. 90초 후 만료.
- *     직원 확인이 필요한 상품(QR_PIN)은 가맹점 모드의 verify로 이 토큰을 조회한다.
+ * 기본 흐름(2026-09-08 확정, 2026-09-15 정리) — 사진(QR) 찍기는 없다:
+ *   손님이 앱에서 [사용하기] → 사장님이 손님 휴대폰에서 처리
+ *   → POST /redeem { merchantId, itemType, itemId, pin? }
+ *      쿠폰·딜은 [사장님 확인] 버튼, 이용권은 사장님이 매장 코드(pin)를 입력
+ *   → 완료화면에 실시간 시계 + 90초 카운트다운. 고가 상품(QR_PIN)은 확인번호 6자리도 표시.
+ * GET /scan/:qrCode 와 qrCode 경로는 예전 매장 QR 호환용으로만 남아 있다(앱에서 쓰지 않음).
  *
  * 절약금액(savedAmount)은 여기서 계산되어 "이번 달 얼마 아꼈어요"의 원천이 된다.
  */
@@ -189,16 +190,16 @@ export class ScanController {
       merchant = qr.merchant;
       qrId = qr.id;
     } else {
-      // QR 없는 경로 — 쿠폰은 확인 버튼만으로, 결제 상품은 매장 확인 코드로
+      // 기본 경로(2026-09-15 정리): 사진(QR) 없이 사장님이 처리한다 — 쿠폰·딜은 [사장님 확인], 이용권은 매장 코드
       if (!dto.merchantId) throw new BadRequestException('매장 정보가 필요합니다');
       merchant = await db.merchant.findUnique({ where: { id: dto.merchantId } });
       if (!merchant || merchant.status !== 'ACTIVE') throw new NotFoundException('이용할 수 없는 매장입니다');
       if (dto.itemType === 'VOUCHER') {
         if (!merchant.usePin) {
-          throw new BadRequestException('이 매장은 아직 사용 확인 코드가 없습니다. 매장 QR을 스캔해 주세요.');
+          throw new BadRequestException('이 매장은 아직 매장 코드가 없습니다. 사장님께 확인해 주세요.');
         }
         if (!dto.pin || dto.pin.trim() !== merchant.usePin) {
-          throw new BadRequestException('사용 확인 코드가 맞지 않습니다. 직원에게 확인해 주세요.');
+          throw new BadRequestException('매장 코드가 맞지 않습니다. 사장님이 다시 입력해 주세요.');
         }
       }
     }

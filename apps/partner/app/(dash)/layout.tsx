@@ -68,7 +68,7 @@ export default function DashLayout({ children }: { children: React.ReactNode }) 
             })}
           </nav>
           <div className="border-t border-line px-5 py-3 text-[11px] leading-4 text-ink-3">
-            현장 사용 처리는 손님이 매장 QR을 스캔하면 자동으로 끝나요. 이 페이지는 확인·등록용입니다.
+            현장 사용은 손님 휴대폰에서 사장님이 처리해요. 쿠폰은 [사장님 확인], 이용권은 매장 코드 입력. 이 페이지는 확인·등록용입니다.
           </div>
           <button
             onClick={logout}

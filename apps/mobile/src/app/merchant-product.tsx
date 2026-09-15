@@ -22,8 +22,8 @@ const TYPES = [
 ] as const;
 
 const VERIFS = [
-  { key: 'QR_ONLY', label: 'QR만으로 사용' },
-  { key: 'QR_PIN', label: 'QR + 직원 확인 (고가 상품)' },
+  { key: 'QR_ONLY', label: '사장님 확인만' },
+  { key: 'QR_PIN', label: '사장님 확인 + 확인번호 대조 (고가 상품)' },
 ] as const;
 
 export default function MerchantProductCreate() {

@@ -5,6 +5,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { useI18n } from '../lib/i18n';
+import { useRedeem } from '../lib/redeem';
 import { C } from '../lib/theme';
 import { Btn, Card, EmptyText, Loading, Screen, Tag } from '../lib/ui';
 
@@ -29,10 +30,6 @@ export default function WalletScreen() {
   const { t, won, locale, lang } = useI18n();
   const [vouchers, setVouchers] = useState<any[] | null>(null);
   const [claims, setClaims] = useState<any[] | null>(null);
-  // 결제 상품(이용권)의 QR 없는 사용 — 점주가 정한 매장 코드를 입력해 처리한다 (2026-09-08 픽스)
-  const [pinTarget, setPinTarget] = useState<{ voucherId: string; merchantId: string; name: string } | null>(null);
-  const [pin, setPin] = useState('');
-  const [pinBusy, setPinBusy] = useState(false);
 
   const load = useCallback(() => {
     if (!me) return;
@@ -41,29 +38,8 @@ export default function WalletScreen() {
   }, [me, lang]);
   useFocusEffect(load);
 
-  async function usePinRedeem() {
-    if (!pinTarget) return;
-    setPinBusy(true);
-    try {
-      const r = await api<{ savedAmount: number; itemTitle: string; openedCoupons: number }>('/redeem', {
-        method: 'POST',
-        body: { merchantId: pinTarget.merchantId, itemType: 'VOUCHER', itemId: pinTarget.voucherId, pin: pin.trim() },
-      });
-      setPinTarget(null);
-      setPin('');
-      load();
-      const opened = r.openedCoupons > 0 ? `
-${t('couponsOpened', { n: r.openedCoupons })}` : '';
-      const msg = `${t('usedDoneTitle')}
-${r.itemTitle}${opened}`;
-      if (Platform.OS === 'web') window.alert(msg); else Alert.alert(t('usedDoneTitle'), `${r.itemTitle}${opened}`);
-    } catch (e: any) {
-      if (Platform.OS === 'web') window.alert(e.message); else Alert.alert('', e.message);
-    } finally {
-      setPinBusy(false);
-    }
-  }
-
+  // 이용권은 사장님이 매장 코드를 입력, 딜은 사장님이 확인 — 흐름은 lib/redeem 한 곳에서 (2026-09-15)
+  const redeem = useRedeem(load);
   if (!me) {
     return (
       <Screen>
@@ -125,9 +101,9 @@ ${r.itemTitle}${opened}`;
               {['ISSUED', 'RESERVED'].includes(v.status) && (
                 <View style={{ marginTop: 10 }}>
                   <Btn
-                    title={t('useWithPin')}
+                    title={t('useNow')}
                     small
-                    onPress={() => { setPin(''); setPinTarget({ voucherId: v.id, merchantId: v.product.merchant.id, name: v.product.name }); }}
+                    onPress={() => redeem.open({ kind: 'VOUCHER', merchantId: v.product.merchant.id, merchantName: v.product.merchant.name, itemId: v.id, title: v.product.name })}
                   />
                 </View>
               )}
@@ -150,33 +126,22 @@ ${r.itemTitle}${opened}`;
                 <Text style={{ textDecorationLine: 'line-through' }}>{won(c.drop.normalPrice)}</Text>
               </Text>
               <Text style={st.code}>{t('useUntil', { date: new Date(c.validTo).toLocaleString(locale, { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) })}</Text>
+              {c.status === 'CLAIMED' && new Date(c.validTo).getTime() > Date.now() && (
+                <View style={{ marginTop: 10 }}>
+                  <Btn
+                    title={t('useNow')}
+                    small
+                    onPress={() => redeem.open({ kind: 'DROP', merchantId: c.drop.merchant.id, merchantName: c.drop.merchant.name, itemId: c.id, title: c.drop.title })}
+                  />
+                </View>
+              )}
             </Card>
           );
         })}
       </ScrollView>
 
-      {/* 매장 코드 입력 모달 */}
-      <Modal visible={pinTarget != null} transparent animationType="fade" onRequestClose={() => !pinBusy && setPinTarget(null)}>
-        <View style={st.modalBack}>
-          <View style={st.modalCard}>
-            <Text style={st.modalTitle}>{pinTarget?.name}</Text>
-            <Text style={st.modalGuide}>{t('askStaffPin')}</Text>
-            <TextInput
-              value={pin}
-              onChangeText={setPin}
-              placeholder="****"
-              placeholderTextColor={C.ink3}
-              maxLength={10}
-              autoFocus
-              style={st.pinInput}
-            />
-            <Btn title={pinBusy ? '…' : t('confirmUse')} onPress={usePinRedeem} disabled={pin.trim().length < 2 || pinBusy} />
-            <Pressable onPress={() => !pinBusy && setPinTarget(null)} style={{ marginTop: 10 }}>
-              <Text style={st.modalCancel}>{t('close')}</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
+      {/* 사용 처리 — 이용권은 사장님이 매장 코드, 딜은 사장님 확인 (lib/redeem) */}
+      {redeem.modal}
     </Screen>
   );
 }

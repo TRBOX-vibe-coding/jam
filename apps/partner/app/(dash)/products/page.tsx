@@ -94,8 +94,8 @@ export default function MyProductsPage() {
             </select>
             <input className={`${inputCls} col-span-2`} placeholder="상품명 * (예: 입문 서핑 강습 2시간)" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
             <select className={inputCls} value={f.verification} onChange={(e) => setF({ ...f, verification: e.target.value })}>
-              <option value="QR_ONLY">현장 검증: QR만</option>
-              <option value="QR_PIN">QR+직원확인 (고가 상품)</option>
+              <option value="QR_ONLY">현장 확인: 사장님 확인만</option>
+              <option value="QR_PIN">사장님 확인 + 확인번호 대조 (고가 상품)</option>
             </select>
             <input className={`${inputCls} col-span-2 lg:col-span-4`} placeholder="설명" value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} />
             <input className={inputCls} placeholder="정상가 *" value={f.basePrice} onChange={(e) => setF({ ...f, basePrice: e.target.value.replace(/\D/g, '') })} />

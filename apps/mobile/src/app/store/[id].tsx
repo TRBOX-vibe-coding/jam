@@ -30,7 +30,8 @@ export default function StoreDetail() {
   if (!m) {
     return <Screen>{failed ? <LoadError text={t('loadFailed')} retryLabel={t('retry')} onRetry={load} /> : <Loading />}</Screen>;
   }
-  const isMember = !!me?.membership;
+  // 무료 회원(FREE)도 membership 객체가 있으니, 쿠폰을 쓸 수 있는지는 유료 잼이 시작됐는지로 본다
+  const isMember = !!me?.membership?.isPaid && !!me?.membership?.started;
 
   return (
     <Screen>
@@ -62,7 +63,7 @@ export default function StoreDetail() {
             </Text>
             {isMember ? (
               <View style={{ marginTop: 9 }}>
-                <Btn title={t('useAtStore')} small onPress={() => router.push('/(tabs)/scan')} />
+                <Btn title={t('useAtStore')} small onPress={() => router.push({ pathname: '/(tabs)/scan', params: { merchant: m.id } })} />
               </View>
             ) : (
               <Pressable style={st.lockBar} onPress={() => router.push('/(tabs)/my')}>

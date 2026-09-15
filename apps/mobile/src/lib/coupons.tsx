@@ -12,6 +12,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { api, img } from './api';
 import { useAuth } from './auth';
 import { useI18n } from './i18n';
+import { useRedeem } from './redeem';
 import { C } from './theme';
 import { HScroll } from './hscroll';
 import { Btn, Card, EmptyText, Loading, Screen } from './ui';
@@ -47,10 +48,7 @@ export function CouponsScreen({ source }: { source?: 'PRODUCT' }) {
   const [error, setError] = useState('');
   const [region, setRegion] = useState<string | null>(null);
   const [cat, setCat] = useState<string | null>(null);
-  // 쿠폰 사용 모달 — QR 스캔 없이 [확인] 버튼만으로 처리한다 (2026-09-08 픽스)
-  const [pending, setPending] = useState<{ merchantId: string; merchantName: string; itemId: string; title: string } | null>(null);
-  const [useResult, setUseResult] = useState<{ savedAmount: number } | null>(null);
-  const [busy, setBusy] = useState(false);
+  // 쿠폰 사용 — 사진(QR) 없이 [사용하기] → 사장님이 확인 (2026-09-08 확정). 흐름은 lib/redeem 한 곳에서.
   // 담기(찜) — MY의 "담은 목록"에 모인다
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
 
@@ -77,26 +75,7 @@ export function CouponsScreen({ source }: { source?: 'PRODUCT' }) {
     api<string[]>('/me/saves/ids').then((ids) => setSavedIds(new Set(ids))).catch(() => {});
   }, [lang, source]);
   useFocusEffect(load);
-
-  async function confirmUse() {
-    if (!pending) return;
-    setBusy(true);
-    try {
-      const r = await api<{ savedAmount: number }>('/redeem', {
-        method: 'POST',
-        body: { merchantId: pending.merchantId, itemType: 'BENEFIT', itemId: pending.itemId },
-      });
-      setUseResult({ savedAmount: r.savedAmount });
-      load();
-    } catch (e: any) {
-      setPending(null);
-      setUseResult(null);
-      if (Platform.OS === 'web') window.alert(e.message);
-      else Alert.alert('', e.message);
-    } finally {
-      setBusy(false);
-    }
-  }
+  const redeem = useRedeem(load);
 
   if (!me) {
     return (
@@ -251,7 +230,7 @@ export function CouponsScreen({ source }: { source?: 'PRODUCT' }) {
                   {b.canUse ? (
                     <Pressable
                       style={st.useBtn}
-                      onPress={() => { setUseResult(null); setPending({ merchantId: g.merchant.id, merchantName: g.merchant.name, itemId: b.id, title: b.title }); }}
+                      onPress={() => redeem.open({ kind: 'BENEFIT', merchantId: g.merchant.id, merchantName: g.merchant.name, itemId: b.id, title: b.title })}
                     >
                       <Text style={st.useBtnText}>{t('useNow')}</Text>
                     </Pressable>
@@ -292,33 +271,8 @@ export function CouponsScreen({ source }: { source?: 'PRODUCT' }) {
         )}
       </ScrollView>
 
-      {/* 쿠폰 사용 모달 — 직원에게 보여주고 확인 버튼 한 번이면 끝 */}
-      <Modal visible={pending != null} transparent animationType="fade" onRequestClose={() => !busy && setPending(null)}>
-        <View style={st.modalBack}>
-          <View style={st.modalCard}>
-            {useResult ? (
-              <>
-                <Text style={st.modalDone}>✓ {t('usedDoneTitle')}</Text>
-                {useResult.savedAmount > 0 && (
-                  <Text style={st.modalSaved}>{t('usedSaved', { amt: won(useResult.savedAmount) })}</Text>
-                )}
-                <Text style={st.modalItem}>{pending?.merchantName} · {pending?.title}</Text>
-                <Btn title={t('close')} onPress={() => { setPending(null); setUseResult(null); }} />
-              </>
-            ) : (
-              <>
-                <Text style={st.modalMerchant}>{pending?.merchantName}</Text>
-                <Text style={st.modalTitle}>{pending?.title}</Text>
-                <Text style={st.modalGuide}>{t('showStaffFirst')}</Text>
-                <Btn title={busy ? '…' : t('confirmUse')} onPress={confirmUse} disabled={busy} />
-                <Pressable onPress={() => !busy && setPending(null)} style={{ marginTop: 10 }}>
-                  <Text style={st.modalCancel}>{t('close')}</Text>
-                </Pressable>
-              </>
-            )}
-          </View>
-        </View>
-      </Modal>
+      {/* 사용 처리 — 사장님이 확인을 누르면 실시간 시계가 흐르는 완료 화면으로 간다 (lib/redeem) */}
+      {redeem.modal}
     </Screen>
   );
 }

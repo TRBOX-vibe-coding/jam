@@ -46,19 +46,19 @@ export default function Dashboard() {
       ) : (
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <Stat label="🔔 오늘 판매" value={`${sales?.todayCount ?? 0}건`} sub="앱에서 결제·예약·딜 수령" />
-          <Stat label="오늘 사용" value={`${summary.todayRedemptions}건`} sub="손님 QR 사용 처리" />
+          <Stat label="오늘 사용" value={`${summary.todayRedemptions}건`} sub="손님 휴대폰에서 사장님이 처리" />
           <Stat label="이번 달 사용" value={`${summary.monthRedemptions}건`} />
           <Stat label="진행 중 DROP" value={`${(summary.drops ?? []).filter((d: any) => d.status === 'OPEN').length}개`} sub={`승인 대기 ${(summary.drops ?? []).filter((d: any) => d.status === 'PENDING').length}건`} />
         </div>
       )}
 
-      {/* 사용 확인 코드 — 결제 상품을 QR 없이 처리할 때 손님이 입력하는 우리 매장 코드 (2026-09-08 픽스) */}
+      {/* 매장 코드 — 손님이 결제 상품(이용권)을 쓸 때 사장님이 손님 휴대폰에 입력한다 (2026-09-08 확정) */}
       <Card className="p-5">
         <div className="flex flex-wrap items-center gap-3">
           <div className="min-w-[220px] flex-1">
             <div className="text-sm font-bold">사용 확인 코드</div>
             <div className="mt-0.5 text-xs text-ink-3">
-              손님이 결제 상품을 QR 없이 사용 처리할 때 입력하는 코드입니다. 자릿수 자유(2~10자) — 직원분들과 공유하세요.
+              손님이 결제 상품(이용권)을 쓸 때 사장님이 손님 휴대폰에 입력하는 코드입니다. 손님에게는 알려주지 마세요. 자릿수 자유(2~10자) — 직원분들과만 공유하세요.
             </div>
           </div>
           <div className="text-sm">

@@ -5,7 +5,7 @@ import { Badge, Button, Card, CardHeader, Empty, Modal, Table, TableSkeleton, Td
 import { ProductCouponsModal } from '@/components/product-coupons';
 
 const TYPE_LABEL: Record<string, string> = { TICKET: '티켓', RESERVATION: '예약형', PASS: 'PASS' };
-const VERIF_LABEL: Record<string, string> = { QR_ONLY: 'QR만', QR_PIN: 'QR+직원확인', STAFF_CONFIRM: '직원확인' };
+const VERIF_LABEL: Record<string, string> = { QR_ONLY: '사장님 확인', QR_PIN: '확인번호 대조', STAFF_CONFIRM: '직원확인' };
 const RESV_LABEL: Record<string, string> = { REQUESTED: '요청', CONFIRMED: '확정', CANCELLED: '취소', NO_SHOW: '노쇼', COMPLETED: '완료' };
 
 const img = (u?: string | null, w = 160) => (u ? (u.startsWith('/') ? `${API_BASE}${u}?w=${w}` : u) : null);
@@ -276,8 +276,8 @@ export default function ProductsPage() {
               </div>
               <div className="mt-3 flex flex-wrap items-center gap-3">
                 <select className={inputCls} value={form.verification} onChange={(e) => setForm({ ...form, verification: e.target.value })}>
-                  <option value="QR_ONLY">현장 검증: QR만</option>
-                  <option value="QR_PIN">현장 검증: QR+직원확인 (고가 상품)</option>
+                  <option value="QR_ONLY">현장 확인: 사장님 확인만</option>
+                  <option value="QR_PIN">사장님 확인 + 확인번호 대조 (고가 상품)</option>
                 </select>
                 <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={pickImage} />
                 <Button variant="ghost" onClick={() => fileRef.current?.click()}>

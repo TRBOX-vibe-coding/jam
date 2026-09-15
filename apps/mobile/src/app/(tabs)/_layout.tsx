@@ -62,7 +62,7 @@ export default function TabsLayout() {
         options={{
           title: t('titleScan'),
           tabBarLabel: t('tabScan'),
-          tabBarIcon: tabIcon('qr-code', 'qr-code-outline'),
+          tabBarIcon: tabIcon('ticket', 'ticket-outline'),
         }}
       />
       <Tabs.Screen

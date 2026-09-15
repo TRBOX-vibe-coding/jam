@@ -1,5 +1,5 @@
 /**
- * 가맹점 모드 — 점주 전용. 오늘 현황, 사용내역, 내 매장 QR, 직원 확인코드 조회.
+ * 가맹점 모드 — 점주 전용. 오늘 현황, 사용내역, 매장 코드, 직원 확인코드 조회.
  */
 import { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -41,7 +41,7 @@ export default function MerchantMode() {
     }
   }
 
-  /** 사용 확인 코드 저장 — 결제 상품을 QR 없이 처리할 때 손님이 입력하는 코드 (점주가 직접 정한다) */
+  /** 사용 확인 코드 저장 — 손님이 결제 상품을 쓸 때 사장님이 손님 휴대폰에 입력하는 코드 (점주가 직접 정한다) */
   async function savePin() {
     try {
       const r = await api<{ message: string }>('/merchant/my/pin', { method: 'POST', body: { pin: pinInput.trim() } });
@@ -143,7 +143,7 @@ export default function MerchantMode() {
         <Text style={st.section}>사용 확인 코드 (우리 매장 코드)</Text>
         <Card>
           <Text style={st.hint}>
-            결제 상품(티켓·예약)을 손님이 QR 없이 사용 처리할 때 입력하는 코드예요.
+            손님이 결제 상품(티켓·예약)을 쓸 때 사장님이 손님 휴대폰에 입력하는 코드예요. 손님에게는 알려주지 마세요.
             자릿수는 자유(2~10자) — 직원분들과 공유해 주세요.
           </Text>
           <Text style={st.pinCurrent}>
@@ -287,20 +287,6 @@ export default function MerchantMode() {
           );
         })}
 
-        <Text style={st.section}>내 매장 QR</Text>
-        <Card>
-          {my.qrCodes.length === 0 ? (
-            <Text style={st.hint}>본사에서 QR 발급 후 사용할 수 있습니다.</Text>
-          ) : (
-            my.qrCodes.map((q: any) => (
-              <View key={q.id} style={{ marginBottom: 6 }}>
-                <Text style={st.qrLabel}>{q.label}</Text>
-                <Text selectable style={st.qrCode}>{q.code}</Text>
-              </View>
-            ))
-          )}
-          <Text style={st.hint}>손님이 이 QR을 스캔하면 이 매장에서 쓸 수 있는 혜택만 자동으로 보입니다.</Text>
-        </Card>
 
       </ScrollView>
     </Screen>
