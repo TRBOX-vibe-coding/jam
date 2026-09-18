@@ -7,7 +7,7 @@
  * 처리 흐름은 lib/redeem.tsx 한 곳에 있다. 매장 상세에서 넘어오면(?merchant=) 그 매장 것만 보여준다.
  */
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../lib/api';
@@ -38,6 +38,7 @@ export default function UseTab() {
   const [vouchers, setVouchers] = useState<any[] | null>(null);
   const [deals, setDeals] = useState<any[] | null>(null);
   const [onlyMerchant, setOnlyMerchant] = useState<string | null>(null);
+  const [q, setQ] = useState('');
 
   const load = useCallback(() => {
     if (!me) return;
@@ -96,9 +97,33 @@ export default function UseTab() {
   }
   if (!coupons || !vouchers || !deals) return <Screen><Loading /></Screen>;
 
-  const vs = onlyMerchant ? vouchers.filter((v) => v.product.merchant.id === onlyMerchant) : vouchers;
-  const ds = onlyMerchant ? deals.filter((d) => d.drop.merchant.id === onlyMerchant) : deals;
-  const cs = onlyMerchant ? coupons.filter((c) => c.merchant.id === onlyMerchant) : coupons;
+  // 가게 이름으로 좁힌다. 이름 일부만 쳐도 걸린다
+  const key = q.trim().toLowerCase();
+  const hit = (...fields: (string | undefined)[]) =>
+    !key || fields.some((s) => (s ?? '').toLowerCase().includes(key));
+  const vs = (onlyMerchant ? vouchers.filter((v) => v.product.merchant.id === onlyMerchant) : vouchers)
+    .filter((v) => hit(v.product.merchant.name, v.product.name));
+  const ds = (onlyMerchant ? deals.filter((d) => d.drop.merchant.id === onlyMerchant) : deals)
+    .filter((d) => hit(d.drop.merchant.name, d.drop.title));
+  const cs = (onlyMerchant ? coupons.filter((c) => c.merchant.id === onlyMerchant) : coupons)
+    .filter((c) => hit(c.merchant.name, c.title, c.merchant.region));
+
+  // 쿠폰은 가게로 묶는다 — 20장이 여덟 곳이 된다
+  const groups: { merchant: CouponRow['merchant']; items: CouponRow[] }[] = [];
+  const byId = new Map<string, (typeof groups)[number]>();
+  for (const c of cs) {
+    let g = byId.get(c.merchant.id);
+    if (!g) { g = { merchant: c.merchant, items: [] }; byId.set(c.merchant.id, g); groups.push(g); }
+    g.items.push(c);
+  }
+  // 이용권이 있는 가게 → 쿠폰 많은 가게 순. 오늘 갈 곳이 위로 온다
+  const hasVoucher = new Set(vs.map((v: any) => v.product.merchant.id));
+  groups.sort((a, b) => {
+    const av = hasVoucher.has(a.merchant.id) ? 1 : 0;
+    const bv = hasVoucher.has(b.merchant.id) ? 1 : 0;
+    if (av !== bv) return bv - av;
+    return b.items.length - a.items.length;
+  });
   const nothing = vs.length === 0 && ds.length === 0 && cs.length === 0;
   const storeName = onlyMerchant
     ? coupons.find((c) => c.merchant.id === onlyMerchant)?.merchant.name ??
@@ -117,6 +142,23 @@ export default function UseTab() {
           <Text style={st.step}>{t('step2')}</Text>
           <Text style={st.step}>{t('step3')}</Text>
         </Card>
+
+        {/* 계산대 앞에서는 가게 이름 한 번이 제일 빠르다 */}
+        <View style={st.search}>
+          <Ionicons name="search" size={16} color={C.ink3} />
+          <TextInput
+            value={q}
+            onChangeText={setQ}
+            placeholder={t('whichStore')}
+            placeholderTextColor={C.ink3}
+            style={st.searchInput}
+          />
+          {q.length > 0 && (
+            <Pressable hitSlop={8} onPress={() => setQ('')}>
+              <Ionicons name="close-circle" size={17} color={C.ink3} />
+            </Pressable>
+          )}
+        </View>
 
         {onlyMerchant && (
           <Pressable style={st.filterBar} onPress={() => setOnlyMerchant(null)}>
@@ -201,39 +243,47 @@ export default function UseTab() {
           </View>
         ))}
 
-        {/* 할인 쿠폰 — 사장님이 확인 */}
-        {cs.length > 0 && <Text style={st.section}>{t('usableCoupons')} ({cs.length})</Text>}
-        {cs.map((c) => {
-          const v = couponValue(c);
-          return (
-            <View key={c.id} style={st.row}>
-              <View style={st.valueBox}>
-                <Text style={st.value} numberOfLines={1}>{v ?? t('freeLabel')}</Text>
-              </View>
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={st.title} numberOfLines={2}>{c.title}</Text>
-                <Text style={st.sub} numberOfLines={1}>{c.merchant.emoji} {c.merchant.name} · {c.merchant.region}</Text>
-                {c.fromProduct && (
-                  <Text style={st.from} numberOfLines={1}>{t('fromProduct', { name: c.fromProduct.name })}</Text>
-                )}
-              </View>
-              <Pressable
-                style={st.useBtn}
-                onPress={() =>
-                  redeem.open({
-                    kind: 'BENEFIT',
-                    merchantId: c.merchant.id,
-                    merchantName: c.merchant.name,
-                    itemId: c.id,
-                    title: c.title,
-                  })
-                }
-              >
-                <Text style={st.useBtnText}>{t('useNow')}</Text>
-              </Pressable>
-            </View>
-          );
-        })}
+        {/* 할인 쿠폰 — 가게로 묶어서 보여준다. 계산대 앞에서 가게를 먼저 찾는다 */}
+        {groups.length > 0 && <Text style={st.section}>{t('usableCoupons')} ({cs.length})</Text>}
+        {groups.map((g) => (
+          <View key={g.merchant.id} style={st.shopCard}>
+            <Pressable style={st.shopHead} onPress={() => router.push(`/store/${g.merchant.id}` as never)}>
+              <Text style={st.shopName} numberOfLines={1}>{g.merchant.emoji} {g.merchant.name}</Text>
+              <Text style={st.shopMeta}>{g.merchant.region}</Text>
+              <Text style={st.shopCount}>{t('nCoupons', { n: g.items.length })}</Text>
+            </Pressable>
+            {g.items.map((c, i) => {
+              const v = couponValue(c);
+              return (
+                <View key={c.id} style={[st.row, st.rowInCard, i > 0 && st.rowDivider]}>
+                  <View style={st.valueBox}>
+                    <Text style={st.value} numberOfLines={1}>{v ?? t('freeLabel')}</Text>
+                  </View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={st.title} numberOfLines={2}>{c.title}</Text>
+                    {c.fromProduct && (
+                      <Text style={st.from} numberOfLines={1}>{t('fromProduct', { name: c.fromProduct.name })}</Text>
+                    )}
+                  </View>
+                  <Pressable
+                    style={st.useBtn}
+                    onPress={() =>
+                      redeem.open({
+                        kind: 'BENEFIT',
+                        merchantId: c.merchant.id,
+                        merchantName: c.merchant.name,
+                        itemId: c.id,
+                        title: c.title,
+                      })
+                    }
+                  >
+                    <Text style={st.useBtnText}>{t('useNow')}</Text>
+                  </Pressable>
+                </View>
+              );
+            })}
+          </View>
+        ))}
 
         {/* 결제는 했지만 아직 잠긴 쿠폰 — 이용권을 쓰면 열린다 */}
         {pendingCount > 0 && !onlyMerchant && (
@@ -250,6 +300,24 @@ export default function UseTab() {
 }
 
 const st = StyleSheet.create({
+  search: {
+    flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10,
+    backgroundColor: C.white, borderWidth: 1, borderColor: C.line, borderRadius: 12,
+    paddingHorizontal: 12, paddingVertical: 10,
+  },
+  searchInput: { flex: 1, fontSize: 14, color: C.ink, padding: 0 },
+  shopCard: {
+    backgroundColor: C.white, borderRadius: 14, borderWidth: 1, borderColor: C.line,
+    marginBottom: 10, overflow: 'hidden',
+  },
+  shopHead: {
+    flexDirection: 'row', alignItems: 'center', gap: 7,
+    paddingHorizontal: 13, paddingVertical: 10, backgroundColor: C.ground,
+  },
+  shopName: { fontSize: 14.5, fontWeight: '800', color: C.ink, flexShrink: 1 },
+  shopMeta: { fontSize: 11.5, color: C.ink3, flex: 1 },
+  shopCount: { fontSize: 11.5, fontWeight: '700', color: C.brand },
+  rowDivider: { borderTopWidth: 1, borderTopColor: C.line },
   guide: { fontSize: 14, color: C.ink2, lineHeight: 21, marginBottom: 14, textAlign: 'center' },
   stepTitle: { fontSize: 13, fontWeight: '700', color: C.brand, marginBottom: 6 },
   step: { fontSize: 13, color: C.ink2, lineHeight: 22 },
@@ -259,6 +327,8 @@ const st = StyleSheet.create({
     backgroundColor: C.white, borderRadius: 14, borderWidth: 1, borderColor: C.line,
     paddingHorizontal: 12, paddingVertical: 11, marginBottom: 8,
   },
+  // 가게 카드 안에 들어가는 쿠폰 행 — 카드가 이미 테두리를 두르고 있다
+  rowInCard: { borderWidth: 0, borderRadius: 0, marginBottom: 0 },
   valueBox: {
     minWidth: 60, height: 48, alignItems: 'center', justifyContent: 'center',
     backgroundColor: '#FFF1EC', borderRadius: 12, paddingHorizontal: 6,

@@ -174,6 +174,8 @@ const D: Record<string, [string, string, string, string]> = {
   ownerCodeGuide: ["휴대폰을 사장님께 건네주세요.\n사장님이 매장 코드를 입력하면 사용 처리됩니다.","Hand your phone to the staff.\nThe staff enters the store code to confirm.","请将手机交给店员。\n店员输入门店代码即完成核销。","スマホをスタッフに渡してください。\nスタッフが店舗コードを入力すると使用完了です。"],
   ownerConfirmBtn: ["사장님 확인 · 사용 처리","Staff: confirm use","店员确认 · 核销","スタッフ確認・使用処理"],
   storeCodePh: ["매장 코드","Store code","门店代码","店舗コード"],
+  whichStore: ["어느 가게에 계세요? (가게 이름)","Which store are you at?","您在哪家店？","どのお店にいますか？"],
+  noSearchHit: ["찾는 가게가 없어요. 이름을 다시 확인해 주세요","No store found. Check the name again","未找到该门店，请再确认名称","お店が見つかりません。名前をご確認ください"],
   usableCoupons: ["지금 쓸 수 있는 쿠폰","Coupons you can use now","现在可用的优惠券","今使えるクーポン"],
   nothingToUse: ["지금 쓸 수 있는 쿠폰이나 이용권이 없어요","Nothing to use right now","目前没有可用的优惠券或票券","今使えるクーポンやチケットはありません"],
   freeUseNote: ["무료 회원은 결제한 상품에 딸린 쿠폰만 쓸 수 있어요. 잼을 시작하면 부산 전체 쿠폰을 쓸 수 있어요.","Free members can use only coupons that come with a purchase. Start a JAM to use every coupon in Busan.","免费会员只能使用购买商品附带的优惠券。开通JAM即可使用釜山全部优惠券。","無料会員は購入した商品に付いたクーポンだけ使えます。JAMを始めると釜山の全クーポンが使えます。"],
