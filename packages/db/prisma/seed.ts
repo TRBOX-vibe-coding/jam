@@ -468,6 +468,17 @@ async function main() {
     '해운대 리버크루즈 탑승권': U('1477959858617-67f85cf4f1df', 1200),
     '송정 바다 PASS': U('1507525428034-b723cf961d3e', 1200),
   };
+  // 매장 코드 — 이용권은 사장님이 이 코드를 넣어야 사용 처리된다.
+  // 비어 있으면 현장에서 이용권을 못 쓴다. 실서비스에서는 점주가 직접 바꾼다.
+  const pinned = await prisma.merchant.findMany({
+    where: { status: 'ACTIVE', usePin: null },
+    orderBy: { createdAt: 'asc' },
+    select: { id: true },
+  });
+  for (let i = 0; i < pinned.length; i++) {
+    await prisma.merchant.update({ where: { id: pinned[i].id }, data: { usePin: String(1001 + i) } });
+  }
+
   // 잼 카드 대표 이미지 — 잼 탭이 가격표가 아니라 상품처럼 보이게
   const planImg: Record<string, string> = {
     JAM3: U('1507525428034-b723cf961d3e'),

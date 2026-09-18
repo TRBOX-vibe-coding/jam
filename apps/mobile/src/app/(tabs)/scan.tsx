@@ -237,7 +237,7 @@ export default function UseTab() {
 
         {/* 결제는 했지만 아직 잠긴 쿠폰 — 이용권을 쓰면 열린다 */}
         {pendingCount > 0 && !onlyMerchant && (
-          <Pressable style={st.pendingBar} onPress={() => router.push('/my-coupons' as never)}>
+          <Pressable style={st.pendingBar} onPress={() => router.push('/wallet')}>
             <Ionicons name="lock-closed" size={15} color={C.ink2} />
             <Text style={st.pendingText}>{t('pendingNote', { n: pendingCount })}</Text>
             <Text style={st.filterCta}>›</Text>

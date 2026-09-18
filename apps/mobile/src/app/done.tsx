@@ -68,7 +68,7 @@ export default function DoneScreen() {
 
         {/* 이용권을 쓰면서 묶인 쿠폰이 함께 열렸다 (2026-09-12 대표 확정) */}
         {Number(p.opened || 0) > 0 && (
-          <Pressable style={st.openedBox} onPress={() => router.replace('/my-coupons' as never)}>
+          <Pressable style={st.openedBox} onPress={() => router.replace('/wallet')}>
             <Text style={st.openedTitle}>{t('couponsOpened', { n: Number(p.opened) })}</Text>
             <Text style={st.openedCta}>{t('seeMyCoupons')} ›</Text>
           </Pressable>
