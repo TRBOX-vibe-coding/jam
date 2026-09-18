@@ -106,12 +106,12 @@ export default function StoreDetail() {
                   <View style={{ flex: 1 }}>
                     <Text style={st.dropTitle} numberOfLines={1}>{p.name}</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
-                      {me?.membership?.isPaid && p.memberPrice != null && <Tag text={t('memberPrice')} tone="gold" />}
+                      {p.memberPriceApplies && <Tag text={t('memberPrice')} tone="gold" />}
                       <Text style={st.dropPrice}>
-                        {won(me?.membership?.isPaid && p.memberPrice != null ? p.memberPrice : p.basePrice)}
+                        {won(p.memberPriceApplies ? p.memberPrice : p.basePrice)}
                       </Text>
-                      {me?.membership?.isPaid && p.memberPrice != null && <Text style={st.normal}>{won(p.basePrice)}</Text>}
-                      {!me?.membership?.isPaid && p.memberPrice != null && (
+                      {p.memberPriceApplies && <Text style={st.normal}>{won(p.basePrice)}</Text>}
+                      {!p.memberPriceApplies && p.memberPrice != null && (
                         <Text style={st.memberHintSmall}>{t('memberPriceShort', { price: won(p.memberPrice) })}</Text>
                       )}
                     </View>

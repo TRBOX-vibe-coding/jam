@@ -16,7 +16,7 @@ type SavedBenefit = {
   merchant: { id: string; name: string; thumbnailUrl: string | null; region: string; categoryEmoji: string };
 };
 type SavedProduct = {
-  refId: string; name: string; imageUrl: string | null; basePrice: number; memberPrice: number | null;
+  refId: string; name: string; imageUrl: string | null; basePrice: number; memberPrice: number | null; memberPriceApplies?: boolean;
   type: string; isActive: boolean; estimatedSaving: number;
   merchant: { id: string; name: string; region: string };
 };
@@ -152,10 +152,10 @@ export default function SavedScreen() {
                     <Text style={st.title} numberOfLines={1}>{p.name}</Text>
                     <Text style={st.sub} numberOfLines={1}>{p.merchant.name} · {p.merchant.region}</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                      {me?.membership?.isPaid && p.memberPrice != null ? (
+                      {p.memberPriceApplies ? (
                         <>
                           <Tag text={t('memberPrice')} tone="gold" />
-                          <Text style={st.price}>{won(p.memberPrice)}</Text>
+                          <Text style={st.price}>{won(p.memberPrice ?? p.basePrice)}</Text>
                         </>
                       ) : (
                         <Text style={st.price}>{won(p.basePrice)}</Text>

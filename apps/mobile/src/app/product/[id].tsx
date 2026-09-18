@@ -78,7 +78,7 @@ export default function ProductDetail() {
     return <Screen>{failed ? <LoadError text={t('loadFailed')} retryLabel={t('retry')} onRetry={load} /> : <Loading />}</Screen>;
   }
 
-  const unit = me?.membership?.isPaid && p.memberPrice != null ? p.memberPrice : p.basePrice;
+  const unit = p.memberPriceApplies ? p.memberPrice : p.basePrice;
   const total = p.type === 'RESERVATION' ? unit * headcount : unit;
 
   return (
@@ -102,7 +102,7 @@ export default function ProductDetail() {
           {p.description && <Text style={st.desc}>{p.description}</Text>}
 
           <View style={st.priceRow}>
-            {me?.membership?.isPaid && p.memberPrice != null ? (
+            {p.memberPriceApplies ? (
               <>
                 <Tag text={t('memberPrice')} tone="gold" />
                 <Text style={st.price}>{won(p.memberPrice)}</Text>

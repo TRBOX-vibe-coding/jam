@@ -35,8 +35,9 @@ export default function MyScreen() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [busy, setBusy] = useState(false);
 
+  const loadPlans = () => api<Plan[]>('/membership/plans').then(setPlans).catch(() => {});
   useEffect(() => {
-    api<Plan[]>('/membership/plans').then(setPlans).catch(() => {});
+    loadPlans();
   }, [lang]);
 
   async function doLogin(provider: string) {
@@ -59,6 +60,24 @@ export default function MyScreen() {
       await login('KAKAO', providerId);
     } catch (e: any) {
       notify(t('loginFail'), e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** 단체 코드 입력 — 기관마다 잼이 달라서, 코드를 넣으면 그 단체 잼이 목록에 나타난다 */
+  async function askOrgCode() {
+    const code = Platform.OS === 'web' ? window.prompt(t('orgCodeAsk')) : null;
+    if (!code) return;
+    setBusy(true);
+    try {
+      const r = await api<{ planName: string }>('/me/org-code', { method: 'POST', body: { code } });
+      await refresh();
+      await loadPlans();
+      const msg = t('orgCodeDone', { name: r.planName });
+      if (Platform.OS === 'web') window.alert(msg); else Alert.alert('', msg);
+    } catch (e: any) {
+      if (Platform.OS === 'web') window.alert(e.message); else Alert.alert('', e.message);
     } finally {
       setBusy(false);
     }
@@ -162,10 +181,31 @@ export default function MyScreen() {
               )}
             </Card>
 
-            {/* 멤버십 구매 — 무료 회원도 여기서 유료 잼으로 올라탄다 */}
-            {!me.membership?.isPaid && (
+            {/* 가진 잼 — 겹쳐 두면 합쳐서 쓴다 (2026-09-18 대표 확정) */}
+            {(me.memberships ?? []).filter((m) => m.isPaid).length > 0 && (
               <>
-                <Text style={st.section}>{t('startPlanSection')}</Text>
+                <Text style={st.section}>{t('myJams')}</Text>
+                {(me.memberships ?? []).filter((m) => m.isPaid).map((m) => (
+                  <Card key={m.planCode}>
+                    <View style={st.rowBetween}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={st.planName}>{m.planName}</Text>
+                        <Text style={st.planDesc}>
+                          {m.started ? t('untilDate', { date: new Date(m.endAt).toLocaleDateString(locale) })
+                            : t('cardUpcoming', { plan: m.planName, date: new Date(m.startAt).toLocaleDateString(locale) })}
+                        </Text>
+                      </View>
+                      <Tag text={m.started ? t('usableNow') : t('stIssued')} tone={m.started ? 'gold' : 'warn'} />
+                    </View>
+                  </Card>
+                ))}
+              </>
+            )}
+
+            {/* 멤버십 구매 — 무료 회원도 여기서 유료 잼으로 올라탄다 */}
+            {true && (
+              <>
+                <Text style={st.section}>{me.membership?.isPaid ? t('addJamSection') : t('startPlanSection')}</Text>
                 {plans.map((p) => (
                   <Card key={p.code}>
                     <View style={st.rowBetween}>
@@ -175,13 +215,30 @@ export default function MyScreen() {
                       </View>
                       <View style={{ alignItems: 'flex-end', gap: 6 }}>
                         <Text style={st.planPrice}>{won(p.price)}</Text>
-                        <Btn title={t('startShort')} small onPress={() => buy(p)} disabled={busy} />
+                        {(me.memberships ?? []).some((m) => m.planCode === p.code) ? (
+                          <Tag text={t('usableNow')} tone="gold" />
+                        ) : (
+                          <Btn title={t('startShort')} small onPress={() => buy(p)} disabled={busy} />
+                        )}
                       </View>
                     </View>
                   </Card>
                 ))}
               </>
             )}
+
+            {/* 단체 코드 — 기관마다 잼이 다르다. 가입 뒤에도 여기서 넣는다 (2026-09-18 대표 확정) */}
+            <Card>
+              <View style={st.rowBetween}>
+                <View style={{ flex: 1 }}>
+                  <Text style={st.planName}>{t('orgCodeTitle')}</Text>
+                  <Text style={st.planDesc}>
+                    {me.orgCode ? t('orgCodeSet', { code: me.orgCode }) : t('orgCodeHint')}
+                  </Text>
+                </View>
+                <Btn title={t('orgCodeBtn')} small tone="ghost" onPress={askOrgCode} disabled={busy} />
+              </View>
+            </Card>
 
             {/* 바로가기 */}
             <Text style={st.section}>{t('shortcuts')}</Text>

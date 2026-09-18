@@ -13,7 +13,7 @@ import { EmptyText, LoadError, Loading, Screen, Tag } from '../lib/ui';
 import { HScroll } from '../lib/hscroll';
 
 type Product = {
-  id: string; name: string; imageUrl: string | null; basePrice: number; memberPrice: number | null; type: string;
+  id: string; name: string; imageUrl: string | null; basePrice: number; memberPrice: number | null; type: string; memberPriceApplies?: boolean;
   isAd?: boolean;
   merchant: { name: string; region: { name: string } };
   category: { name: string; emoji: string | null } | null;
@@ -91,17 +91,17 @@ export default function ProductsScreen() {
                 <Text style={st.cardName} numberOfLines={1}>{p.name}</Text>
                 <Text style={st.cardMerchant}>{p.merchant.region.name} · {p.merchant.name}</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
-                  {me?.membership?.isPaid && p.memberPrice != null ? (
+                  {p.memberPriceApplies ? (
                     <>
                       <Tag text={t('memberPrice')} tone="gold" />
-                      <Text style={st.cardPrice}>{won(p.memberPrice)}</Text>
+                      <Text style={st.cardPrice}>{won(p.memberPrice ?? p.basePrice)}</Text>
                       <Text style={st.cardNormal}>{won(p.basePrice)}</Text>
                     </>
                   ) : (
                     <>
                       <Text style={st.cardPrice}>{won(p.basePrice)}</Text>
                       {p.memberPrice != null && (
-                        <Text style={st.cardMemberHint}>{t('memberPriceShort', { price: won(p.memberPrice) })}</Text>
+                        <Text style={st.cardMemberHint}>{t('memberPriceShort', { price: won(p.memberPrice ?? p.basePrice) })}</Text>
                       )}
                     </>
                   )}

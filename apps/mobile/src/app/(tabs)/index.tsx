@@ -29,7 +29,7 @@ type Drop = {
   closeAt: string;
 };
 type Product = {
-  id: string; name: string; imageUrl: string | null; basePrice: number; memberPrice: number | null;
+  id: string; name: string; imageUrl: string | null; basePrice: number; memberPrice: number | null; memberPriceApplies?: boolean;
   type: string; merchant: { name: string; region: { name: string } };
 };
 type BenefitGroup = {
@@ -437,10 +437,10 @@ export default function HomeScreen() {
                 <Text style={st.dropTitle} numberOfLines={1}>{p.name}</Text>
                 <Text style={st.dropMerchant} numberOfLines={1}>{p.merchant.region.name} · {p.merchant.name}</Text>
                 <View style={st.dropPriceRow}>
-                  {me?.membership?.isPaid && p.memberPrice != null ? (
+                  {p.memberPriceApplies ? (
                     <>
                       <Text style={st.memberTag}>{t('memberPrice')}</Text>
-                      <Text style={st.prodPrice}>{won(p.memberPrice)}</Text>
+                      <Text style={st.prodPrice}>{won(p.memberPrice ?? p.basePrice)}</Text>
                     </>
                   ) : (
                     <Text style={st.prodPrice}>{won(p.basePrice)}</Text>

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { API_BASE, api, dt, won } from '@/lib/api';
 import { Badge, Button, Card, CardHeader, Empty, Modal, Table, TableSkeleton, Td } from '@/components/ui';
 import { ProductCouponsModal } from '@/components/product-coupons';
+import { PlanPicker } from '@/components/plan-picker';
 
 const TYPE_LABEL: Record<string, string> = { TICKET: '티켓', RESERVATION: '예약형', PASS: 'PASS' };
 const VERIF_LABEL: Record<string, string> = { QR_ONLY: '사장님 확인', QR_PIN: '확인번호 대조', STAFF_CONFIRM: '직원확인' };
@@ -36,6 +37,7 @@ export default function ProductsPage() {
   const [msg, setMsg] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState({ merchantId: '', name: '', type: 'RESERVATION', basePrice: '', memberPrice: '', verification: 'QR_ONLY' });
+  const [formPlanIds, setFormPlanIds] = useState<string[]>([]);
   const [image, setImage] = useState<string | null>(null); // data URL
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -85,6 +87,7 @@ export default function ProductsPage() {
           type: form.type,
           basePrice: Number(form.basePrice),
           memberPrice: form.memberPrice ? Number(form.memberPrice) : undefined,
+          memberPricePlanIds: formPlanIds,
           verification: form.verification,
           imageBase64: image ?? undefined,
         },
@@ -273,6 +276,9 @@ export default function ProductsPage() {
                 </select>
                 <input className={inputCls} placeholder="정상가" value={form.basePrice} onChange={(e) => setForm({ ...form, basePrice: e.target.value.replace(/\D/g, '') })} />
                 <input className={inputCls} placeholder="유료 회원 할인가(선택)" value={form.memberPrice} onChange={(e) => setForm({ ...form, memberPrice: e.target.value.replace(/\D/g, '') })} />
+              </div>
+              <div className="mt-3">
+                <PlanPicker value={formPlanIds} onChange={setFormPlanIds} />
               </div>
               <div className="mt-3 flex flex-wrap items-center gap-3">
                 <select className={inputCls} value={form.verification} onChange={(e) => setForm({ ...form, verification: e.target.value })}>

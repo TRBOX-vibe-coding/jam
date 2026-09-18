@@ -3,11 +3,12 @@ import { useCallback, useEffect, useState } from 'react';
 import { API_BASE, api, fileToDataUrl, won } from '@/lib/api';
 import { Badge, Button, Card, CardHeader, Empty, Table, TableSkeleton, Td } from '@/components/ui';
 import { QtyEdit } from '@/components/qty-edit';
+import { PlanPicker } from '@/components/plan-picker';
 
 const img = (u?: string | null, w = 160) => (u ? (u.startsWith('/') ? `${API_BASE}${u}?w=${w}` : u) : null);
 const TYPE_LABEL: Record<string, string> = { TICKET: '티켓', RESERVATION: '예약형', PASS: 'PASS' };
 
-const EMPTY = { type: 'RESERVATION', name: '', description: '', basePrice: '', memberPrice: '', verification: 'QR_ONLY', cancelPolicy: '', totalQty: '', slotCapacity: '' };
+const EMPTY = { type: 'RESERVATION', name: '', description: '', basePrice: '', memberPrice: '', verification: 'QR_ONLY', cancelPolicy: '', totalQty: '', slotCapacity: '', memberPricePlanIds: [] as string[] };
 
 export default function MyProductsPage() {
   const [rows, setRows] = useState<any[] | null>(null);
@@ -48,6 +49,7 @@ export default function MyProductsPage() {
           description: f.description || undefined,
           basePrice: Number(f.basePrice),
           memberPrice: f.memberPrice ? Number(f.memberPrice) : undefined,
+          memberPricePlanIds: f.memberPricePlanIds,
           verification: f.verification,
           cancelPolicy: f.cancelPolicy || undefined,
           totalQty: f.type === 'TICKET' && f.totalQty ? Number(f.totalQty) : undefined,
@@ -100,6 +102,7 @@ export default function MyProductsPage() {
             <input className={`${inputCls} col-span-2 lg:col-span-4`} placeholder="설명" value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} />
             <input className={inputCls} placeholder="정상가 *" value={f.basePrice} onChange={(e) => setF({ ...f, basePrice: e.target.value.replace(/\D/g, '') })} />
             <input className={inputCls} placeholder="유료 회원 할인가 (선택)" title="비우면 유료·무료 회원 모두 정상가로 판매됩니다" value={f.memberPrice} onChange={(e) => setF({ ...f, memberPrice: e.target.value.replace(/\D/g, '') })} />
+            <PlanPicker value={f.memberPricePlanIds} onChange={(ids) => setF({ ...f, memberPricePlanIds: ids })} />
             {f.type === 'TICKET' ? (
               <input className={inputCls} placeholder="총 판매 수량 (비우면 무제한)" title="다 팔리면 자동 품절됩니다" value={f.totalQty} onChange={(e) => setF({ ...f, totalQty: e.target.value.replace(/\D/g, '') })} />
             ) : (

@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, won } from '@/lib/api';
 import { Badge, Button, Card, CardHeader, Empty, Modal, Table, TableSkeleton, Td } from '@/components/ui';
+import { PlanScopeModal } from '@/components/plan-scope';
 
 const EMPTY_FORM = { code: '', name: '', description: '', price: '', durationDays: '', sortOrder: '0' };
 
@@ -11,12 +12,25 @@ export default function MembershipPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [editing, setEditing] = useState<any | null>(null);
+  // 잼마다 여는 쿠폰이 다르다 (2026-09-18 대표 확정)
+  const [scopeFor, setScopeFor] = useState<any | null>(null);
   const [ef, setEf] = useState(EMPTY_FORM);
 
   const load = useCallback(() => {
     api<any[]>('/admin/plans').then(setRows).catch(() => setRows([]));
   }, []);
   useEffect(load, [load]);
+
+  /** 잼 복사 — 기관별 단체 잼처럼 비슷한 잼을 계속 만들 때 (2026-09-18 대표 요청) */
+  async function duplicate(p: any) {
+    if (!confirm(`'${p.name}'을(를) 복사할까요?
+쿠폰 범위까지 복사되고, 판매는 꺼진 채로 만들어집니다.`)) return;
+    try {
+      const r = await api<{ copiedRules: number }>(`/admin/plans/${p.id}/duplicate`, { method: 'POST' });
+      setMsg(`'${p.name}' 복사 완료 — 목록에서 이름과 단체 코드를 고치세요`);
+      load();
+    } catch (e: any) { alert(e.message); }
+  }
 
   async function create() {
     try {
@@ -114,7 +128,7 @@ export default function MembershipPage() {
         ) : rows.length === 0 ? (
           <Empty text="플랜이 없습니다" />
         ) : (
-          <Table head={['상태', '플랜', '가격', '기간', '누적 가입', '관리']}>
+          <Table head={['상태', '플랜', '쿠폰 범위', '가격', '기간', '누적 가입', '관리']}>
             {rows.map((p) => (
               <tr key={p.id} className={p.isActive ? '' : 'opacity-60'}>
                 <Td><Badge>{p.isActive ? 'ACTIVE' : 'CLOSED'}</Badge></Td>
@@ -122,12 +136,18 @@ export default function MembershipPage() {
                   <div className="font-medium">💎 {p.name} <span className="text-xs text-ink-3">({p.code})</span></div>
                   <div className="truncate text-xs text-ink-3">{p.description}</div>
                 </Td>
+                <Td className="text-xs">
+                  {p.scope === 'ALL' ? '전부' : p.scope === 'REGION' ? '지역' : p.scope === 'CATEGORY' ? '종류' : '직접'}
+                  {p.isPrivate && <span className="ml-1 text-warn">· 단체</span>}
+                </Td>
                 <Td className="tabular-nums font-semibold">{won(p.price)}</Td>
                 <Td className="tabular-nums">{p.durationDays}일</Td>
                 <Td className="tabular-nums text-xs text-ink-3">{p._count.memberships}명</Td>
                 <Td>
                   <div className="flex gap-1.5">
                     <Button small variant="ghost" onClick={() => openEdit(p)}>수정</Button>
+                    <Button small onClick={() => setScopeFor(p)}>쿠폰 범위</Button>
+                    <Button small variant="ghost" onClick={() => duplicate(p)}>복사</Button>
                     <Button small variant={p.isActive ? 'danger' : 'primary'} onClick={() => toggle(p)}>
                       {p.isActive ? '판매 중지' : '판매 재개'}
                     </Button>
@@ -170,6 +190,12 @@ export default function MembershipPage() {
             </div>
           </div>
         </Modal>
+      )}
+      {scopeFor && (
+        <PlanScopeModal
+          plan={scopeFor}
+          onClose={(saved) => { setScopeFor(null); if (saved) { setMsg('쿠폰 범위를 저장했습니다'); load(); } }}
+        />
       )}
     </div>
   );

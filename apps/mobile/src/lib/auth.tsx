@@ -12,6 +12,13 @@ export type Me = {
     /** 사용 시작일이 지났는지 (미리 결제한 잼은 시작 전엔 false) */
     started: boolean;
   } | null;
+  /** 지금 가진 잼 전부 — 겹쳐 두면 합쳐서 쓴다 (2026-09-18 대표 확정) */
+  memberships: {
+    planCode: string; planName: string; startAt: string; endAt: string;
+    isPaid: boolean; started: boolean; scope: string;
+  }[];
+  /** 단체 코드 — 넣으면 그 단체 전용 잼을 살 수 있다 */
+  orgCode: string | null;
   savings: {
     thisMonth: number;
     /** 올해 누적 혜택금액 (2026-09-12 대표 문구 픽스) */
