@@ -139,19 +139,19 @@ export default function MyScreen() {
             <Card>
               <View style={st.rowBetween}>
                 <View>
-                  <Text style={st.planName}>{t('titleMyBuys')}</Text>
-                  <Text style={st.planDesc}>{t('myBuysSub')}</Text>
+                  <Text style={st.planName}>♥ {t('savedLink')}</Text>
+                  <Text style={st.planDesc}>{t('savedLinkSub')}</Text>
                 </View>
-                <Btn title={t('view')} small onPress={() => router.push('/wallet')} />
+                <Btn title={t('view')} small onPress={() => router.push('/saved' as never)} />
               </View>
             </Card>
             <Card>
               <View style={st.rowBetween}>
                 <View>
-                  <Text style={st.planName}>♥ {t('savedLink')}</Text>
-                  <Text style={st.planDesc}>{t('savedLinkSub')}</Text>
+                  <Text style={st.planName}>{t('titleMyBuys')}</Text>
+                  <Text style={st.planDesc}>{t('myBuysSub')}</Text>
                 </View>
-                <Btn title={t('view')} small onPress={() => router.push('/saved' as never)} />
+                <Btn title={t('view')} small onPress={() => router.push('/wallet')} />
               </View>
             </Card>
 
