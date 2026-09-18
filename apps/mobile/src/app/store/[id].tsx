@@ -66,7 +66,7 @@ export default function StoreDetail() {
                 <Btn title={t('useAtStore')} small onPress={() => router.push({ pathname: '/(tabs)/scan', params: { merchant: m.id } })} />
               </View>
             ) : (
-              <Pressable style={st.lockBar} onPress={() => router.push('/(tabs)/my')}>
+              <Pressable style={st.lockBar} onPress={() => router.push('/(tabs)/jam' as never)}>
                 <Text style={st.lockText}>{t('lockStart')}</Text>
               </Pressable>
             )}

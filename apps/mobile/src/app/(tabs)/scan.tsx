@@ -135,7 +135,7 @@ export default function UseTab() {
               </View>
               {!me.membership?.isPaid && (
                 <View style={{ flex: 1 }}>
-                  <Btn title={t('start')} small onPress={() => router.push('/(tabs)/my')} />
+                  <Btn title={t('start')} small onPress={() => router.push('/(tabs)/jam' as never)} />
                 </View>
               )}
             </View>

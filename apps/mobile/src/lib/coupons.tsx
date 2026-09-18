@@ -102,7 +102,7 @@ export function CouponsScreen({ source }: { source?: 'PRODUCT' }) {
   const hasStartedJam = (me?.memberships ?? []).some((m) => m.isPaid && m.started);
   function onLockedPress() {
     const msg = hasStartedJam ? t('goOtherJam') : t('goStartJam');
-    const go = () => router.push('/(tabs)/my');
+    const go = () => router.push('/(tabs)/jam' as never);
     if (Platform.OS === 'web') { if (window.confirm(msg)) go(); }
     else Alert.alert('', msg, [{ text: t('close'), style: 'cancel' }, { text: t('start'), onPress: go }]);
   }
@@ -151,7 +151,7 @@ export function CouponsScreen({ source }: { source?: 'PRODUCT' }) {
             <EmptyText text={source ? t('myCouponsEmpty') : t('noBenefitsYet')} />
             <Btn
               title={source ? t('seeProducts') : t('seePlans')}
-              onPress={() => router.push(source ? ('/products' as never) : '/(tabs)/my')}
+              onPress={() => router.push((source ? '/products' : '/(tabs)/jam') as never)}
             />
           </View>
         )}
@@ -269,7 +269,7 @@ export function CouponsScreen({ source }: { source?: 'PRODUCT' }) {
 
         {/* 세 장을 실제로 써본 사람에게 "부산 전체가 이렇게 열린다"를 보여준다 (2026-09-12 대표 유도 설계) */}
         {source && !me.membership?.isPaid && (
-          <Pressable style={st.promo} onPress={() => router.push('/(tabs)/my')}>
+          <Pressable style={st.promo} onPress={() => router.push('/(tabs)/jam' as never)}>
             <Text style={st.promoText}>{t('myCouponsPromo')}</Text>
             <Text style={st.promoCta}>{t('start')} ›</Text>
           </Pressable>

@@ -173,7 +173,7 @@ export default function HomeScreen() {
         {/* 상태 카드 — 기간잼·여행이 있으면 '내 여행' 요약, 잼마스터는 누적 절약 (2026-09-09 픽스) */}
         <Pressable
           style={st.statusCard}
-          onPress={() => router.push((me ? (trip ? '/(tabs)/trip' : '/benefits') : '/(tabs)/my') as never)}
+          onPress={() => router.push((!me ? '/(tabs)/my' : me.membership?.isPaid ? (trip ? '/(tabs)/trip' : '/benefits') : '/(tabs)/jam') as never)}
         >
             {me ? (
               <View style={st.statusRow}>
@@ -314,7 +314,7 @@ export default function HomeScreen() {
                 </View>
               );
             })}
-            <Pressable onPress={() => router.push('/(tabs)/my')}>
+            <Pressable onPress={() => router.push('/(tabs)/jam' as never)}>
               <Text style={st.couponUpsell}>{t('couponUpsell')}</Text>
             </Pressable>
           </View>

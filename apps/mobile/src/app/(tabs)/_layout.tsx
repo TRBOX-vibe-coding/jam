@@ -49,12 +49,21 @@ export default function TabsLayout() {
           tabBarIcon: tabIcon('pricetags', 'pricetags-outline'),
         }}
       />
+      {/* 잼 구매는 하단바로 (2026-09-18 대표 확정) — MY 안쪽에 있으면 못 찾는다 */}
+      <Tabs.Screen
+        name="jam"
+        options={{
+          title: t('titleJam'),
+          tabBarLabel: t('tabJam'),
+          tabBarIcon: tabIcon('diamond', 'diamond-outline'),
+        }}
+      />
+      {/* 일정은 탭에서 빼고 잼 탭·MY에서 들어간다. 라우트는 그대로 쓴다 */}
       <Tabs.Screen
         name="trip"
         options={{
           title: t('titleTrip'),
-          tabBarLabel: t('tabTrip'),
-          tabBarIcon: tabIcon('calendar', 'calendar-outline'),
+          href: null,
         }}
       />
       <Tabs.Screen

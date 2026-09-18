@@ -1,18 +1,15 @@
 /**
- * MY — 로그인(간편가입), 멤버십 상태/구매, 가맹점 모드 진입.
+ * MY — 로그인(간편가입), 멤버십 상태, 바로가기, 가맹점 모드 진입.
  * 멤버십 카드에는 가격이 아니라 "얼마 아꼈고 회수율이 몇 %인지"를 먼저 보여준다.
  */
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Alert, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
-import { track } from '../../lib/analytics';
-import { api } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { LangChips, useI18n } from '../../lib/i18n';
 import { C } from '../../lib/theme';
 import { Btn, Card, Loading, Screen, Tag } from '../../lib/ui';
 
-type Plan = { code: string; name: string; description: string; price: number; durationDays: number };
 
 /** 당분간 프로덕션에서도 임시(시연) 계정 로그인을 연다. 실서비스 전환 시 false로. */
 const DEMO_MODE = true;
@@ -31,14 +28,9 @@ function notify(title: string, msg: string) {
 
 export default function MyScreen() {
   const { ready, me, login, logout, refresh } = useAuth();
-  const { t, won, locale, lang } = useI18n();
-  const [plans, setPlans] = useState<Plan[]>([]);
+  const { t, won, locale } = useI18n();
   const [busy, setBusy] = useState(false);
 
-  const loadPlans = () => api<Plan[]>('/membership/plans').then(setPlans).catch(() => {});
-  useEffect(() => {
-    loadPlans();
-  }, [lang]);
 
   async function doLogin(provider: string) {
     setBusy(true);
@@ -62,62 +54,6 @@ export default function MyScreen() {
       notify(t('loginFail'), e.message);
     } finally {
       setBusy(false);
-    }
-  }
-
-  /** 단체 코드 입력 — 기관마다 잼이 달라서, 코드를 넣으면 그 단체 잼이 목록에 나타난다 */
-  async function askOrgCode() {
-    const code = Platform.OS === 'web' ? window.prompt(t('orgCodeAsk')) : null;
-    if (!code) return;
-    setBusy(true);
-    try {
-      const r = await api<{ planName: string }>('/me/org-code', { method: 'POST', body: { code } });
-      await refresh();
-      await loadPlans();
-      const msg = t('orgCodeDone', { name: r.planName });
-      if (Platform.OS === 'web') window.alert(msg); else Alert.alert('', msg);
-    } catch (e: any) {
-      if (Platform.OS === 'web') window.alert(e.message); else Alert.alert('', e.message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function buy(plan: Plan) {
-    // 기간잼은 사용 시작일을 정한다 (2026-09-09 픽스) — 여행이 있으면 여행 시작일이 기본값.
-    let startDate: string | undefined;
-    if (plan.durationDays <= 30) {
-      const d = new Date();
-      const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      const tripRes = await api<any>('/me/trip').catch(() => null);
-      const tripStart = tripRes?.trip?.startDate?.slice(0, 10);
-      startDate = tripStart && tripStart >= todayStr ? tripStart : todayStr;
-      if (Platform.OS === 'web') {
-        const inp = window.prompt(t('jamStartPrompt'), startDate);
-        if (inp == null) return;
-        if (/^\d{4}-\d{2}-\d{2}$/.test(inp.trim())) startDate = inp.trim();
-      }
-    }
-    const run = async () => {
-      setBusy(true);
-      try {
-        const r = await api<any>('/membership/purchase', { method: 'POST', body: { planCode: plan.code, startDate } });
-        track('membership_purchase', { type: 'plan', id: plan.code });
-        await refresh();
-        notify(t('memberStarted'), r.message);
-      } catch (e: any) {
-        notify(t('cantBuy'), e.message);
-      } finally {
-        setBusy(false);
-      }
-    };
-    if (Platform.OS === 'web') {
-      if (window.confirm(t('buyConfirmWeb', { plan: plan.name, price: won(plan.price) }) + (startDate ? `\n(${t('jamStartDate')}: ${startDate})` : ''))) await run();
-    } else {
-      Alert.alert(plan.name, t('buyConfirmNative', { price: won(plan.price), days: plan.durationDays }) + (startDate ? `\n${t('jamStartDate')}: ${startDate}` : ''), [
-        { text: t('cancel'), style: 'cancel' },
-        { text: t('start'), onPress: run },
-      ]);
     }
   }
 
@@ -179,69 +115,26 @@ export default function MyScreen() {
                 // 무료 회원 — 보기·담기·일정·상품 구매는 되고, 쿠폰 사용만 잼 시작 후 (2026-09-09 픽스)
                 <Text style={st.cardSaving}>{me.membership ? t('cardFreeHint') : t('cardNoPlan')}</Text>
               )}
-            </Card>
-
-            {/* 가진 잼 — 겹쳐 두면 합쳐서 쓴다 (2026-09-18 대표 확정) */}
-            {(me.memberships ?? []).filter((m) => m.isPaid).length > 0 && (
-              <>
-                <Text style={st.section}>{t('myJams')}</Text>
-                {(me.memberships ?? []).filter((m) => m.isPaid).map((m) => (
-                  <Card key={m.planCode}>
-                    <View style={st.rowBetween}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={st.planName}>{m.planName}</Text>
-                        <Text style={st.planDesc}>
-                          {m.started ? t('untilDate', { date: new Date(m.endAt).toLocaleDateString(locale) })
-                            : t('cardUpcoming', { plan: m.planName, date: new Date(m.startAt).toLocaleDateString(locale) })}
-                        </Text>
-                      </View>
-                      <Tag text={m.started ? t('usableNow') : t('stIssued')} tone={m.started ? 'gold' : 'warn'} />
-                    </View>
-                  </Card>
-                ))}
-              </>
-            )}
-
-            {/* 멤버십 구매 — 무료 회원도 여기서 유료 잼으로 올라탄다 */}
-            {true && (
-              <>
-                <Text style={st.section}>{me.membership?.isPaid ? t('addJamSection') : t('startPlanSection')}</Text>
-                {plans.map((p) => (
-                  <Card key={p.code}>
-                    <View style={st.rowBetween}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={st.planName}>{p.name}</Text>
-                        <Text style={st.planDesc}>{p.description}</Text>
-                      </View>
-                      <View style={{ alignItems: 'flex-end', gap: 6 }}>
-                        <Text style={st.planPrice}>{won(p.price)}</Text>
-                        {(me.memberships ?? []).some((m) => m.planCode === p.code) ? (
-                          <Tag text={t('usableNow')} tone="gold" />
-                        ) : (
-                          <Btn title={t('startShort')} small onPress={() => buy(p)} disabled={busy} />
-                        )}
-                      </View>
-                    </View>
-                  </Card>
-                ))}
-              </>
-            )}
-
-            {/* 단체 코드 — 기관마다 잼이 다르다. 가입 뒤에도 여기서 넣는다 (2026-09-18 대표 확정) */}
-            <Card>
-              <View style={st.rowBetween}>
-                <View style={{ flex: 1 }}>
-                  <Text style={st.planName}>{t('orgCodeTitle')}</Text>
-                  <Text style={st.planDesc}>
-                    {me.orgCode ? t('orgCodeSet', { code: me.orgCode }) : t('orgCodeHint')}
-                  </Text>
+              {!me.membership?.isPaid && (
+                <View style={{ marginTop: 12, alignItems: 'flex-start' }}>
+                  <Btn title={t('startPlanSection')} small onPress={() => router.push('/(tabs)/jam' as never)} />
                 </View>
-                <Btn title={t('orgCodeBtn')} small tone="ghost" onPress={askOrgCode} disabled={busy} />
-              </View>
+              )}
             </Card>
+
+            {/* 잼은 하단바 [잼] 탭에서 고르고 산다. 여기 또 두면 같은 목록이 두 곳이 된다 (2026-09-18) */}
 
             {/* 바로가기 */}
             <Text style={st.section}>{t('shortcuts')}</Text>
+            <Card>
+              <View style={st.rowBetween}>
+                <View>
+                  <Text style={st.planName}>{t('titleTrip')}</Text>
+                  <Text style={st.planDesc}>{t('tripLinkSub')}</Text>
+                </View>
+                <Btn title={t('view')} small onPress={() => router.push('/(tabs)/trip' as never)} />
+              </View>
+            </Card>
             <Card>
               <View style={st.rowBetween}>
                 <View>

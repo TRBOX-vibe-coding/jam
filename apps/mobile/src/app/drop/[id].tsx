@@ -95,7 +95,7 @@ export default function DropDetail() {
         {d.locked ? (
           <Card style={{ backgroundColor: C.warnSoft, borderColor: C.warnSoft }}>
             <Text style={st.lockText}>{t('memberOnlyDrop')}</Text>
-            <Btn title={t('seeMembership')} onPress={() => router.push('/(tabs)/my')} />
+            <Btn title={t('seeMembership')} onPress={() => router.push('/(tabs)/jam' as never)} />
           </Card>
         ) : (
           <Btn

@@ -179,7 +179,7 @@ export default function TripScreen() {
             </Text>
           )}
           {!me.membership || me.membership.planCode === 'FREE' ? (
-            <Pressable style={st.heroCta} onPress={() => router.push('/(tabs)/my')}>
+            <Pressable style={st.heroCta} onPress={() => router.push('/(tabs)/jam' as never)}>
               <Text style={st.heroCtaText}>{t('tripStartJam', { plan: trip.recommendedPlan?.name ?? '잼' })}</Text>
             </Pressable>
           ) : null}
