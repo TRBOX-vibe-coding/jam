@@ -46,6 +46,17 @@ cd apps/api && npm run start:dev      # API (감시 모드 아님 — 코드 고
 `prisma db push`는 API를 내린 뒤에 한다(포트 4000 점유).
 스키마를 바꾸면 `npx prisma generate`까지 해야 API가 새 필드를 안다.
 
+## 시연 주소 확인
+
+시드는 '시드한 날' 기준으로 날짜를 만들어서, 며칠 지나면 DROP이 전부 마감되고
+기획전이 끝나고 예약 상품의 시간대가 사라진다(결제 불가). 시연 주소를 확인할 때마다 돌린다.
+
+```bash
+cd packages/db && npm run demo:refresh   # DROP 다시 열기 · 기획전 연장 · 예약 시간대 14일치
+```
+
+몇 번을 돌려도 된다. 예약이 들어간 시간대는 지우지 않는다. 실서비스 DB에는 돌리지 않는다.
+
 ## 빌드와 배포
 
 ```bash
