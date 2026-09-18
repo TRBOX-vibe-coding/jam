@@ -191,6 +191,7 @@ const D: Record<string, [string, string, string, string]> = {
   jamScopeRegion: ["이 지역 쿠폰","Coupons in this area","该地区优惠券","この地域のクーポン"],
   jamScopeCategory: ["이 종류 쿠폰","Coupons of this kind","该类型优惠券","この種類のクーポン"],
   notInMyJam: ["내 잼에 없는 쿠폰","Not in your JAM","不在您的JAM中","マイJAMにないクーポン"],
+  goOtherJam: ["이 쿠폰은 지금 가진 잼에 들어 있지 않아요.\n다른 잼을 보시겠어요?","This coupon is not in your JAM.\nWant to see other JAMs?","该优惠券不在您的JAM中。\n要看看其他JAM吗？","このクーポンはお持ちのJAMに含まれていません。\n他のJAMを見ますか？"],
   myCouponsLink: ['내 쿠폰', 'My coupons', '我的优惠券', 'マイクーポン'],
   myCouponsLinkSub: ['결제하고 받은 쿠폰', 'Coupons you got with a purchase', '购买商品获得的优惠券', '購入でもらったクーポン'],
   myCouponsLabel: ['결제하고 받은 쿠폰', 'Coupons you received', '已获得的优惠券', 'もらったクーポン'],

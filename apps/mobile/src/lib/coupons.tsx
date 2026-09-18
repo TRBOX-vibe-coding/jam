@@ -98,10 +98,13 @@ export function CouponsScreen({ source }: { source?: 'PRODUCT' }) {
     else Alert.alert('', msg, [{ text: t('close'), style: 'cancel' }, { text: t('titleWallet'), onPress: go }]);
   }
 
+  /** 잼이 이미 있으면 '내 잼에 없는 쿠폰', 없으면 '잼을 시작하세요'로 안내한다 */
+  const hasStartedJam = (me?.memberships ?? []).some((m) => m.isPaid && m.started);
   function onLockedPress() {
+    const msg = hasStartedJam ? t('goOtherJam') : t('goStartJam');
     const go = () => router.push('/(tabs)/my');
-    if (Platform.OS === 'web') { if (window.confirm(t('goStartJam'))) go(); }
-    else Alert.alert('', t('goStartJam'), [{ text: t('close'), style: 'cancel' }, { text: t('start'), onPress: go }]);
+    if (Platform.OS === 'web') { if (window.confirm(msg)) go(); }
+    else Alert.alert('', msg, [{ text: t('close'), style: 'cancel' }, { text: t('start'), onPress: go }]);
   }
 
   const regions = data ? uniq(data.merchants.map((g) => g.merchant.region.name), (x) => x) : [];
@@ -246,7 +249,9 @@ export function CouponsScreen({ source }: { source?: 'PRODUCT' }) {
                     // 무료 회원 또는 시작 전 잼 — 눌러도 서버에서 막히니, 먼저 상태를 보여주고 MY로 안내한다
                     <Pressable style={[st.useBtn, st.useBtnLocked]} onPress={onLockedPress}>
                       <Text style={[st.useBtnText, { color: C.ink2 }]}>
-                        {me.membership?.isPaid && !me.membership.started
+                        {hasStartedJam
+                          ? t('notInMyJam')
+                          : me.membership?.isPaid && !me.membership.started
                           ? t('useFrom', { date: new Date(me.membership.startAt).toLocaleDateString(locale, { month: 'numeric', day: 'numeric' }) })
                           : t('useLocked')}
                       </Text>
