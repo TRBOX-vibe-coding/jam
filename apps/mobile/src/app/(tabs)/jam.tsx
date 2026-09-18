@@ -137,6 +137,7 @@ export default function JamScreen() {
 
   const mine = (me?.memberships ?? []).filter((m) => m.isPaid);
   const owned = (code: string) => mine.some((m) => m.planCode === code);
+  const buyable = plans.filter((p) => !owned(p.code));
 
   return (
     <Screen>
@@ -187,10 +188,12 @@ export default function JamScreen() {
           </>
         )}
 
-        <Text style={st.section}>{mine.length > 0 ? t('addJamSection') : t('startPlanSection')}</Text>
+        {buyable.length > 0 && (
+          <Text style={st.section}>{mine.length > 0 ? t('addJamSection') : t('startPlanSection')}</Text>
+        )}
         {mine.length === 0 && <Text style={st.lead}>{t('jamLead')}</Text>}
 
-        {plans.map((p) => (
+        {buyable.map((p) => (
           <View key={p.code} style={st.jamCard}>
             {p.imageUrl ? <Image source={{ uri: img(p.imageUrl, 720) }} style={st.jamImg} /> : null}
             <View style={{ padding: 14 }}>
@@ -215,13 +218,12 @@ export default function JamScreen() {
                 </View>
               </View>
               <View style={{ marginTop: 11, alignItems: 'flex-start' }}>
-                {owned(p.code)
-                  ? <Tag text={t('usableNow')} tone="gold" />
-                  : <Btn title={t('startShort')} small onPress={() => buy(p)} disabled={busy} />}
+                <Btn title={t('startShort')} small onPress={() => buy(p)} disabled={busy} />
               </View>
             </View>
           </View>
         ))}
+        {buyable.length === 0 && <Text style={st.allOwned}>{t('jamAllOwned')}</Text>}
 
         {/* 단체 코드 — 회사나 기관에서 받은 코드를 넣으면 전용 잼이 위 목록에 나타난다 */}
         <Pressable style={st.org} onPress={askOrgCode}>
@@ -285,5 +287,6 @@ const st = StyleSheet.create({
   orgTitle: { fontSize: 14, fontWeight: '700', color: C.ink },
   orgSub: { fontSize: 12, color: C.ink3, marginTop: 2, lineHeight: 17 },
 
+  allOwned: { fontSize: 13, color: C.ink2, textAlign: 'center', marginTop: 4, marginBottom: 4 },
   foot: { fontSize: 11.5, color: C.ink3, textAlign: 'center', marginTop: 20, lineHeight: 17 },
 });

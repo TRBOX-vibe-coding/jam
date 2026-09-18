@@ -201,6 +201,7 @@ const D: Record<string, [string, string, string, string]> = {
   jamCalcSub: ["날짜와 인원만 넣으면 예상 절약 금액이 나와요","Just dates and headcount — we do the math","只需日期和人数，自动算出节省金额","日付と人数を入れるだけで節約額が出ます"],
   jamFoot: ["잼은 겹쳐 둘 수 있어요. 5일잼을 쓰는 중에 잼마스터를 사면 둘 다 살아 있고 혜택은 합쳐집니다.","JAMs stack. Buy JAM Master while your 5-Day JAM is running and both stay active — the benefits combine.","JAM可叠加。5日JAM使用期间购买JAM大师，两者同时有效，权益合并。","JAMは重ねられます。5日JAMの利用中にJAMマスターを買うと両方有効で、特典は合算されます。"],
   jamLoginFirst: ["잼을 사려면 먼저 로그인해 주세요","Sign in to buy a JAM","购买JAM请先登录","JAMの購入にはログインが必要です"],
+  jamAllOwned: ["살 수 있는 잼을 모두 가지고 계세요","You already have every JAM on sale","您已拥有全部在售JAM","販売中のJAMをすべてお持ちです"],
   tripLinkSub: ["담은 것을 날짜에 놓고 절약 금액 보기","Place saved items on days and see your savings","把收藏放到日期上，查看节省金额","保存した項目を日付に置いて節約額を見る"],
   jamScopeRegion: ["이 지역 쿠폰","Coupons in this area","该地区优惠券","この地域のクーポン"],
   jamScopeCategory: ["이 종류 쿠폰","Coupons of this kind","该类型优惠券","この種類のクーポン"],
