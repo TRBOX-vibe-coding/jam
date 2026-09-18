@@ -94,6 +94,26 @@ export async function usableBenefitIds(db: Db, userId: string | null | undefined
  * 지금 이 회원이 가진 유료 잼(이미 시작된 것)의 id 목록.
  * 상품 할인가는 상품마다 지정한 잼을 가졌는지로 판단한다.
  */
+/**
+ * 이 잼 하나가 여는 쿠폰 id 목록. (구매 전 "무엇이 열리는지" 보여줄 때 쓴다)
+ * 살아있는 잼이 아니라 잼 자체의 성격 + 예외로만 계산한다.
+ */
+export async function benefitIdsForPlan(db: Db, plan: PlanLike): Promise<string[]> {
+  const benefits = await db.benefit.findMany({
+    where: { isActive: true, approval: 'ACTIVE', merchant: { status: 'ACTIVE' } },
+    select: { id: true, merchant: { select: { regionId: true, categoryId: true } } },
+  });
+  const exceptions = await db.benefitGrantRule.findMany({
+    where: { trigger: 'MEMBERSHIP_PLAN', membershipPlanId: plan.id, isActive: true },
+    select: { benefitId: true, isExcluded: true },
+  });
+  const added = new Set(exceptions.filter((e) => !e.isExcluded).map((e) => e.benefitId));
+  const removed = new Set(exceptions.filter((e) => e.isExcluded).map((e) => e.benefitId));
+  return benefits
+    .filter((b) => !removed.has(b.id) && (added.has(b.id) || scopeCovers(plan, b)))
+    .map((b) => b.id);
+}
+
 export async function activePaidPlanIds(db: Db, userId: string | null | undefined): Promise<string[]> {
   if (!userId) return [];
   const now = new Date();

@@ -105,6 +105,8 @@ function AppStack() {
       <Stack.Screen name="products" options={{ title: t('activitySection') }} />
       <Stack.Screen name="store/[id]" options={{ title: t('titleStoreDetail') }} />
       <Stack.Screen name="product/[id]" options={{ title: t('titleProduct') }} />
+      <Stack.Screen name="jam/[code]" options={{ title: t('titleJamBuy') }} />
+      <Stack.Screen name="jam/done" options={{ title: t('titleJamDone'), headerBackVisible: false }} />
       <Stack.Screen name="use/[qr]" options={{ title: t('titleScan') }} />
       <Stack.Screen name="done" options={{ title: t('titleDone'), headerBackVisible: false }} />
       <Stack.Screen name="merchant" options={{ title: '가맹점 모드' }} />

@@ -5,6 +5,7 @@
 import { useState } from 'react';
 import { Alert, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
+import { untilText } from '../../lib/date';
 import { useAuth } from '../../lib/auth';
 import { LangChips, useI18n } from '../../lib/i18n';
 import { C } from '../../lib/theme';
@@ -108,7 +109,7 @@ export default function MyScreen() {
                       : t('cardUpcoming', { plan: me.membership.planName, date: new Date(me.membership.startAt).toLocaleDateString(locale) })}
                   </Text>
                   <Text style={st.cardUntil}>
-                    {t('untilDate', { date: new Date(me.membership.endAt).toLocaleDateString(locale) })}
+                    {t('untilDate', { date: untilText(me.membership.endAt, locale) })}
                   </Text>
                 </>
               ) : (

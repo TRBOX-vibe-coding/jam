@@ -6,12 +6,14 @@
  */
 import {
   BadRequestException, Body, Controller, Get, Module, NotFoundException,
-  Post, UseGuards,
+  Param, Post, Req, UseGuards,
 } from '@nestjs/common';
 import { IsOptional, IsString, Matches } from 'class-validator';
 import { PrismaService } from './prisma.service';
 import { AuthModule, OptionalUserGuard, UserGuard, UserId } from './auth';
 import { addDays, makeOrderNo } from './util';
+import { benefitIdsForPlan } from './plan-scope.util';
+import { langOf, trField } from './i18n.util';
 
 class PurchaseDto {
   @IsString() planCode!: string;
@@ -48,6 +50,74 @@ export class MembershipController {
     return rows;
   }
 
+
+  /**
+   * 잼 하나 — 결제 화면에서 쓴다.
+   * 값만 내려주지 않고 "이 잼을 사면 무엇이 열리는지"를 숫자와 예시로 함께 준다.
+   */
+  @Get('plans/:code')
+  @UseGuards(OptionalUserGuard)
+  async planDetail(@Param('code') code: string, @UserId() userId: string | undefined, @Req() req: any) {
+    const db = this.prisma.client;
+    const lang = langOf(req);
+    const plan = await db.membershipPlan.findUnique({ where: { code } });
+    if (!plan || !plan.isActive) throw new NotFoundException('판매 중인 잼이 아닙니다');
+    if (plan.isPrivate) {
+      const me = userId ? await db.user.findUnique({ where: { id: userId }, select: { orgCode: true } }) : null;
+      if (!me?.orgCode || me.orgCode !== plan.orgCode) {
+        throw new NotFoundException('단체 전용 잼이에요. 단체 코드를 먼저 넣어 주세요.');
+      }
+    }
+
+    const ids = await benefitIdsForPlan(db, plan);
+    const rows = await db.benefit.findMany({
+      where: { id: { in: ids } },
+      take: 4,
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true, title: true, type: true, value: true, i18n: true,
+        merchant: {
+          select: {
+            id: true, name: true, thumbnailUrl: true, i18n: true,
+            region: { select: { name: true, i18n: true } },
+            category: { select: { emoji: true } },
+          },
+        },
+      },
+    });
+    const merchantCount = ids.length
+      ? (await db.benefit.findMany({ where: { id: { in: ids } }, select: { merchantId: true }, distinct: ['merchantId'] })).length
+      : 0;
+
+    // 이미 가지고 있는 잼인지 (결제 화면에서 다시 사게 두면 안 된다)
+    const owned = userId
+      ? await db.userMembership.findFirst({
+          where: { userId, planId: plan.id, status: 'ACTIVE', endAt: { gt: new Date() } },
+          select: { startAt: true, endAt: true },
+        })
+      : null;
+
+    return {
+      id: plan.id, code: plan.code,
+      name: trField(plan, 'name', lang),
+      description: trField(plan, 'description', lang),
+      price: plan.price, durationDays: plan.durationDays,
+      scope: plan.scope, scopeRegionIds: plan.scopeRegionIds, scopeCategoryIds: plan.scopeCategoryIds,
+      isPrivate: plan.isPrivate, imageUrl: plan.imageUrl,
+      couponCount: ids.length,
+      merchantCount,
+      samples: rows.map((b) => ({
+        id: b.id, title: trField(b, 'title', lang), type: b.type, value: b.value,
+        merchant: {
+          name: trField(b.merchant, 'name', lang),
+          thumbnailUrl: b.merchant.thumbnailUrl,
+          region: trField(b.merchant.region, 'name', lang),
+          emoji: b.merchant.category.emoji,
+        },
+      })),
+      owned: owned ? { startAt: owned.startAt, endAt: owned.endAt } : null,
+    };
+  }
 
   @Post('purchase')
   @UseGuards(UserGuard)
@@ -162,6 +232,8 @@ export class MembershipController {
       ok: true,
       orderNo: result.order.orderNo,
       planName: plan.name,
+      planCode: plan.code,
+      startAt,
       endAt,
       grantedBenefits: result.grantedCount,
       message: `${plan.name} 시작! 제휴 혜택 ${result.grantedCount}개가 내 혜택함에 열렸습니다.`,

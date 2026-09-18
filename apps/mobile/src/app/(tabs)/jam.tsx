@@ -9,8 +9,8 @@ import { useCallback, useState } from 'react';
 import { Alert, Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { track } from '../../lib/analytics';
 import { api, img } from '../../lib/api';
+import { untilText } from '../../lib/date';
 import { useAuth } from '../../lib/auth';
 import { useI18n } from '../../lib/i18n';
 import { C } from '../../lib/theme';
@@ -72,47 +72,14 @@ export default function JamScreen() {
     return t('jamScopeMore', { name: names.slice(0, 2).join(' · '), n: names.length - 2 });
   }
 
-  async function buy(plan: Plan) {
+  /** 고르면 결제 화면으로. 가격·시작일·무엇이 열리는지는 거기서 보여준다 */
+  function buy(plan: Plan) {
     if (!me) {
       notify(t('jamLoginFirst'), '');
       router.push('/(tabs)/my' as never);
       return;
     }
-    // 기간잼은 사용 시작일을 정한다 (2026-09-09 픽스) — 여행이 있으면 여행 시작일이 기본값
-    let startDate: string | undefined;
-    if (plan.durationDays <= 30) {
-      const d = new Date();
-      const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      const tripStart = trip?.startDate?.slice(0, 10);
-      startDate = tripStart && tripStart >= todayStr ? tripStart : todayStr;
-      if (Platform.OS === 'web') {
-        const inp = window.prompt(t('jamStartPrompt'), startDate);
-        if (inp == null) return;
-        if (/^\d{4}-\d{2}-\d{2}$/.test(inp.trim())) startDate = inp.trim();
-      }
-    }
-    const run = async () => {
-      setBusy(true);
-      try {
-        const r = await api<any>('/membership/purchase', { method: 'POST', body: { planCode: plan.code, startDate } });
-        track('membership_purchase', { type: 'plan', id: plan.code });
-        await refresh();
-        load();
-        notify(t('memberStarted'), r.message);
-      } catch (e: any) {
-        notify(t('cantBuy'), e.message);
-      } finally {
-        setBusy(false);
-      }
-    };
-    if (Platform.OS === 'web') {
-      if (window.confirm(t('buyConfirmWeb', { plan: plan.name, price: won(plan.price) }) + (startDate ? `\n(${t('jamStartDate')}: ${startDate})` : ''))) await run();
-    } else {
-      Alert.alert(plan.name, t('buyConfirmNative', { price: won(plan.price), days: plan.durationDays }) + (startDate ? `\n${t('jamStartDate')}: ${startDate}` : ''), [
-        { text: t('cancel'), style: 'cancel' },
-        { text: t('start'), onPress: run },
-      ]);
-    }
+    router.push(`/jam/${plan.code}` as never);
   }
 
   /** 단체 코드 — 기관마다 잼이 달라서, 코드를 넣으면 그 잼이 목록에 나타난다 */
@@ -177,7 +144,7 @@ export default function JamScreen() {
                     <Text style={st.planName}>{m.planName}</Text>
                     <Text style={st.planDesc}>
                       {m.started
-                        ? t('untilDate', { date: new Date(m.endAt).toLocaleDateString(locale) })
+                        ? t('untilDate', { date: untilText(m.endAt, locale) })
                         : t('cardUpcoming', { plan: m.planName, date: new Date(m.startAt).toLocaleDateString(locale) })}
                     </Text>
                   </View>
