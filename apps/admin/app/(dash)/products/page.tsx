@@ -4,6 +4,7 @@ import { API_BASE, api, dt, won } from '@/lib/api';
 import { Badge, Button, Card, CardHeader, Empty, Modal, Table, TableSkeleton, Td } from '@/components/ui';
 import { ProductCouponsModal } from '@/components/product-coupons';
 import { PlanPicker } from '@/components/plan-picker';
+import { ProductPlansModal } from '@/components/product-plans';
 
 const TYPE_LABEL: Record<string, string> = { TICKET: '티켓', RESERVATION: '예약형', PASS: 'PASS' };
 const VERIF_LABEL: Record<string, string> = { QR_ONLY: '사장님 확인', QR_PIN: '확인번호 대조', STAFF_CONFIRM: '직원확인' };
@@ -48,6 +49,7 @@ export default function ProductsPage() {
   // 회차 모달
   const [slotFor, setSlotFor] = useState<any | null>(null);
   const [couponFor, setCouponFor] = useState<any | null>(null);
+  const [planFor, setPlanFor] = useState<any | null>(null);
   // 상품에 묶는 근처 할인 쿠폰 — 슈퍼 관리자 전용 (2026-09-12 대표 확정)
   const [slots, setSlots] = useState<any[] | null>(null);
   const [slotForm, setSlotForm] = useState({ date: '', time: '10:00', durationMinutes: '120', capacity: '10' });
@@ -331,6 +333,7 @@ export default function ProductsPage() {
                           <Button small onClick={() => openSlots(p)}>회차 관리</Button>
                         )}
                         <Button small onClick={() => setCouponFor(p)}>쿠폰 묶기</Button>
+                        <Button small variant="ghost" onClick={() => setPlanFor(p)}>할인 잼</Button>
                         <Button small onClick={() => duplicateProduct(p)}>복사</Button>
                         <label className="cursor-pointer">
                           <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => changeImage(p, e)} />
@@ -491,6 +494,12 @@ export default function ProductsPage() {
       )}
       {couponFor && (
         <ProductCouponsModal product={couponFor} onClose={() => setCouponFor(null)} />
+      )}
+      {planFor && (
+        <ProductPlansModal
+          product={planFor}
+          onClose={(saved) => { setPlanFor(null); if (saved) { setMsg('할인 줄 잼을 저장했습니다'); load(); } }}
+        />
       )}
     </div>
   );

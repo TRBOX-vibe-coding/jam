@@ -2,7 +2,7 @@
  * 점주 상품 등록 — 티켓·예약형 상품을 점주가 직접 올린다 (야놀자식 셀프 입점 세팅).
  * 등록 즉시 본사 승인 대기. 예약형의 회차는 승인 후 본사와 함께 세팅한다.
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Image, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -32,6 +32,9 @@ export default function MerchantProductCreate() {
   const [description, setDescription] = useState('');
   const [basePrice, setBasePrice] = useState('');
   const [memberPrice, setMemberPrice] = useState('');
+  // 할인가를 받는 잼 — 고르지 않으면 유료 잼 회원 모두가 받는다
+  const [plans, setPlans] = useState<{ id: string; name: string; price: number }[]>([]);
+  const [planIds, setPlanIds] = useState<string[]>([]);
   const [verification, setVerification] = useState<'QR_ONLY' | 'QR_PIN'>('QR_ONLY');
   const [cancelPolicy, setCancelPolicy] = useState('');
   const [totalQty, setTotalQty] = useState('');       // 티켓형 총 판매 수량
@@ -66,6 +69,12 @@ export default function MerchantProductCreate() {
   const saveRate = base > 0 && member > 0 && member < base ? Math.round((1 - member / base) * 100) : null;
   const valid = name.trim().length >= 2 && base >= 1000 && (member === 0 || member < base);
 
+  useEffect(() => {
+    api<{ id: string; name: string; price: number }[]>('/membership/plans')
+      .then((rows) => setPlans(rows.filter((p) => p.price > 0)))
+      .catch(() => {});
+  }, []);
+
   async function submit() {
     if (!valid) return;
     setBusy(true);
@@ -78,6 +87,7 @@ export default function MerchantProductCreate() {
           description: description.trim() || undefined,
           basePrice: base,
           memberPrice: member > 0 ? member : undefined,
+          memberPricePlanIds: planIds,
           verification,
           cancelPolicy: cancelPolicy.trim() || undefined,
           totalQty: type === 'TICKET' && totalQty ? Number(totalQty) : undefined,
@@ -172,6 +182,28 @@ export default function MerchantProductCreate() {
             <Text style={st.hint}>비우면 유료·무료 회원 모두 정상가로 판매됩니다</Text>
           </View>
         </View>
+        {member > 0 && (
+          <View>
+            <Text style={st.label}>이 할인가를 받는 잼 (선택)</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+              {plans.map((p) => {
+                const on = planIds.includes(p.id);
+                return (
+                  <Pressable
+                    key={p.id}
+                    onPress={() => setPlanIds((v) => (on ? v.filter((x) => x !== p.id) : [...v, p.id]))}
+                    style={[st.planChip, on && st.planChipOn]}
+                  >
+                    <Text style={[st.planChipText, on && st.planChipTextOn]}>{p.name}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <Text style={st.hint}>고르지 않으면 유료 잼 회원 모두가 할인가로 삽니다</Text>
+          </View>
+        )}
+        <View>
+        </View>
         {saveRate != null && (
           <Text style={st.rateLine}>
             멤버십 회원은 <Text style={{ color: C.brand, fontWeight: '700' }}>{saveRate}% 저렴하게</Text>
@@ -239,6 +271,13 @@ export default function MerchantProductCreate() {
 const st = StyleSheet.create({
   guide: { fontSize: 13.5, color: C.brand, fontWeight: '700', lineHeight: 20, textAlign: 'center' },
   hint: { fontSize: 11, color: C.ink3, marginTop: 4, lineHeight: 15 },
+  planChip: {
+    borderWidth: 1, borderColor: C.line, borderRadius: 999,
+    paddingHorizontal: 12, paddingVertical: 7, backgroundColor: C.white,
+  },
+  planChipOn: { backgroundColor: C.brand, borderColor: C.brand },
+  planChipText: { fontSize: 12.5, fontWeight: '700', color: C.ink2 },
+  planChipTextOn: { color: '#fff' },
   label: { fontSize: 12.5, fontWeight: '700', color: C.ink3, marginTop: 14, marginBottom: 6 },
   input: {
     backgroundColor: C.white, borderWidth: 1, borderColor: C.line, borderRadius: 11,
