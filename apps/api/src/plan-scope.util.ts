@@ -35,9 +35,12 @@ export type PlanLike = {
 /** 잼의 성격만으로 이 쿠폰이 들어오는지 (예외는 따로 얹는다) */
 export function scopeCovers(plan: PlanLike, b: BenefitLike): boolean {
   if (plan.scope === 'ALL') return true;
-  if (plan.scope === 'REGION') return plan.scopeRegionIds.includes(b.merchant.regionId);
-  if (plan.scope === 'CATEGORY') return plan.scopeCategoryIds.includes(b.merchant.categoryId);
-  return false; // MANUAL — 예외 목록에 넣은 것만
+  if (plan.scope === 'MANUAL') return false; // 예외 목록에 넣은 것만
+  // 지정한 조건을 모두 만족해야 한다. 비워둔 조건은 제한하지 않는다.
+  //   부산 지역 + 카페 종류 = 부산 카페만 / 다낭 지역만 = 다낭 전부
+  const regionOk = plan.scopeRegionIds.length === 0 || plan.scopeRegionIds.includes(b.merchant.regionId);
+  const categoryOk = plan.scopeCategoryIds.length === 0 || plan.scopeCategoryIds.includes(b.merchant.categoryId);
+  return regionOk && categoryOk;
 }
 
 /**

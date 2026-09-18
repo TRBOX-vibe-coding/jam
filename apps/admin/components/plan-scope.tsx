@@ -4,7 +4,7 @@
  *
  * 잼이 수십 개가 되므로(기관별 단체 잼까지) 쿠폰을 잼마다 손으로 담지 않는다.
  * 잼에 성격을 하나 주고, 성격과 다른 것만 예외로 더하거나 뺀다.
- *   전부 / 지역 / 종류 / 직접 고르기
+ *   전부 / 조건으로 고르기(지역·종류) / 직접 고르기
  * 성격을 바꾸면 체크가 그 성격대로 새로 맞춰지고, 거기서 몇 개만 손대면 된다.
  */
 import { useEffect, useState } from 'react';
@@ -16,8 +16,7 @@ const inputCls =
 
 const SCOPES: [string, string, string][] = [
   ['ALL', '전부', '모든 쿠폰이 열린다 — 잼마스터'],
-  ['REGION', '이 지역만', '고른 지역의 쿠폰만 — 다낭잼, 부산 잼'],
-  ['CATEGORY', '이 종류만', '고른 종류의 쿠폰만 — 카페잼, 스파잼'],
+  ['FILTER', '조건으로 고르기', '지역과 종류를 함께 걸 수 있다 — 다낭잼, 부산 카페잼'],
   ['MANUAL', '직접 고르기', '아래에서 체크한 쿠폰만 — 기획 잼'],
 ];
 
@@ -51,7 +50,7 @@ export function PlanScopeModal({
     api<any>(`/admin/plans/${plan.id}/benefits`)
       .then((r) => {
         setBenefits(r.benefits);
-        setScope(r.plan.scope ?? 'ALL');
+        setScope(['REGION', 'CATEGORY'].includes(r.plan.scope) ? 'FILTER' : r.plan.scope ?? 'ALL');
         setRegionIds(r.plan.scopeRegionIds ?? []);
         setCategoryIds(r.plan.scopeCategoryIds ?? []);
         setIsPrivate(!!r.plan.isPrivate);
@@ -68,10 +67,12 @@ export function PlanScopeModal({
     if (!benefits) return;
     const next = new Set<string>();
     for (const b of benefits) {
-      const covered =
-        nextScope === 'ALL' ||
-        (nextScope === 'REGION' && nextRegions.includes(b.merchant.regionId)) ||
-        (nextScope === 'CATEGORY' && nextCategories.includes(b.merchant.categoryId));
+      const covered = nextScope === 'ALL'
+        ? true
+        : nextScope === 'MANUAL'
+        ? false
+        : (nextRegions.length === 0 || nextRegions.includes(b.merchant.regionId)) &&
+          (nextCategories.length === 0 || nextCategories.includes(b.merchant.categoryId));
       if (covered) next.add(b.id);
     }
     setPicked(next);
@@ -84,12 +85,12 @@ export function PlanScopeModal({
   function toggleRegion(id: string) {
     const next = regionIds.includes(id) ? regionIds.filter((x) => x !== id) : [...regionIds, id];
     setRegionIds(next);
-    if (scope === 'REGION') applyScope('REGION', next, categoryIds);
+    if (scope === 'FILTER') applyScope('FILTER', next, categoryIds);
   }
   function toggleCategory(id: string) {
     const next = categoryIds.includes(id) ? categoryIds.filter((x) => x !== id) : [...categoryIds, id];
     setCategoryIds(next);
-    if (scope === 'CATEGORY') applyScope('CATEGORY', regionIds, next);
+    if (scope === 'FILTER') applyScope('FILTER', regionIds, next);
   }
   function toggleBenefit(id: string) {
     setPicked((p) => {
@@ -141,35 +142,40 @@ export function PlanScopeModal({
           ))}
         </div>
 
-        {scope === 'REGION' && (
-          <div className="mt-3 flex flex-wrap gap-1.5 border-t border-line pt-3">
-            {regions.map((r) => (
-              <button
-                key={r.id}
-                onClick={() => toggleRegion(r.id)}
-                className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-                  regionIds.includes(r.id) ? 'border-brand bg-brand text-white' : 'border-line bg-white text-ink-2'
-                }`}
-              >
-                {r.country !== '대한민국' ? `${r.country} ` : ''}{r.name}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {scope === 'CATEGORY' && (
-          <div className="mt-3 flex flex-wrap gap-1.5 border-t border-line pt-3">
-            {categories.map((c) => (
-              <button
-                key={c.id}
-                onClick={() => toggleCategory(c.id)}
-                className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-                  categoryIds.includes(c.id) ? 'border-brand bg-brand text-white' : 'border-line bg-white text-ink-2'
-                }`}
-              >
-                {c.emoji} {c.name}
-              </button>
-            ))}
+        {scope === 'FILTER' && (
+          <div className="mt-3 space-y-3 border-t border-line pt-3">
+            <div>
+              <p className="mb-1 text-[11px] font-semibold text-ink-3">지역 — 비우면 모든 지역</p>
+              <div className="flex flex-wrap gap-1.5">
+                {regions.map((r) => (
+                  <button
+                    key={r.id}
+                    onClick={() => toggleRegion(r.id)}
+                    className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                      regionIds.includes(r.id) ? 'border-brand bg-brand text-white' : 'border-line bg-white text-ink-2'
+                    }`}
+                  >
+                    {r.country !== '대한민국' ? `${r.country} ` : ''}{r.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="mb-1 text-[11px] font-semibold text-ink-3">종류 — 비우면 모든 종류</p>
+              <div className="flex flex-wrap gap-1.5">
+                {categories.map((c) => (
+                  <button
+                    key={c.id}
+                    onClick={() => toggleCategory(c.id)}
+                    className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                      categoryIds.includes(c.id) ? 'border-brand bg-brand text-white' : 'border-line bg-white text-ink-2'
+                    }`}
+                  >
+                    {c.emoji} {c.name}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         )}
       </div>

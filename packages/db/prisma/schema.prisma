@@ -233,9 +233,11 @@ enum MembershipStatus {
 enum PlanScope {
   /// 모든 쿠폰 — 잼마스터
   ALL
-  /// 특정 지역 쿠폰만 — 다낭잼, 부산 잼
+  /// 조건으로 고르기 — 지역과 종류를 함께 걸 수 있다 (부산 + 카페 = 부산 카페만)
+  FILTER
+  /// 지역 조건만 (옛 값, FILTER와 같게 동작)
   REGION
-  /// 특정 카테고리 쿠폰만 — 카페잼, 스파잼, 러닝잼
+  /// 종류 조건만 (옛 값, FILTER와 같게 동작)
   CATEGORY
   /// 직접 고른 쿠폰만 — 기획 잼
   MANUAL
