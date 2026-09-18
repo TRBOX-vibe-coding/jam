@@ -56,6 +56,8 @@ class CreateMerchantProductDto {
   @IsOptional() @IsString() description?: string;
   @Type(() => Number) @IsInt() @Min(1000) basePrice!: number;
   @IsOptional() @Type(() => Number) @IsInt() @Min(100) memberPrice?: number;
+  /** 할인가를 받는 잼. 비우면 유료 잼이면 모두 (2026-09-18 대표 확정) */
+  @IsOptional() @IsString({ each: true }) memberPricePlanIds?: string[];
   @IsOptional() @IsIn(['QR_ONLY', 'QR_PIN']) verification?: string;
   @IsOptional() @IsString() cancelPolicy?: string;
   @IsOptional() @IsString() imageBase64?: string;
@@ -290,6 +292,7 @@ export class MerchantController {
         description: dto.description?.trim() || null,
         basePrice: dto.basePrice,
         memberPrice: dto.memberPrice ?? null,
+        memberPricePlanIds: dto.memberPricePlanIds ?? [],
         verification: (dto.verification ?? 'QR_ONLY') as never,
         cancelPolicy: dto.cancelPolicy?.trim() || null,
         imageUrl,

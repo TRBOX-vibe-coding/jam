@@ -1,8 +1,8 @@
 /** 지역·카테고리 조회 + 내 정보/관심 설정 */
 import {
-  Body, Controller, Get, Module, Patch, Req, UseGuards,
+  BadRequestException, Body, Controller, Get, Module, Patch, Post, Req, UseGuards,
 } from '@nestjs/common';
-import { IsArray, IsOptional, IsString } from 'class-validator';
+import { IsArray, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import { PrismaService } from './prisma.service';
 import { AuthModule, UserGuard, UserId } from './auth';
 import { langOf, trField } from './i18n.util';
@@ -10,6 +10,11 @@ import { langOf, trField } from './i18n.util';
 class UpdateInterestsDto {
   @IsOptional() @IsArray() @IsString({ each: true }) regionIds?: string[];
   @IsOptional() @IsArray() @IsString({ each: true }) categoryIds?: string[];
+}
+
+/** 단체 코드 — 기관마다 다른 잼을 쓰므로 코드로 소속을 확인한다 (2026-09-18) */
+class OrgCodeDto {
+  @IsString() @MinLength(2) @MaxLength(32) code!: string;
 }
 
 @Controller()
@@ -34,6 +39,24 @@ export class CatalogController {
     });
   }
 
+  /**
+   * 단체 코드 입력 — 맞으면 그 단체 전용 잼이 멤버십 목록에 보이고 살 수 있다.
+   * 회사가 비용을 대는 경우에는 그 잼 가격을 0원으로 두면 바로 받는 셈이 된다.
+   */
+  @Post('me/org-code')
+  @UseGuards(UserGuard)
+  async setOrgCode(@UserId() userId: string, @Body() dto: OrgCodeDto) {
+    const db = this.prisma.client;
+    const code = dto.code.trim().toUpperCase();
+    const plan = await db.membershipPlan.findFirst({
+      where: { orgCode: code, isPrivate: true, isActive: true },
+      select: { name: true },
+    });
+    if (!plan) throw new BadRequestException('단체 코드를 찾을 수 없어요. 다시 확인해 주세요.');
+    await db.user.update({ where: { id: userId }, data: { orgCode: code } });
+    return { ok: true, planName: plan.name };
+  }
+
   @Get('me')
   @UseGuards(UserGuard)
   async me(@UserId() userId: string, @Req() req: any) {
@@ -42,18 +65,20 @@ export class CatalogController {
     const user = await db.user.findUniqueOrThrow({
       where: { id: userId },
       select: {
-        id: true, nickname: true, provider: true, email: true, createdAt: true,
+        id: true, nickname: true, provider: true, email: true, createdAt: true, orgCode: true,
         interestRegions: { select: { region: { select: { id: true, name: true } } } },
         interestCategories: { select: { category: { select: { id: true, name: true, emoji: true } } } },
       },
     });
 
-    const membership = await db.userMembership.findFirst({
+    // 잼은 겹쳐 둘 수 있다. 화면 호환을 위해 대표 잼 하나(membership)와 전체 목록(memberships)을 함께 준다.
+    const allMemberships = await db.userMembership.findMany({
       where: { userId, status: 'ACTIVE', endAt: { gt: new Date() } },
-      orderBy: { endAt: 'desc' },
-      include: { plan: { select: { code: true, name: true, price: true, i18n: true } } },
+      orderBy: [{ endAt: 'desc' }],
+      include: { plan: { select: { code: true, name: true, price: true, scope: true, i18n: true } } },
     });
-
+    // 유료 잼이 있으면 그중 가장 늦게 끝나는 것을 대표로 본다
+    const membership = allMemberships.find((m) => m.plan.price > 0) ?? allMemberships[0] ?? null;
     // 이번 달 + 올해 누적 혜택금액: 멤버십 가치를 숫자로 보여주는 핵심 값 (2026-09-12 대표 픽스)
     const monthStart = new Date();
     monthStart.setDate(1);
@@ -101,6 +126,18 @@ export class CatalogController {
             started: membership.startAt <= new Date(),
           }
         : null,
+      /** 지금 가진 잼 전부 — 겹쳐 두면 합쳐서 쓴다 (2026-09-18 대표 확정) */
+      memberships: allMemberships.map((m) => ({
+        planCode: m.plan.code,
+        planName: trField(m.plan, 'name', lang),
+        startAt: m.startAt,
+        endAt: m.endAt,
+        isPaid: m.plan.price > 0,
+        started: m.startAt <= new Date(),
+        scope: m.plan.scope,
+      })),
+      /** 단체 코드 — 입력하면 그 단체 전용 잼을 살 수 있다 */
+      orgCode: user.orgCode ?? null,
       savings: { thisMonth: savedThisMonth, total: savedTotal, recoveryRate, multiple: savedMultiple, planPrice: membership?.plan.price ?? null },
       ownedMerchant,
     };

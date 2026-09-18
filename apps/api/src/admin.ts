@@ -130,6 +130,8 @@ class CreateProductDto {
   @IsIn(['TICKET', 'RESERVATION', 'PASS']) type!: string;
   @Type(() => Number) @IsInt() @Min(100) basePrice!: number;
   @IsOptional() @Type(() => Number) @IsInt() @Min(100) memberPrice?: number;
+  /** 할인가를 받는 잼. 비우면 유료 잼이면 모두 (2026-09-18 대표 확정) */
+  @IsOptional() @IsString({ each: true }) memberPricePlanIds?: string[];
   @IsOptional() @IsIn(['QR_ONLY', 'QR_PIN', 'STAFF_CONFIRM']) verification?: string;
   @IsOptional() @IsString() description?: string;
   @IsOptional() cancelPolicy?: string;
@@ -139,6 +141,8 @@ class PatchProductDto {
   @IsOptional() isActive?: boolean;
   @IsOptional() @Type(() => Number) @IsInt() @Min(100) basePrice?: number;
   @IsOptional() @Type(() => Number) @IsInt() @Min(100) memberPrice?: number;
+  /** 할인가를 받는 잼. 비우면 유료 잼이면 모두 (2026-09-18 대표 확정) */
+  @IsOptional() @IsString({ each: true }) memberPricePlanIds?: string[];
   @IsOptional() @IsString() @MinLength(2) name?: string;
   @IsOptional() @IsString() imageBase64?: string;
 }
@@ -608,6 +612,7 @@ export class AdminController {
         type: dto.type as never,
         basePrice: dto.basePrice,
         memberPrice: dto.memberPrice ?? null,
+        memberPricePlanIds: dto.memberPricePlanIds ?? [],
         verification: (dto.verification ?? 'QR_ONLY') as never,
         description: dto.description,
         cancelPolicy: dto.cancelPolicy,
@@ -626,6 +631,7 @@ export class AdminController {
         ...(dto.isActive != null ? { isActive: dto.isActive } : {}),
         ...(dto.basePrice != null ? { basePrice: dto.basePrice } : {}),
         ...(dto.memberPrice != null ? { memberPrice: dto.memberPrice } : {}),
+        ...(dto.memberPricePlanIds ? { memberPricePlanIds: dto.memberPricePlanIds } : {}),
         ...(dto.name ? { name: dto.name.trim() } : {}),
         ...(dto.imageBase64 ? { imageUrl: saveImageDataUrl(dto.imageBase64, 'product') } : {}),
       },
@@ -655,6 +661,7 @@ export class AdminController {
           imageUrl: src.imageUrl,
           basePrice: src.basePrice,
           memberPrice: src.memberPrice,
+          memberPricePlanIds: src.memberPricePlanIds,
           verification: src.verification,
           totalQty: src.totalQty,
           defaultCapacity: src.defaultCapacity,

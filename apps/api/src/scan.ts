@@ -21,6 +21,7 @@ import { AuthModule, UserGuard, UserId } from './auth';
 import { langOf, trField } from './i18n.util';
 import { addDays, makeVerifyToken, minutesOfDay } from './util';
 import { PRODUCT_COUPON_VALID_DAYS } from './membership.util';
+import { usableBenefitIds } from './plan-scope.util';
 
 const VERIFY_TTL_MS = 90_000;
 
@@ -209,49 +210,74 @@ export class ScanController {
 
     return db.$transaction(async (tx) => {
       if (dto.itemType === 'BENEFIT') {
-        const ub = await tx.userBenefit.findFirst({
-          where: {
-            id: dto.itemId, userId, status: 'ACTIVE',
-            benefit: { merchantId: merchant.id, isActive: true },
-            OR: [{ validTo: null }, { validTo: { gt: now } }],
-          },
+        // dto.itemId 는 쿠폰 id다. (예전 앱은 UserBenefit id를 보냈으므로 그것도 받아준다)
+        const byId = await tx.benefit.findFirst({
+          where: { id: dto.itemId, merchantId: merchant.id, isActive: true },
+        });
+        const legacy = byId ? null : await tx.userBenefit.findFirst({
+          where: { id: dto.itemId, userId, benefit: { merchantId: merchant.id, isActive: true } },
           include: { benefit: true },
         });
-        if (!ub) throw new BadRequestException('사용할 수 없는 혜택입니다');
+        const bf = byId ?? legacy?.benefit ?? null;
+        if (!bf) throw new BadRequestException('사용할 수 없는 혜택입니다');
 
-        // 할인 쿠폰 '사용'은 유료 잼 전용 (2026-09-09 픽스). 보기·담기·일정 배치는 무료도 가능.
-        // 단 결제 상품에 묶여 발급된 쿠폰(sourceType=PRODUCT)은 무료 회원도 쓴다.
-        // 2026-09-12 대표 확정 — 결제한 무료 회원에게 근처 쿠폰을 실제로 열어주는 유료 전환 유도.
-        if (ub.sourceType !== 'PRODUCT') {
+        // ① 결제 상품에 묶여 받은 쿠폰인가 — 무료 회원도 쓰는 유일한 예외 (2026-09-12 확정)
+        let ub = await tx.userBenefit.findFirst({
+          where: {
+            userId, benefitId: bf.id, sourceType: 'PRODUCT', status: 'ACTIVE',
+            OR: [{ validTo: null }, { validTo: { gt: now } }],
+          },
+        });
+
+        if (!ub) {
+          // ② 아니면 내 잼에 든 쿠폰이어야 한다 (2026-09-18 확정: 잼마다 여는 쿠폰이 다르다)
+          const usable = await usableBenefitIds(tx as any, userId);
           const paidJam = await tx.userMembership.findFirst({
             where: {
               userId, status: 'ACTIVE',
               startAt: { lte: now }, endAt: { gt: now },
               plan: { price: { gt: 0 } },
             },
+            orderBy: { endAt: 'desc' },
           });
           if (!paidJam) {
             throw new BadRequestException('할인 쿠폰은 잼 멤버십 기간에 사용할 수 있어요. MY에서 잼을 시작해 주세요!');
           }
+          if (!usable.has(bf.id)) {
+            throw new BadRequestException('지금 가진 잼으로는 쓸 수 없는 쿠폰이에요. 이 쿠폰이 들어 있는 잼을 확인해 주세요.');
+          }
+          // 사용 기록을 남길 자리를 만든다 (횟수 제한·사용내역이 여기에 쌓인다)
+          ub = await tx.userBenefit.upsert({
+            where: {
+              userId_benefitId_sourceType_sourceId: {
+                userId, benefitId: bf.id, sourceType: 'MEMBERSHIP_PLAN', sourceId: paidJam.id,
+              },
+            },
+            update: {},
+            create: {
+              userId, benefitId: bf.id, sourceType: 'MEMBERSHIP_PLAN', sourceId: paidJam.id,
+              validFrom: now, validTo: paidJam.endAt,
+            },
+          });
         }
-        if (ub.benefit.companionLimit != null && headcount > ub.benefit.companionLimit + 1) {
-          throw new BadRequestException(`본인 포함 최대 ${ub.benefit.companionLimit + 1}명까지 적용됩니다`);
+        if (bf.companionLimit != null && headcount > bf.companionLimit + 1) {
+          throw new BadRequestException(`본인 포함 최대 ${bf.companionLimit + 1}명까지 적용됩니다`);
         }
-        if (ub.benefit.maxUsePerDay) {
+        if (bf.maxUsePerDay) {
           const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
           const todayUsed = await tx.redemption.count({
             where: { userBenefitId: ub.id, status: 'DONE', createdAt: { gte: todayStart } },
           });
-          if (todayUsed >= ub.benefit.maxUsePerDay) {
+          if (todayUsed >= bf.maxUsePerDay) {
             throw new BadRequestException('오늘 사용 횟수를 모두 썼습니다');
           }
         }
 
         let saved = 0;
-        if (ub.benefit.type === 'AMOUNT') saved = ub.benefit.value;
-        if (ub.benefit.type === 'AMOUNT_PER_PERSON') saved = ub.benefit.value * headcount;
-        if (ub.benefit.type === 'PERCENT' && dto.billAmount) {
-          saved = Math.floor((dto.billAmount * ub.benefit.value) / 100);
+        if (bf.type === 'AMOUNT') saved = bf.value;
+        if (bf.type === 'AMOUNT_PER_PERSON') saved = bf.value * headcount;
+        if (bf.type === 'PERCENT' && dto.billAmount) {
+          saved = Math.floor((dto.billAmount * bf.value) / 100);
         }
 
         await tx.userBenefit.update({
@@ -261,7 +287,7 @@ export class ScanController {
             // 상품 결제로 받은 쿠폰은 한 장당 한 번만 쓴다 (무료 회원 기준, 2026-09-12 대표 확정).
             // 유료 잼 회원은 자기 멤버십으로 열린 쿠폰을 기간 내내 반복해서 쓴다.
             ...(ub.sourceType === 'PRODUCT' ? { status: 'EXHAUSTED' as const } : {}),
-            ...(ub.benefit.maxUsePerUser && ub.usedCount + 1 >= ub.benefit.maxUsePerUser
+            ...(bf.maxUsePerUser && ub.usedCount + 1 >= bf.maxUsePerUser
               ? { status: 'EXHAUSTED' }
               : {}),
           },
@@ -275,7 +301,7 @@ export class ScanController {
           },
         });
         await tx.eventLog.create({ data: { userId, event: 'benefit_redeem', entityType: 'benefit', entityId: ub.benefitId } });
-        return this.done(r.id, trField(merchant, 'name', lang), trField(ub.benefit, 'title', lang), saved, verifyToken, verifyExpires, 'QR_ONLY');
+        return this.done(r.id, trField(merchant, 'name', lang), trField(bf, 'title', lang), saved, verifyToken, verifyExpires, 'QR_ONLY');
       }
 
       if (dto.itemType === 'DROP') {

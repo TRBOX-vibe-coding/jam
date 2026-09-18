@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { IsOptional, IsString, Matches } from 'class-validator';
 import { PrismaService } from './prisma.service';
-import { AuthModule, UserGuard, UserId } from './auth';
+import { AuthModule, OptionalUserGuard, UserGuard, UserId } from './auth';
 import { addDays, makeOrderNo } from './util';
 
 class PurchaseDto {
@@ -24,13 +24,30 @@ export class MembershipController {
   constructor(private prisma: PrismaService) {}
 
   @Get('plans')
-  plans() {
-    return this.prisma.client.membershipPlan.findMany({
-      where: { isActive: true },
+  @UseGuards(OptionalUserGuard)
+  async plans(@UserId() userId: string | undefined) {
+    const db = this.prisma.client;
+    // 단체 전용 잼(공무원노조, 공사 임직원 등)은 코드를 가진 회원에게만 보인다
+    const me = userId
+      ? await db.user.findUnique({ where: { id: userId }, select: { orgCode: true } })
+      : null;
+    const rows = await db.membershipPlan.findMany({
+      where: {
+        isActive: true,
+        OR: [
+          { isPrivate: false },
+          ...(me?.orgCode ? [{ isPrivate: true, orgCode: me.orgCode }] : []),
+        ],
+      },
       orderBy: { sortOrder: 'asc' },
-      select: { id: true, code: true, name: true, description: true, price: true, durationDays: true, i18n: true },
+      select: {
+        id: true, code: true, name: true, description: true, price: true, durationDays: true,
+        scope: true, scopeRegionIds: true, scopeCategoryIds: true, isPrivate: true, imageUrl: true, i18n: true,
+      },
     });
+    return rows;
   }
+
 
   @Post('purchase')
   @UseGuards(UserGuard)
@@ -39,15 +56,26 @@ export class MembershipController {
     const plan = await db.membershipPlan.findUnique({ where: { code: dto.planCode } });
     if (!plan || !plan.isActive) throw new NotFoundException('판매 중인 멤버십이 아닙니다');
 
-    const existing = await db.userMembership.findFirst({
+    // 단체 전용 잼은 코드를 가진 회원만 살 수 있다 (2026-09-18 대표 확정)
+    if (plan.isPrivate) {
+      const me = await db.user.findUnique({ where: { id: userId }, select: { orgCode: true } });
+      if (!me?.orgCode || me.orgCode !== plan.orgCode) {
+        throw new BadRequestException('단체 전용 잼입니다. MY에서 단체 코드를 먼저 입력해 주세요.');
+      }
+    }
+
+    // 잼은 겹쳐 둘 수 있다 — 5일잼을 쓰는 중에 잼마스터를 사면 둘 다 살아 있고 합쳐서 쓴다.
+    // 무료(FREE) 자격만 정리하고, 같은 잼을 또 사는 것만 막는다.
+    const actives = await db.userMembership.findMany({
       where: { userId, status: 'ACTIVE', endAt: { gt: new Date() } },
-      include: { plan: { select: { price: true } } },
+      include: { plan: { select: { id: true, price: true, name: true } } },
     });
-    // 무료 회원은 언제든 유료로 올라탈 수 있다 — 무료 자격은 종료 처리하고 진행
-    if (existing && existing.plan.price === 0) {
-      await db.userMembership.update({ where: { id: existing.id }, data: { status: 'EXPIRED', endAt: new Date() } });
-    } else if (existing) {
-      throw new BadRequestException('이미 사용 중인 멤버십이 있습니다');
+    for (const a of actives) {
+      if (a.plan.price === 0) {
+        await db.userMembership.update({ where: { id: a.id }, data: { status: 'EXPIRED', endAt: new Date() } });
+      } else if (a.plan.id === plan.id) {
+        throw new BadRequestException(`이미 이용 중인 ${a.plan.name}이에요. 끝난 뒤에 다시 구매할 수 있어요.`);
+      }
     }
 
     const now = new Date();

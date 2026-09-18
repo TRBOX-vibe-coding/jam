@@ -9,9 +9,10 @@ import {
   BadRequestException, Body, Controller, Get, Module, NotFoundException,
   Param, Patch, Post, UseGuards,
 } from '@nestjs/common';
-import { IsBoolean, IsInt, IsISO8601, IsObject, IsOptional, IsString, Min, MinLength } from 'class-validator';
+import { IsBoolean, IsIn, IsInt, IsISO8601, IsObject, IsOptional, IsString, Min, MinLength } from 'class-validator';
 import { Type } from 'class-transformer';
 import { PrismaService } from './prisma.service';
+import { scopeCovers } from './plan-scope.util';
 import { AdminGuard, AdminId, AuthModule } from './auth';
 import { saveImageDataUrl } from './uploads';
 
@@ -41,6 +42,17 @@ class CreatePlanDto {
   @Type(() => Number) @IsInt() @Min(0) price!: number;
   @Type(() => Number) @IsInt() @Min(1) durationDays!: number;
   @IsOptional() @Type(() => Number) @IsInt() sortOrder?: number;
+  @IsOptional() @IsIn(['ALL', 'REGION', 'CATEGORY', 'MANUAL']) scope?: string;
+  @IsOptional() @IsString({ each: true }) scopeRegionIds?: string[];
+  @IsOptional() @IsString({ each: true }) scopeCategoryIds?: string[];
+  @IsOptional() @IsBoolean() isPrivate?: boolean;
+  @IsOptional() @IsString() orgCode?: string;
+  @IsOptional() @IsString() imageUrl?: string;
+}
+
+/** 이 잼에 넣을 쿠폰 — 화면에서 체크한 결과 그대로 보낸다 */
+class SetPlanBenefitsDto {
+  @IsString({ each: true }) benefitIds!: string[];
 }
 
 class PatchPlanDto {
@@ -50,6 +62,12 @@ class PatchPlanDto {
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) durationDays?: number;
   @IsOptional() @Type(() => Number) @IsInt() sortOrder?: number;
   @IsOptional() @IsBoolean() isActive?: boolean;
+  @IsOptional() @IsIn(['ALL', 'REGION', 'CATEGORY', 'MANUAL']) scope?: string;
+  @IsOptional() @IsString({ each: true }) scopeRegionIds?: string[];
+  @IsOptional() @IsString({ each: true }) scopeCategoryIds?: string[];
+  @IsOptional() @IsBoolean() isPrivate?: boolean;
+  @IsOptional() @IsString() orgCode?: string;
+  @IsOptional() @IsString() imageUrl?: string;
 }
 
 class CreateRegionDto {
@@ -191,6 +209,12 @@ export class AdminSettingsController {
         price: dto.price,
         durationDays: dto.durationDays,
         sortOrder: dto.sortOrder ?? 0,
+        scope: (dto.scope ?? 'ALL') as never,
+        scopeRegionIds: dto.scopeRegionIds ?? [],
+        scopeCategoryIds: dto.scopeCategoryIds ?? [],
+        isPrivate: dto.isPrivate ?? false,
+        orgCode: dto.orgCode ? dto.orgCode.trim().toUpperCase() : null,
+        imageUrl: dto.imageUrl ?? null,
       },
     });
     await this.audit(adminId, 'PLAN_CREATE', 'MembershipPlan', p.id, `${dto.name} · ${dto.price}원 · ${dto.durationDays}일`);
@@ -199,9 +223,146 @@ export class AdminSettingsController {
 
   @Patch('plans/:id')
   async patchPlan(@AdminId() adminId: string, @Param('id') id: string, @Body() dto: PatchPlanDto) {
-    const p = await this.prisma.client.membershipPlan.update({ where: { id }, data: { ...dto } });
+    const data: any = { ...dto };
+    if (typeof dto.orgCode === 'string') data.orgCode = dto.orgCode.trim().toUpperCase() || null;
+    const p = await this.prisma.client.membershipPlan.update({ where: { id }, data });
     await this.audit(adminId, 'PLAN_UPDATE', 'MembershipPlan', id, JSON.stringify(dto).slice(0, 180));
     return p;
+  }
+
+  /**
+   * 이 잼이 여는 쿠폰 — 성격으로 걸러진 것과, 손으로 더하거나 뺀 예외를 함께 돌려준다.
+   * 화면에서는 체크박스로 보여주고, 체크를 바꾸면 예외로 저장한다.
+   */
+  @Get('plans/:id/benefits')
+  async planBenefits(@Param('id') id: string) {
+    const db = this.prisma.client;
+    const plan = await db.membershipPlan.findUnique({ where: { id } });
+    if (!plan) throw new NotFoundException('잼을 찾을 수 없습니다');
+
+    const benefits = await db.benefit.findMany({
+      where: { isActive: true, approval: 'ACTIVE', merchant: { status: 'ACTIVE' } },
+      include: {
+        merchant: {
+          select: {
+            id: true, name: true, regionId: true, categoryId: true,
+            region: { select: { name: true } },
+            category: { select: { name: true, emoji: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    const rules = await db.benefitGrantRule.findMany({
+      where: { trigger: 'MEMBERSHIP_PLAN', membershipPlanId: id, isActive: true },
+      select: { benefitId: true, isExcluded: true },
+    });
+    const added = new Set(rules.filter((x) => !x.isExcluded).map((x) => x.benefitId));
+    const removed = new Set(rules.filter((x) => x.isExcluded).map((x) => x.benefitId));
+
+    const rows = benefits.map((b) => {
+      const inScope = scopeCovers(plan as any, b as any);
+      return {
+        id: b.id,
+        title: b.title,
+        type: b.type,
+        value: b.value,
+        freebieName: b.freebieName,
+        merchant: b.merchant,
+        /** 잼 성격만으로 들어오는지 */
+        inScope,
+        /** 예외로 더했는지 / 뺐는지 */
+        added: added.has(b.id),
+        removed: removed.has(b.id),
+        /** 최종적으로 이 잼에 들어 있는지 */
+        included: removed.has(b.id) ? false : added.has(b.id) || inScope,
+      };
+    });
+    return { plan, benefits: rows };
+  }
+
+  /** 이 잼에 들어갈 쿠폰을 확정한다. 성격과 다른 것만 예외로 남긴다. */
+  @Post('plans/:id/benefits')
+  async setPlanBenefits(@AdminId() adminId: string, @Param('id') id: string, @Body() dto: SetPlanBenefitsDto) {
+    const db = this.prisma.client;
+    const plan = await db.membershipPlan.findUnique({ where: { id } });
+    if (!plan) throw new NotFoundException('잼을 찾을 수 없습니다');
+
+    const benefits = await db.benefit.findMany({
+      where: { isActive: true, approval: 'ACTIVE', merchant: { status: 'ACTIVE' } },
+      select: { id: true, merchant: { select: { regionId: true, categoryId: true } } },
+    });
+    const wanted = new Set(dto.benefitIds ?? []);
+
+    await db.$transaction(async (tx) => {
+      await tx.benefitGrantRule.deleteMany({ where: { trigger: 'MEMBERSHIP_PLAN', membershipPlanId: id } });
+      for (const b of benefits) {
+        const inScope = scopeCovers(plan as any, b as any);
+        const want = wanted.has(b.id);
+        if (want === inScope) continue; // 성격대로면 예외를 남기지 않는다
+        await tx.benefitGrantRule.create({
+          data: {
+            benefitId: b.id, trigger: 'MEMBERSHIP_PLAN', membershipPlanId: id,
+            isExcluded: !want, isActive: true,
+          },
+        });
+      }
+    });
+    await this.audit(adminId, 'PLAN_BENEFITS', 'MembershipPlan', id, `${plan.name} · ${wanted.size}장`);
+    return { ok: true, count: wanted.size };
+  }
+
+  /**
+   * 잼 복사 — 기관별 단체 잼처럼 비슷한 잼을 계속 만들어야 할 때 쓴다.
+   * 범위와 예외까지 그대로 가져오고, 판매는 꺼둔 채로 만든다.
+   */
+  @Post('plans/:id/duplicate')
+  async duplicatePlan(@AdminId() adminId: string, @Param('id') id: string) {
+    const db = this.prisma.client;
+    const src = await db.membershipPlan.findUnique({ where: { id } });
+    if (!src) throw new NotFoundException('잼을 찾을 수 없습니다');
+
+    const copy = await db.$transaction(async (tx) => {
+      const p = await tx.membershipPlan.create({
+        data: {
+          code: `${src.code}_COPY_${Date.now().toString(36).toUpperCase().slice(-4)}`,
+          name: `${src.name} (복사본)`,
+          description: src.description,
+          price: src.price,
+          durationDays: src.durationDays,
+          sortOrder: src.sortOrder,
+          scope: src.scope,
+          scopeRegionIds: src.scopeRegionIds,
+          scopeCategoryIds: src.scopeCategoryIds,
+          isPrivate: src.isPrivate,
+          imageUrl: src.imageUrl,
+          i18n: (src as any).i18n ?? undefined,
+          // 단체 코드는 잼마다 달라야 하므로 비워둔다
+          orgCode: null,
+          // 내용을 고치기 전에 팔리면 안 되니 꺼둔 채로 만든다
+          isActive: false,
+        },
+      });
+      const rules = await tx.benefitGrantRule.findMany({
+        where: { trigger: 'MEMBERSHIP_PLAN', membershipPlanId: id },
+      });
+      for (const rl of rules) {
+        await tx.benefitGrantRule.create({
+          data: {
+            benefitId: rl.benefitId, trigger: 'MEMBERSHIP_PLAN', membershipPlanId: p.id,
+            isExcluded: rl.isExcluded, isActive: rl.isActive, validDays: rl.validDays,
+          },
+        });
+      }
+      return { plan: p, copiedRules: rules.length };
+    });
+    await this.audit(adminId, 'PLAN_DUPLICATE', 'MembershipPlan', copy.plan.id, `${src.name} 복사`);
+    return {
+      ok: true,
+      id: copy.plan.id,
+      copiedRules: copy.copiedRules,
+      message: '복사했습니다. 이름과 단체 코드를 고친 뒤 판매를 시작하세요.',
+    };
   }
 
   // ── 3) 지역·카테고리 ──

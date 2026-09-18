@@ -14,7 +14,8 @@ import { PrismaService } from './prisma.service';
 import { AuthModule, OptionalUserGuard, UserGuard, UserId } from './auth';
 import { addDays, makeOrderNo, makeVoucherCode } from './util';
 import { activeAdRanks, clickCounts, rankSort } from './ranking.util';
-import { isPaidMember, PRODUCT_COUPON_VALID_DAYS } from './membership.util';
+import { PRODUCT_COUPON_VALID_DAYS } from './membership.util';
+import { activePaidPlanIds, canGetMemberPrice } from './plan-scope.util';
 
 class PurchaseProductDto {
   @IsOptional() @IsString() slotId?: string;
@@ -31,7 +32,7 @@ export class OrdersController {
 
   @Get('products')
   @UseGuards(OptionalUserGuard)
-  async products(@Query('merchantId') merchantId?: string, @Query('type') type?: string) {
+  async products(@UserId() userId: string | undefined, @Query('merchantId') merchantId?: string, @Query('type') type?: string) {
     const db = this.prisma.client;
     const rows = await db.product.findMany({
       where: {
@@ -45,6 +46,7 @@ export class OrdersController {
       },
       orderBy: { createdAt: 'asc' },
     });
+    const myPlanIds = await activePaidPlanIds(db, userId);
     // 상위 노출 — 광고(기간 내 rank) → 클릭수 → 나머지 (2026-09-10 픽스)
     const [clicks, ads] = await Promise.all([
       clickCounts(db, ['product_view', 'product_purchase', 'product_redeem']),
@@ -55,11 +57,20 @@ export class OrdersController {
       clicks,
       ads,
       adKey: (r) => `PRODUCT:${r.id}`,
-    }).map((r) => ({ ...r, isAd: ads.has(`PRODUCT:${r.id}`) }));
+    }).map((r) => ({
+      ...r,
+      isAd: ads.has(`PRODUCT:${r.id}`),
+      /** 지금 보는 사람이 유료 회원 할인가를 받는지 (상품마다 대상 잼이 다르다) */
+      memberPriceApplies:
+        r.memberPrice != null &&
+        myPlanIds.length > 0 &&
+        (r.memberPricePlanIds.length === 0 || r.memberPricePlanIds.some((id) => myPlanIds.includes(id))),
+    }));
   }
 
   @Get('products/:id')
-  async product(@Param('id') id: string) {
+  @UseGuards(OptionalUserGuard)
+  async product(@UserId() userId: string | undefined, @Param('id') id: string) {
     const db = this.prisma.client;
     const p = await db.product.findUnique({
       where: { id },
@@ -73,6 +84,16 @@ export class OrdersController {
       },
     });
     if (!p) throw new NotFoundException('상품을 찾을 수 없습니다');
+
+    // 이 상품의 할인가를 받는 잼과, 보는 사람이 그 대상인지 (2026-09-18 대표 확정)
+    const memberPricePlans = p.memberPricePlanIds.length
+      ? await db.membershipPlan.findMany({
+          where: { id: { in: p.memberPricePlanIds } },
+          select: { id: true, code: true, name: true, i18n: true },
+        })
+      : [];
+    const memberPriceApplies =
+      p.memberPrice != null && (await canGetMemberPrice(db, userId, p.memberPricePlanIds));
 
     // 결제하면 함께 받는 '근처 할인 쿠폰' — 슈퍼 관리자만 연결한다 (2026-09-12 대표 확정).
     // 구매 전에 미리 보여줘 결제를 밀어주고, 결제하면 무료 회원도 실제로 쓸 수 있게 발급된다.
@@ -101,6 +122,10 @@ export class OrdersController {
       // 티켓형 남은 수량 (null=무제한)
       remainingQty: p.totalQty != null ? Math.max(0, p.totalQty - p.soldQty) : null,
       slots: p.slots.map((s) => ({ ...s, remaining: s.capacity - s.reserved })),
+      /** 이 상품의 할인가를 받는 잼. 비어 있으면 유료 잼이면 모두 */
+      memberPricePlans,
+      /** 지금 보는 사람이 할인가를 받는지 */
+      memberPriceApplies,
       bundledCoupons: links.filter((l, i, a) => a.findIndex((x) => x.benefitId === l.benefitId) === i).map((l) => ({
         benefitId: l.benefitId,
         title: l.benefit.title,
@@ -126,7 +151,8 @@ export class OrdersController {
     if (!product || !product.isActive) throw new NotFoundException('판매 중인 상품이 아닙니다');
 
     // 2026-09-12 대표 확정: 상품 '유료 회원 가격'은 유료 잼 보유자만. 무료 회원은 기본 판매가로 산다.
-    const isMember = await isPaidMember(db, userId);
+    // 2026-09-18 대표 확정: 상품마다 '할인 줄 잼'을 지정한다. 비워두면 유료 잼이면 모두.
+    const isMember = await canGetMemberPrice(db, userId, product.memberPricePlanIds);
     const unitPrice = isMember && product.memberPrice != null ? product.memberPrice : product.basePrice;
 
     if (product.type === 'RESERVATION' && !dto.slotId) {
