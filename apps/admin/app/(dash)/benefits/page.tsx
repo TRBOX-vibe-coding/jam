@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api, won } from '@/lib/api';
 import { Badge, Button, Card, CardHeader, Empty, Modal, Table, TableSkeleton, Td } from '@/components/ui';
 
-const TYPE_LABEL: Record<string, string> = { PERCENT: '% 할인', AMOUNT: '금액 할인', FREEBIE: '증정' };
+const TYPE_LABEL: Record<string, string> = { PERCENT: '% 할인', AMOUNT: '금액 할인', AMOUNT_PER_PERSON: '1인당 금액 할인', FREEBIE: '증정' };
 
 const EMPTY_FORM = {
   merchantId: '', title: '', type: 'PERCENT', value: '', freebieName: '',
@@ -12,7 +12,11 @@ const EMPTY_FORM = {
 
 /** 혜택 내용 한 줄 요약 */
 function benefitDesc(b: any) {
-  const core = b.type === 'PERCENT' ? `${b.value}% 할인` : b.type === 'AMOUNT' ? `${won(b.value)} 할인` : `${b.freebieName} 증정`;
+  const core =
+    b.type === 'PERCENT' ? `${b.value}% 할인`
+    : b.type === 'AMOUNT' ? `${won(b.value)} 할인`
+    : b.type === 'AMOUNT_PER_PERSON' ? `1인당 ${won(b.value)} 할인`
+    : `${b.freebieName} 증정`;
   const conds: string[] = [];
   if (b.companionLimit) conds.push(`동반 ${b.companionLimit}인`);
   if (b.maxUsePerUser) conds.push(`1인 ${b.maxUsePerUser}회`);

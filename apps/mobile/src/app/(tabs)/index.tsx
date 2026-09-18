@@ -348,7 +348,13 @@ export default function HomeScreen() {
                       )}
                       <View style={st.couponBadge}>
                         <Text style={st.couponBadgeText}>
-                          {b.type === 'PERCENT' ? `${b.value}% ${t('offLabel')}` : b.type === 'AMOUNT' ? `${b.value.toLocaleString()}원 ${t('offLabel')}` : t('freeLabel')}
+                          {b.type === 'PERCENT'
+                            ? `${b.value}% ${t('offLabel')}`
+                            : b.type === 'AMOUNT'
+                            ? `${b.value.toLocaleString()}원 ${t('offLabel')}`
+                            : b.type === 'AMOUNT_PER_PERSON'
+                            ? `${t('perPersonOff')} ${b.value.toLocaleString()}원`
+                            : t('freeLabel')}
                         </Text>
                       </View>
                     </View>

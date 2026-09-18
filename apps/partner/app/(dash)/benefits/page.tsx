@@ -3,13 +3,14 @@ import { useCallback, useEffect, useState } from 'react';
 import { api, won } from '@/lib/api';
 import { Badge, Button, Card, CardHeader, Empty, Table, TableSkeleton, Td } from '@/components/ui';
 
-const TYPE_LABEL: Record<string, string> = { PERCENT: '% 할인', AMOUNT: '금액 할인', FREEBIE: '서비스 증정' };
+const TYPE_LABEL: Record<string, string> = { PERCENT: '% 할인', AMOUNT: '금액 할인', AMOUNT_PER_PERSON: '1인당 금액 할인', FREEBIE: '서비스 증정' };
 
 const EMPTY = { title: '', type: 'PERCENT', value: '', freebieName: '', companionLimit: '', maxUsePerDay: '', minOrderAmount: '', conditions: '' };
 
 function benefitValue(b: any) {
   if (b.type === 'PERCENT') return `${b.value}% 할인`;
   if (b.type === 'AMOUNT') return `${won(b.value)} 할인`;
+  if (b.type === 'AMOUNT_PER_PERSON') return `1인당 ${won(b.value)} 할인`;
   return `${b.freebieName ?? '서비스'} 증정`;
 }
 

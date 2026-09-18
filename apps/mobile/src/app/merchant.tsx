@@ -276,7 +276,13 @@ export default function MerchantMode() {
                 <Tag text={t.text} tone={t.tone} />
               </View>
               <Text style={st.redSub}>
-                {b.type === 'PERCENT' ? `${b.value}% 할인` : b.type === 'AMOUNT' ? `${won(b.value)} 할인` : `${b.freebieName} 증정`}
+                {b.type === 'PERCENT'
+                  ? `${b.value}% 할인`
+                  : b.type === 'AMOUNT'
+                  ? `${won(b.value)} 할인`
+                  : b.type === 'AMOUNT_PER_PERSON'
+                  ? `1인당 ${won(b.value)} 할인`
+                  : `${b.freebieName} 증정`}
                 {b.companionLimit ? ` · 동반 ${b.companionLimit}인까지` : ''}
                 {b.maxUsePerDay ? ` · 하루 ${b.maxUsePerDay}회` : ''}
               </Text>
