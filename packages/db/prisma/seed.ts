@@ -468,6 +468,15 @@ async function main() {
     '해운대 리버크루즈 탑승권': U('1477959858617-67f85cf4f1df', 1200),
     '송정 바다 PASS': U('1507525428034-b723cf961d3e', 1200),
   };
+  // 잼 카드 대표 이미지 — 잼 탭이 가격표가 아니라 상품처럼 보이게
+  const planImg: Record<string, string> = {
+    JAM3: U('1507525428034-b723cf961d3e'),
+    JAM5: U('1533050487297-09b450131914'),
+    JAMMASTER: U('1559339352-11d035aa65de'),
+  };
+  for (const [code, url] of Object.entries(planImg)) {
+    await prisma.membershipPlan.updateMany({ where: { code }, data: { imageUrl: url } });
+  }
   for (const [name, url] of Object.entries(productImg)) {
     await prisma.product.updateMany({ where: { name }, data: { imageUrl: url } });
   }

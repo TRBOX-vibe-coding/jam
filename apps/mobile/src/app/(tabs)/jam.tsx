@@ -60,6 +60,9 @@ export default function JamScreen() {
   function scopeLine(p: Plan) {
     if (p.scope === 'ALL') return t('jamScopeAll');
     if (p.scope === 'MANUAL') return t('jamScopePicked');
+    // 열린 지역을 전부 고른 잼(3일잼·5일잼)은 사실상 전체다 — 지역 이름을 6개 늘어놓지 않는다
+    const everyRegion = regions.length > 0 && p.scopeRegionIds.length >= regions.length;
+    if (everyRegion && p.scopeCategoryIds.length === 0) return t('jamScopeAll');
     const names = [
       ...p.scopeRegionIds.map((id) => regions.find((r) => r.id === id)?.name),
       ...p.scopeCategoryIds.map((id) => cats.find((c) => c.id === id)?.name),
