@@ -7,11 +7,12 @@ import { api, img } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { useI18n } from '../lib/i18n';
 import { C, won } from '../lib/theme';
+import { useRedeem } from '../lib/redeem';
 import { Btn, EmptyText, LoadError, Loading, Screen, Tag } from '../lib/ui';
 import { couponValue } from '../lib/coupons';
 
 type SavedBenefit = {
-  refId: string; userBenefitId: string | null; title: string; type: string; value: number; isActive: boolean;
+  refId: string; userBenefitId: string | null; title: string; type: string; value: number; isActive: boolean; canUse?: boolean;
   estimatedSaving: number | null;
   merchant: { id: string; name: string; thumbnailUrl: string | null; region: string; categoryEmoji: string };
 };
@@ -36,6 +37,7 @@ export default function SavedScreen() {
       .catch(() => setFailed(true));
     api<{ trip: TripInfo | null }>('/me/trip').then((r) => setTrip(r.trip)).catch(() => {});
   }, [lang]);
+  const redeem = useRedeem(load);
   useFocusEffect(load);
 
   /** 담은 항목을 여행의 Day에 놓기 (이미 그 Day면 해제) */
@@ -127,6 +129,17 @@ export default function SavedScreen() {
                   <Pressable hitSlop={10} onPress={() => unsave('BENEFIT', b.refId)}>
                     <Ionicons name="heart" size={22} color="#E8503A" />
                   </Pressable>
+                  <Pressable
+                    style={[st.useBtn, !b.canUse && st.useBtnOff]}
+                    onPress={() =>
+                      b.canUse
+                        ? redeem.open({ kind: 'BENEFIT', merchantId: b.merchant.id, merchantName: b.merchant.name, itemId: b.refId, title: b.title })
+                        : router.push('/(tabs)/jam' as never)
+                    }
+                  >
+                    {!b.canUse && <Ionicons name="lock-closed" size={11} color={C.ink3} />}
+                    <Text style={[st.useBtnText, !b.canUse && st.useBtnTextOff]}>{t('useNow')}</Text>
+                  </Pressable>
                 </Pressable>
                 <DayChips itemType="BENEFIT" refId={b.refId} />
               </View>
@@ -172,11 +185,20 @@ export default function SavedScreen() {
           </>
         )}
       </ScrollView>
+      {redeem.modal}
     </Screen>
   );
 }
 
 const st = StyleSheet.create({
+  useBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 8,
+    backgroundColor: C.brand, borderRadius: 9, paddingHorizontal: 12, paddingVertical: 7,
+    borderWidth: 1, borderColor: C.brand,
+  },
+  useBtnOff: { backgroundColor: C.white, borderColor: C.line },
+  useBtnText: { color: '#fff', fontSize: 12.5, fontWeight: '800' },
+  useBtnTextOff: { color: C.ink3 },
   section: { fontSize: 13, fontWeight: '700', color: C.ink3, marginBottom: 8 },
   row: {
     flexDirection: 'row', alignItems: 'center', gap: 12,

@@ -5,7 +5,7 @@
 import { Controller, Get, Module, NotFoundException, Param, Query, UseGuards } from '@nestjs/common';
 import { PrismaService } from './prisma.service';
 import { AuthModule, OptionalUserGuard, UserId } from './auth';
-import { activePaidPlanIds } from './plan-scope.util';
+import { activePaidPlanIds, usableBenefitIds } from './plan-scope.util';
 
 @Controller('merchants')
 export class StoreController {
@@ -87,8 +87,10 @@ export class StoreController {
 
     // 상품마다 할인 줄 잼이 다르므로 서버가 판단해서 내려준다 (2026-09-18 대표 확정)
     const myPlanIds = await activePaidPlanIds(db, userId);
+    const usable = await usableBenefitIds(db, userId);
     return {
       ...m,
+      benefits: m.benefits.map((b) => ({ ...b, canUse: usable.has(b.id) })),
       products: m.products.map((p) => ({
         ...p,
         memberPriceApplies:

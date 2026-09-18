@@ -8,7 +8,7 @@ import { PrismaService } from './prisma.service';
 import { AuthModule, UserGuard, UserId } from './auth';
 import { langOf, trField } from './i18n.util';
 import { benefitSaving, productSaving } from './savings.util';
-import { activePaidPlanIds } from './plan-scope.util';
+import { activePaidPlanIds, usableBenefitIds } from './plan-scope.util';
 
 class ToggleSaveDto {
   @IsIn(['BENEFIT', 'PRODUCT']) itemType!: 'BENEFIT' | 'PRODUCT';
@@ -100,6 +100,7 @@ export class SavesController {
     const pMap = new Map(productRows.map((p) => [p.id, p]));
     // 상품마다 할인 줄 잼이 다르다 — 서버가 계산해서 내려준다 (2026-09-18 대표 확정)
     const myPlanIds = await activePaidPlanIds(db, userId);
+    const usable = await usableBenefitIds(db, userId);
 
     return {
       benefits: rows
@@ -109,6 +110,7 @@ export class SavesController {
           return {
             refId: b.id,
             userBenefitId: ubByBenefit.get(b.id) ?? null,
+            canUse: usable.has(b.id) && b.isActive,
             title: trField(b, 'title', lang),
             type: b.type,
             value: b.value,

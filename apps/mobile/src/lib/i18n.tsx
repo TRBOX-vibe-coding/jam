@@ -279,6 +279,7 @@ const D: Record<string, [string, string, string, string]> = {
   useLocked: ['🔒 잼 시작 후 사용', '🔒 Use after starting JAM', '🔒 开通JAM后使用', '🔒 JAM開始後に使用'],
   useFrom: ['{date}부터 사용', 'From {date}', '{date}起可用', '{date}から使用'],
   goStartJam: ['잼을 시작하면 이 쿠폰을 바로 쓸 수 있어요. 지금 시작할까요?', 'Start a JAM to use this coupon right away. Start now?', '开通JAM即可立即使用此优惠券。现在开通？', 'JAMを始めればこのクーポンをすぐ使えます。今始めますか？'],
+  jamStartsOn: ["{plan}은 {date} 0시부터 열려요. 그때부터 이 쿠폰을 쓸 수 있어요.","{plan} opens at 00:00 on {date}. You can use this coupon from then.","{plan}将于{date}0点开启，届时可使用此优惠券。","{plan}は{date}0時から開きます。そこからこのクーポンを使えます。"],
   cardFreeHint: ['무료 회원 · 쿠폰 사용은 잼을 시작하면 열려요', 'Free member · start a JAM to use coupons', '免费会员 · 开通JAM后可用优惠券', '無料会員 · JAMを始めるとクーポンが使えます'],
   cardUpcoming: ['{plan} · {date} 시작 예정', '{plan} · starts {date}', '{plan} · {date}开始', '{plan} · {date}開始予定'],
   noTripYet: ['여행을 만들면 담은 것을 날짜에 놓고 예상 절약을 볼 수 있어요', 'Create a trip to place saved items on days and see your savings', '创建行程后可把收藏放到日期上并查看预计节省', '旅程を作ると保存した項目を日付に置いて節約額が見られます'],

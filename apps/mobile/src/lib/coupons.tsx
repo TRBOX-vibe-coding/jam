@@ -98,9 +98,20 @@ export function CouponsScreen({ source }: { source?: 'PRODUCT' }) {
     else Alert.alert('', msg, [{ text: t('close'), style: 'cancel' }, { text: t('titleWallet'), onPress: go }]);
   }
 
-  /** 잼이 이미 있으면 '내 잼에 없는 쿠폰', 없으면 '잼을 시작하세요'로 안내한다 */
+  /** 흰 버튼을 눌렀을 때 — 못 쓰는 까닭이 셋이라 말도 셋이다 */
   const hasStartedJam = (me?.memberships ?? []).some((m) => m.isPaid && m.started);
+  const upcoming = (me?.memberships ?? []).find((m) => m.isPaid && !m.started);
   function onLockedPress() {
+    // ① 산 잼이 아직 시작 전이면 날짜만 알려 주면 된다 (더 팔 게 없다)
+    if (upcoming && !hasStartedJam) {
+      const msg = t('jamStartsOn', {
+        plan: upcoming.planName,
+        date: new Date(upcoming.startAt).toLocaleDateString(locale, { month: 'long', day: 'numeric' }),
+      });
+      if (Platform.OS === 'web') window.alert(msg); else Alert.alert('', msg);
+      return;
+    }
+    // ② 잼은 쓰는 중인데 이 쿠폰이 그 잼 밖이면 다른 잼을, ③ 잼이 없으면 시작을 권한다
     const msg = hasStartedJam ? t('goOtherJam') : t('goStartJam');
     const go = () => router.push('/(tabs)/jam' as never);
     if (Platform.OS === 'web') { if (window.confirm(msg)) go(); }
@@ -237,24 +248,14 @@ export function CouponsScreen({ source }: { source?: 'PRODUCT' }) {
                     >
                       <Text style={st.useBtnText}>{t('useNow')}</Text>
                     </Pressable>
-                  ) : b.pending ? (
-                    // 결제로 담긴 쿠폰인데 아직 안 열렸다 — 현장에서 이용권을 쓰면 열린다
-                    <Pressable
-                      style={[st.useBtn, st.useBtnLocked]}
-                      onPress={() => onPendingPress(b.fromProduct?.name ?? '')}
-                    >
-                      <Text style={[st.useBtnText, { color: C.ink2 }]}>{t('pendingUse')}</Text>
-                    </Pressable>
                   ) : (
-                    // 무료 회원 또는 시작 전 잼 — 눌러도 서버에서 막히니, 먼저 상태를 보여주고 MY로 안내한다
-                    <Pressable style={[st.useBtn, st.useBtnLocked]} onPress={onLockedPress}>
-                      <Text style={[st.useBtnText, { color: C.ink2 }]}>
-                        {hasStartedJam
-                          ? t('notInMyJam')
-                          : me.membership?.isPaid && !me.membership.started
-                          ? t('useFrom', { date: new Date(me.membership.startAt).toLocaleDateString(locale, { month: 'numeric', day: 'numeric' }) })
-                          : t('useLocked')}
-                      </Text>
+                    // 아직 못 쓰는 쿠폰 — 같은 버튼을 흰색으로. 누르면 왜 못 쓰는지 말해 준다
+                    <Pressable
+                      style={[st.useBtn, st.useBtnOff]}
+                      onPress={() => (b.pending ? onPendingPress(b.fromProduct?.name ?? '') : onLockedPress())}
+                    >
+                      <Ionicons name="lock-closed" size={11} color={C.ink3} />
+                      <Text style={[st.useBtnText, st.useBtnTextOff]}>{t('useNow')}</Text>
                     </Pressable>
                   )}
                 </View>
@@ -301,9 +302,10 @@ const st = StyleSheet.create({
   },
   promoText: { flex: 1, fontSize: 13, color: C.ink2, lineHeight: 19 },
   promoCta: { fontSize: 14, fontWeight: '800', color: C.brand },
-  useBtn: { backgroundColor: C.brand, borderRadius: 9, paddingHorizontal: 14, paddingVertical: 8 },
-  useBtnLocked: { backgroundColor: C.ground, borderWidth: 1, borderColor: C.line },
+  useBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.brand, borderRadius: 9, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: C.brand },
+  useBtnOff: { backgroundColor: C.white, borderColor: C.line },
   useBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  useBtnTextOff: { color: C.ink3 },
   shopCard: {
     backgroundColor: C.white, borderRadius: 16, borderWidth: 1, borderColor: C.line,
     overflow: 'hidden', marginBottom: 12,

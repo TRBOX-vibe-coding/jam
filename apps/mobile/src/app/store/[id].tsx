@@ -4,6 +4,7 @@
 import { useCallback, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { track } from '../../lib/analytics';
 import { api, img } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
@@ -61,15 +62,18 @@ export default function StoreDetail() {
               {b.maxUsePerDay ? t('perDay', { n: b.maxUsePerDay }) : ''}
               {b.conditions ? ` · ${b.conditions}` : ''}
             </Text>
-            {isMember ? (
-              <View style={{ marginTop: 9 }}>
-                <Btn title={t('useAtStore')} small onPress={() => router.push({ pathname: '/(tabs)/scan', params: { merchant: m.id } })} />
-              </View>
-            ) : (
-              <Pressable style={st.lockBar} onPress={() => router.push('/(tabs)/jam' as never)}>
-                <Text style={st.lockText}>{t('lockStart')}</Text>
-              </Pressable>
-            )}
+            {/* 파란색이면 지금 쓸 수 있고, 흰색이면 아직이다 (2026-09-18) */}
+            <Pressable
+              style={[st.useBtn, !b.canUse && st.useBtnOff]}
+              onPress={() =>
+                b.canUse
+                  ? router.push({ pathname: '/(tabs)/scan', params: { merchant: m.id } })
+                  : router.push('/(tabs)/jam' as never)
+              }
+            >
+              {!b.canUse && <Ionicons name="lock-closed" size={12} color={C.ink3} />}
+              <Text style={[st.useBtnText, !b.canUse && st.useBtnTextOff]}>{t('useAtStore')}</Text>
+            </Pressable>
           </Card>
         ))}
 
@@ -135,8 +139,14 @@ const st = StyleSheet.create({
   emptyLine: { fontSize: 13, color: C.ink3, textAlign: 'center' },
   benefitTitle: { fontSize: 15.5, fontWeight: '700', color: C.ink },
   benefitCond: { fontSize: 12, color: C.ink3, marginTop: 3 },
-  lockBar: { marginTop: 9, backgroundColor: C.ground, borderRadius: 9, padding: 9 },
-  lockText: { fontSize: 12.5, fontWeight: '700', color: C.ink2, textAlign: 'center' },
+  useBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
+    marginTop: 9, backgroundColor: C.brand, borderRadius: 9, paddingVertical: 10,
+    borderWidth: 1, borderColor: C.brand,
+  },
+  useBtnOff: { backgroundColor: C.white, borderColor: C.line },
+  useBtnText: { fontSize: 13.5, fontWeight: '800', color: '#fff' },
+  useBtnTextOff: { color: C.ink3 },
   dropThumb: { width: 62, height: 62, borderRadius: 10 },
   dropTitle: { fontSize: 14.5, fontWeight: '700', color: C.ink },
   dropRate: { fontSize: 14, fontWeight: '700', color: '#E8503A' },
