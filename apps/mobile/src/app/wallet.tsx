@@ -63,6 +63,10 @@ export default function WalletScreen() {
   const couponsOf = (productId: string) => coupons.filter((b) => b.fromProduct?.id === productId);
   /** 어느 이용권에도 안 붙는 쿠폰 — 예약만 하고 이용권이 없는 경우 등 */
   const looseCoupons = coupons.filter((b) => !vouchers.some((v) => v.productId === b.fromProduct?.id));
+  function notifyOpensAt(opensAt: string) {
+    const msg = t('opensOnDate', { date: new Date(opensAt).toLocaleDateString(locale, { month: 'long', day: 'numeric' }) });
+    if (Platform.OS === 'web') window.alert(msg); else Alert.alert('', msg);
+  }
   function notifyPending(productName: string) {
     const msg = t('pendingOpensWith', { name: productName });
     if (Platform.OS === 'web') window.alert(msg); else Alert.alert('', msg);
@@ -136,7 +140,7 @@ export default function WalletScreen() {
                         onPress={() =>
                           b.canUse
                             ? redeem.open({ kind: 'BENEFIT', merchantId: b.merchant.id, merchantName: b.merchant.name, itemId: b.id, title: b.title })
-                            : notifyPending(v.product.name)
+                            : b.opensAt ? notifyOpensAt(b.opensAt) : notifyPending(v.product.name)
                         }
                       >
                         {!b.canUse && <Ionicons name="lock-closed" size={11} color={C.ink3} />}
@@ -194,7 +198,7 @@ export default function WalletScreen() {
                     onPress={() =>
                       b.canUse
                         ? redeem.open({ kind: 'BENEFIT', merchantId: b.merchant.id, merchantName: b.merchant.name, itemId: b.id, title: b.title })
-                        : notifyPending(b.fromProduct?.name ?? '')
+                        : b.opensAt ? notifyOpensAt(b.opensAt) : notifyPending(b.fromProduct?.name ?? '')
                     }
                   >
                     {!b.canUse && <Ionicons name="lock-closed" size={11} color={C.ink3} />}

@@ -19,7 +19,7 @@ import { Btn, Card, EmptyText, Loading, Screen } from './ui';
 
 type BenefitGroup = {
   merchant: { id: string; name: string; address: string | null; thumbnailUrl: string | null; region: { name: string }; category: { name: string; emoji: string } };
-  items: { id: string; benefitId: string; title: string; type: string; value: number; freebieName: string | null; validTo: string | null; sourceType: string; status: string; canUse: boolean; pending: boolean; fromProduct: { id: string; name: string } | null }[];
+  items: { id: string; benefitId: string; title: string; type: string; value: number; freebieName: string | null; validTo: string | null; sourceType: string; status: string; canUse: boolean; pending: boolean; opensAt?: string | null; fromProduct: { id: string; name: string } | null }[];
 };
 
 /** 할인값을 쿠폰답게 크게 — 10% / 3,000원 / 무료 */
@@ -91,6 +91,12 @@ export function CouponsScreen({ source }: { source?: 'PRODUCT' }) {
   // 쿠폰 '사용'은 유료 잼이 시작된 뒤에만 (보기·담기·일정 배치는 누구나).
   // 단 결제 상품에 묶여 받은 쿠폰은 무료 회원도 쓴다 — 그래서 서버가 항목마다 canUse를 준다.
   /** 아직 안 열린 쿠폰 — 현장에서 이용권을 쓰면 열린다고 알려주고 지갑으로 보낸다 */
+  /** 예약 상품 쿠폰 — 예약한 날 0시에 열린다. 날짜만 알려 주면 된다 */
+  function onOpensAtPress(opensAt: string) {
+    const msg = t('opensOnDate', { date: new Date(opensAt).toLocaleDateString(locale, { month: 'long', day: 'numeric' }) });
+    if (Platform.OS === 'web') window.alert(msg); else Alert.alert('', msg);
+  }
+
   function onPendingPress(productName: string) {
     const msg = t('pendingHint', { name: productName });
     const go = () => router.push('/wallet' as never);
@@ -252,7 +258,7 @@ export function CouponsScreen({ source }: { source?: 'PRODUCT' }) {
                     // 아직 못 쓰는 쿠폰 — 같은 버튼을 흰색으로. 누르면 왜 못 쓰는지 말해 준다
                     <Pressable
                       style={[st.useBtn, st.useBtnOff]}
-                      onPress={() => (b.pending ? onPendingPress(b.fromProduct?.name ?? '') : onLockedPress())}
+                      onPress={() => (b.opensAt ? onOpensAtPress(b.opensAt) : b.pending ? onPendingPress(b.fromProduct?.name ?? '') : onLockedPress())}
                     >
                       <Ionicons name="lock-closed" size={11} color={C.ink3} />
                       <Text style={[st.useBtnText, st.useBtnTextOff]}>{t('useNow')}</Text>

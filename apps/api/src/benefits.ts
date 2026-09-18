@@ -38,7 +38,7 @@ export class BenefitsController {
         status: { in: ['ACTIVE', 'PENDING'] },
         OR: [{ validTo: null }, { validTo: { gt: now } }],
       },
-      select: { id: true, benefitId: true, status: true, validTo: true, sourceId: true },
+      select: { id: true, benefitId: true, status: true, validFrom: true, validTo: true, sourceId: true },
     });
     const grantedByBenefit = new Map(granted.map((g) => [g.benefitId, g]));
 
@@ -75,6 +75,10 @@ export class BenefitsController {
       if (!byMerchant.has(m.id)) byMerchant.set(m.id, { merchant: m, items: [] });
       const g = grantedByBenefit.get(b.id);
       const fromProduct = g?.sourceId ? productById.get(g.sourceId) ?? null : null;
+      // 예약 상품에 딸린 쿠폰은 예약한 날 0시에 열린다 (2026-09-12 통화 결정).
+      // 결제할 때 validFrom에 그 날을 적어 두므로, 그 전까지는 받아만 두고 쓰지 못한다.
+      const opensAt = g && g.status === 'ACTIVE' && g.validFrom > now ? g.validFrom : null;
+      const productOpen = !!g && g.status === 'ACTIVE' && !opensAt;
       byMerchant.get(m.id)!.items.push({
         /** 사용 처리에 쓰는 id — 쿠폰 자체의 id다 */
         id: b.id,
@@ -88,10 +92,12 @@ export class BenefitsController {
         validTo: g?.validTo ?? null,
         sourceType: g ? 'PRODUCT' : 'MEMBERSHIP_PLAN',
         status: g?.status ?? 'ACTIVE',
-        /** 상품으로 받아 열린 쿠폰이거나, 내 잼에 든 쿠폰이면 쓸 수 있다 */
-        canUse: g ? g.status === 'ACTIVE' : usable.has(b.id),
+        /** 상품으로 받아 열린 쿠폰이거나, 내 잼에 든 쿠폰이면 쓸 수 있다 (둘 중 하나면 된다) */
+        canUse: productOpen || usable.has(b.id),
         /** 결제는 했지만 아직 안 열린 쿠폰 — 현장에서 이용권을 쓰면 열린다 */
         pending: g?.status === 'PENDING',
+        /** 예약한 날 0시에 열리는 쿠폰 — 그 시각 (아직 전이면) */
+        opensAt,
         fromProduct: fromProduct ? { id: fromProduct.id, name: fromProduct.name, i18n: (fromProduct as any).i18n } : null,
         i18n: (b as any).i18n,
       });
@@ -105,7 +111,7 @@ export class BenefitsController {
       /** 결제해서 받은 쿠폰 수 (MY 뱃지용) */
       grantedCount: rows.filter((r) => r.sourceType === 'PRODUCT').length,
       /** 그중 지금 바로 쓸 수 있는 수 */
-      openCount: rows.filter((r) => r.sourceType === 'PRODUCT' && r.status === 'ACTIVE').length,
+      openCount: rows.filter((r) => r.sourceType === 'PRODUCT' && r.status === 'ACTIVE' && !r.opensAt).length,
       /** 이용권을 써야 열리는 수 */
       pendingCount: rows.filter((r) => r.pending).length,
       /** 잼으로 쿠폰을 쓸 수 있는 상태인지 (무료 회원은 false) */

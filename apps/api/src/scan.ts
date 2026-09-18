@@ -222,12 +222,20 @@ export class ScanController {
         if (!bf) throw new BadRequestException('사용할 수 없는 혜택입니다');
 
         // ① 결제 상품에 묶여 받은 쿠폰인가 — 무료 회원도 쓰는 유일한 예외 (2026-09-12 확정)
+        //    예약 상품 쿠폰은 예약한 날 0시(validFrom)부터다 — 그 전에는 여기서 걸리지 않는다
         let ub = await tx.userBenefit.findFirst({
           where: {
             userId, benefitId: bf.id, sourceType: 'PRODUCT', status: 'ACTIVE',
+            validFrom: { lte: now },
             OR: [{ validTo: null }, { validTo: { gt: now } }],
           },
         });
+        const notYet = ub
+          ? null
+          : await tx.userBenefit.findFirst({
+              where: { userId, benefitId: bf.id, sourceType: 'PRODUCT', status: 'ACTIVE', validFrom: { gt: now } },
+              orderBy: { validFrom: 'asc' },
+            });
 
         if (!ub) {
           // ② 아니면 내 잼에 든 쿠폰이어야 한다 (2026-09-18 확정: 잼마다 여는 쿠폰이 다르다)
@@ -240,6 +248,11 @@ export class ScanController {
             },
             orderBy: { endAt: 'desc' },
           });
+          // 잼으로도 못 쓰는데 예약 상품 쿠폰이 기다리고 있으면 — 언제 열리는지 알려준다
+          if (notYet && (!paidJam || !usable.has(bf.id))) {
+            const d = notYet.validFrom;
+            throw new BadRequestException(`이 쿠폰은 ${d.getMonth() + 1}월 ${d.getDate()}일 0시부터 쓸 수 있어요. 예약한 날에 열립니다.`);
+          }
           if (!paidJam) {
             throw new BadRequestException('할인 쿠폰은 잼 멤버십 기간에 사용할 수 있어요. MY에서 잼을 시작해 주세요!');
           }

@@ -168,6 +168,8 @@ export default function ProductDetail() {
               <Text style={st.bundledDays}>
                 {p.couponStartMode === 'REDEEM'
                   ? t('pendingGuide')
+                  : p.couponStartMode === 'RESERVATION'
+                  ? t('bundledFromResv', { n: Math.min(...p.bundledCoupons.map((c: any) => c.validDays)) })
                   : t('bundledDays', { n: Math.min(...p.bundledCoupons.map((c: any) => c.validDays)) })}
               </Text>
             </Card>
