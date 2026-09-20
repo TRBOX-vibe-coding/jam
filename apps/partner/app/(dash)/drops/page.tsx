@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { API_BASE, api, dt, fileToDataUrl, won } from '@/lib/api';
 import { Badge, Button, Card, CardHeader, Empty, Table, TableSkeleton, Td } from '@/components/ui';
 import { QtyEdit } from '@/components/qty-edit';
+import { dropStateLabel } from '@/lib/drop-state';
 
 const img = (u?: string | null, w = 160) => (u ? (u.startsWith('/') ? `${API_BASE}${u}?w=${w}` : u) : null);
 
@@ -122,7 +123,7 @@ export default function MyDropsPage() {
           <Table head={['상태', '딜', '가격', '남은/전체', '마감']}>
             {rows.map((d) => (
               <tr key={d.id}>
-                <Td><Badge>{d.status}</Badge></Td>
+                <Td><Badge>{dropStateLabel(d)}</Badge></Td>
                 <Td className="max-w-[300px]">
                   <div className="flex items-center gap-2.5">
                     {img(d.imageUrl) ? (

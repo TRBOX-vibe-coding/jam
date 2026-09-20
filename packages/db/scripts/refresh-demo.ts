@@ -67,6 +67,22 @@ async function refreshDrops(now: Date) {
   return n;
 }
 
+/**
+ * 승인 대기 DROP — 상태는 그대로 두고 판매 기간만 앞으로 민다.
+ * 본사가 승인했을 때 손님 앱에 떠야 승인 흐름을 보여줄 수 있다. 기간이 지난 채로
+ * 승인하면 승인만 되고 앱에는 나타나지 않는다(2026-09-20).
+ */
+async function refreshPending(now: Date) {
+  const r = await db.drop.updateMany({
+    where: { status: 'PENDING' },
+    data: {
+      openAt: new Date(now.getTime() - HOUR),
+      closeAt: new Date(now.getTime() + 3 * DAY),
+    },
+  });
+  return r.count;
+}
+
 async function refreshCampaigns(now: Date) {
   // 끝났거나 곧 끝날 기획전은 열흘 뒤로 민다
   const rows = await db.campaign.findMany({
@@ -132,9 +148,10 @@ async function refreshSlots(now: Date) {
 async function main() {
   const now = new Date();
   const drops = await refreshDrops(now);
+  const pending = await refreshPending(now);
   const campaigns = await refreshCampaigns(now);
   const slots = await refreshSlots(now);
-  console.log(`DROP ${drops}개 다시 열림 · 기획전 ${campaigns}개 연장 · 예약 상품 ${slots.products}개에 시간대 ${slots.created}개 추가`);
+  console.log(`DROP ${drops}개 다시 열림 · 승인 대기 ${pending}개 기간 연장 · 기획전 ${campaigns}개 연장 · 예약 상품 ${slots.products}개에 시간대 ${slots.created}개 추가`);
 }
 
 main()

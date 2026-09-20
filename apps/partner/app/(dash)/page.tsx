@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api, dt } from '@/lib/api';
 import { Badge, Button, Card, CardHeader, Empty, Stat, StatSkeleton, Table, TableSkeleton, Td } from '@/components/ui';
+import { dropStateLabel, isLiveDrop, liveFirst } from '@/lib/drop-state';
 
 const TYPE_LABEL: Record<string, string> = { BENEFIT: '혜택', DROP: 'DROP', VOUCHER: '이용권' };
 
@@ -48,7 +49,8 @@ export default function Dashboard() {
           <Stat label="🔔 오늘 판매" value={`${sales?.todayCount ?? 0}건`} sub="앱에서 결제·예약·딜 수령" />
           <Stat label="오늘 사용" value={`${summary.todayRedemptions}건`} sub="손님 휴대폰에서 사장님이 처리" />
           <Stat label="이번 달 사용" value={`${summary.monthRedemptions}건`} />
-          <Stat label="진행 중 DROP" value={`${(summary.drops ?? []).filter((d: any) => d.status === 'OPEN').length}개`} sub={`승인 대기 ${(summary.drops ?? []).filter((d: any) => d.status === 'PENDING').length}건`} />
+          {/* 마감 시각이 지난 딜은 세지 않는다 — status만 보면 2주 전에 끝난 딜까지 '진행 중'이 된다 */}
+          <Stat label="진행 중 DROP" value={`${(summary.drops ?? []).filter((d: any) => isLiveDrop(d)).length}개`} sub={`승인 대기 ${(summary.drops ?? []).filter((d: any) => d.status === 'PENDING').length}건`} />
         </div>
       )}
 
@@ -106,9 +108,9 @@ export default function Dashboard() {
           <Empty text="진행 중인 DROP이 없습니다. [내 DROP]에서 등록해 보세요." />
         ) : (
           <Table head={['상태', '딜', '남은/전체', '마감']}>
-            {(summary.drops ?? []).slice(0, 5).map((d: any) => (
+            {[...(summary.drops ?? [])].sort(liveFirst).slice(0, 5).map((d: any) => (
               <tr key={d.id}>
-                <Td><Badge>{d.status}</Badge></Td>
+                <Td><Badge>{dropStateLabel(d)}</Badge></Td>
                 <Td className="max-w-[300px] truncate font-medium">{d.title}</Td>
                 <Td className="tabular-nums">{d.remainingQty}/{d.totalQty}</Td>
                 <Td className="whitespace-nowrap text-xs text-ink-3">{dt(d.closeAt)}</Td>

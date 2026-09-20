@@ -408,7 +408,7 @@ async function main() {
   }
 
   // ---------- 승인 대기 DROP (관리자 데모용) ----------
-  const pendingTitle = '[승인대기] 주말 와인 테이스팅 세트';
+  const pendingTitle = '주말 와인 테이스팅 세트';
   const pendingFound = await prisma.drop.findFirst({ where: { title: pendingTitle } });
   if (!pendingFound) {
     await prisma.drop.create({
@@ -498,7 +498,11 @@ async function main() {
     '키즈 베이킹 클래스 오늘 15팀': U('1556909114-f6e7ad7d3136', 1200),
     '[멤버 전용] 시그니처 칵테일 1+1': U('1514362545857-3bc16c4c7d1b', 1200),
     '뮤지엄원 야간권 반값': U('1550684848-fac1c5b4e853', 1200),
-    '[승인대기] 주말 와인 테이스팅 세트': U('1510812431401-41d2bd2722f3', 1200),
+    '주말 와인 테이스팅 세트': U('1510812431401-41d2bd2722f3', 1200),
+    '오후 서핑 보드 렌탈 40% 할인': U('1502680390469-be75c86b636f', 1200),
+    '서핑 후 온수 샤워 이용권': U('1502680390469-be75c86b636f', 1200),
+    '선셋 SUP 체험 (2인)': U('1507525428034-b723cf961d3e', 1200),
+    '오늘 구운 스콘 5개 세트 반값': U('1504674900247-0877df9cc836', 1200),
   };
   for (const [title, url] of Object.entries(dropImg)) {
     await prisma.drop.updateMany({ where: { title }, data: { imageUrl: url } });

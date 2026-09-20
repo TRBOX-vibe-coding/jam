@@ -194,7 +194,7 @@ export class MerchantController {
       db.redemption.count({ where: { merchantId: m.id, status: 'DONE', createdAt: { gte: monthStart } } }),
       db.drop.findMany({
         where: { merchantId: m.id, status: { in: ['OPEN', 'SOLD_OUT', 'PENDING', 'SCHEDULED'] } },
-        select: { id: true, title: true, status: true, remainingQty: true, totalQty: true, closeAt: true },
+        select: { id: true, title: true, status: true, remainingQty: true, totalQty: true, openAt: true, closeAt: true },
         orderBy: { closeAt: 'asc' },
       }),
     ]);
