@@ -46,6 +46,12 @@ const KIND_CHIP: Record<Entry['kind'], string> = {
   BENEFIT: 'bg-line text-ink-2',
 };
 
+/** 달력에서 고를 수 있는 해 — 지난 2년부터 앞으로 2년까지 */
+const YEARS = (() => {
+  const y = new Date().getFullYear();
+  return [y - 2, y - 1, y, y + 1, y + 2];
+})();
+
 const pad = (n: number) => String(n).padStart(2, '0');
 const key = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const hhmm = (iso: string) => {
@@ -89,10 +95,14 @@ export function SalesCalendar() {
   for (let d = 1; d <= lastDate; d++) cells.push(new Date(month.getFullYear(), month.getMonth(), d));
   while (cells.length % 7 !== 0) cells.push(null);
 
-  const move = (delta: number) => {
+  /** 그 달로 옮기고, 고른 날짜도 같이 옮긴다 (이번 달이면 오늘, 아니면 1일) */
+  const goMonth = (m: Date) => {
     setOpenId(null);
-    setMonth(new Date(month.getFullYear(), month.getMonth() + delta, 1));
+    setMonth(m);
+    const isThisMonth = m.getFullYear() === today.getFullYear() && m.getMonth() === today.getMonth();
+    setPicked(isThisMonth ? key(today) : key(new Date(m.getFullYear(), m.getMonth(), 1)));
   };
+  const move = (delta: number) => goMonth(new Date(month.getFullYear(), month.getMonth() + delta, 1));
 
   const dayList = (byDay[picked] ?? []).slice().sort((a, b) => +new Date(a.at) - +new Date(b.at));
   const monthTotal = (data?.entries ?? []).filter((e) => !e.cancelled).length;
@@ -104,11 +114,24 @@ export function SalesCalendar() {
         title="달력"
         right={
           <div className="flex items-center gap-2">
-            <button onClick={() => move(-1)} className="rounded-md border border-line px-2.5 py-1 text-xs font-bold hover:bg-ground">◀</button>
-            <span className="min-w-[88px] text-center text-sm font-bold">{month.getFullYear()}년 {month.getMonth() + 1}월</span>
-            <button onClick={() => move(1)} className="rounded-md border border-line px-2.5 py-1 text-xs font-bold hover:bg-ground">▶</button>
+            <button onClick={() => move(-1)} aria-label="이전 달" className="rounded-md border border-line px-2.5 py-1 text-xs font-bold hover:bg-ground">◀</button>
+            <select
+              value={month.getFullYear()}
+              onChange={(e) => goMonth(new Date(Number(e.target.value), month.getMonth(), 1))}
+              className="rounded-md border border-line bg-white px-2 py-1 text-sm font-bold outline-none focus:border-brand"
+            >
+              {YEARS.map((y) => <option key={y} value={y}>{y}년</option>)}
+            </select>
+            <select
+              value={month.getMonth()}
+              onChange={(e) => goMonth(new Date(month.getFullYear(), Number(e.target.value), 1))}
+              className="rounded-md border border-line bg-white px-2 py-1 text-sm font-bold outline-none focus:border-brand"
+            >
+              {Array.from({ length: 12 }, (_, i) => <option key={i} value={i}>{i + 1}월</option>)}
+            </select>
+            <button onClick={() => move(1)} aria-label="다음 달" className="rounded-md border border-line px-2.5 py-1 text-xs font-bold hover:bg-ground">▶</button>
             <button
-              onClick={() => { setMonth(new Date(today.getFullYear(), today.getMonth(), 1)); setPicked(key(today)); setOpenId(null); }}
+              onClick={() => goMonth(new Date(today.getFullYear(), today.getMonth(), 1))}
               className="rounded-md border border-line px-2.5 py-1 text-xs font-bold hover:bg-ground"
             >오늘</button>
           </div>
@@ -119,7 +142,7 @@ export function SalesCalendar() {
         손님이 <b className="text-ink-2">이용한 날</b>에 표시됩니다. 예약은 예약된 시각에, 이용권·딜·쿠폰은 가게에서 사용 처리한 시각에 들어갑니다.
         {data && (
           <>
-            {' '}이번 달 <b className="text-ink-2">{monthTotal}건 · {monthPeople}명</b>.
+            {' '}{month.getFullYear()}년 {month.getMonth() + 1}월 <b className="text-ink-2">{monthTotal}건 · {monthPeople}명</b>.
             {data.pending.tickets + data.pending.drops > 0 && (
               <> 아직 안 쓴 이용권 {data.pending.tickets}장{data.pending.drops > 0 ? `, 딜 ${data.pending.drops}개` : ''} — 손님이 오는 날이 정해지지 않아 달력에 없습니다.</>
             )}
