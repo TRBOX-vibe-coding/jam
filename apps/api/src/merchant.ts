@@ -470,6 +470,158 @@ export class MerchantController {
     });
   }
 
+  /**
+   * 달력 — 숙박 PMS처럼 '손님이 이용한 날' 기준으로 모아 준다.
+   *
+   * 예약형은 예약된 시각이 이용일이고, 티켓·딜·쿠폰은 현장에서 사용 처리한 시각이 이용일이다.
+   * 티켓·딜은 오는 날이 정해져 있지 않아 쓰기 전에는 달력에 자리가 없다 — 아직 안 쓴 장수는
+   * pending으로 따로 알려준다.
+   *
+   * 한 줄마다 결제 정보(언제·얼마·무엇으로)와 판매 경로를 같이 실어 보낸다. 점주가 이름을
+   * 눌렀을 때 서버를 다시 부르지 않게 하려는 것이다.
+   */
+  @Get('my/calendar')
+  async myCalendar(@UserId() userId: string, @Query('from') from?: string, @Query('to') to?: string) {
+    const m = await this.myMerchant(userId);
+    const db = this.prisma.client;
+
+    const base = from ? new Date(`${from}T00:00:00`) : new Date();
+    const start = from ? base : new Date(base.getFullYear(), base.getMonth(), 1);
+    const end = to
+      ? new Date(`${to}T23:59:59.999`)
+      : new Date(start.getFullYear(), start.getMonth() + 1, 0, 23, 59, 59, 999);
+
+    const orderSel = {
+      select: {
+        orderNo: true,
+        paidAt: true,
+        totalAmount: true,
+        status: true,
+        items: { select: { type: true, productId: true, refId: true, name: true, unitPrice: true, qty: true, amount: true } },
+        payments: { select: { method: true, provider: true, amount: true }, orderBy: { createdAt: 'desc' as const }, take: 1 },
+      },
+    };
+    const productSel = { select: { id: true, name: true, basePrice: true, campaign: { select: { title: true } } } };
+
+    const [reservations, redemptions, pendingTickets, pendingClaims] = await Promise.all([
+      db.reservation.findMany({
+        where: { product: { merchantId: m.id }, slot: { startAt: { gte: start, lte: end } } },
+        include: {
+          user: { select: { nickname: true } },
+          product: productSel,
+          slot: { select: { startAt: true, endAt: true } },
+          voucher: { select: { usedAt: true, order: orderSel } },
+        },
+      }),
+      db.redemption.findMany({
+        where: { merchantId: m.id, createdAt: { gte: start, lte: end } },
+        include: {
+          user: { select: { nickname: true } },
+          voucher: { select: { reservation: { select: { id: true } }, product: productSel, order: orderSel } },
+          dropClaim: {
+            select: {
+              dropId: true,
+              qty: true,
+              drop: { select: { title: true, kind: true, campaign: { select: { title: true } } } },
+              order: orderSel,
+            },
+          },
+          userBenefit: { select: { benefit: { select: { title: true } } } },
+        },
+      }),
+      db.voucher.count({ where: { product: { merchantId: m.id }, status: 'ISSUED', validTo: { gte: new Date() } } }),
+      db.dropClaim.count({ where: { drop: { merchantId: m.id }, status: 'CLAIMED', validTo: { gte: new Date() } } }),
+    ]);
+
+    /** 이 가게 몫만 골라낸다. 주문 한 건에 여러 가게 상품이 섞일 수 있다. */
+    const money = (order: any, productId?: string | null, refId?: string | null) => {
+      if (!order) return null;
+      const it = (order.items ?? []).find(
+        (i: any) => (productId && i.productId === productId) || (refId && i.refId === refId),
+      );
+      return it ? it.amount : order.totalAmount;
+    };
+    const payLabel = (order: any) =>
+      !order ? '무료 수령' : order.status === 'CANCELLED' || order.status === 'REFUNDED' ? '결제 취소' : order.paidAt ? '결제 완료' : '결제 대기';
+    // 결제 수단 — PG를 붙이기 전까지는 내부 표시값('mock')이 들어 있다. 그대로 보여주지 않는다.
+    const methodOf = (order: any) => {
+      const m: string | null = order?.payments?.[0]?.method ?? null;
+      return m && m.toLowerCase() !== 'mock' ? m : null;
+    };
+    const source = (campaignTitle: string | null | undefined, kind: string, memberPriced: boolean) => {
+      const parts: string[] = [];
+      if (campaignTitle) parts.push(`기획전 · ${campaignTitle}`);
+      else if (kind === 'DROP') parts.push('DROP 딜');
+      else if (kind === 'BENEFIT') parts.push('할인 쿠폰');
+      else parts.push('앱에서 바로 구매');
+      if (memberPriced) parts.push('멤버십 회원가');
+      return parts.join(' · ');
+    };
+    const RESV: Record<string, string> = { REQUESTED: '예약 요청', CONFIRMED: '예약 확정', CANCELLED: '예약 취소', NO_SHOW: '노쇼', COMPLETED: '이용 완료' };
+
+    const entries: any[] = [
+      ...reservations.map((r: any) => {
+        const order = r.voucher?.order ?? null;
+        const item = (order?.items ?? []).find((i: any) => i.productId === r.product.id);
+        return {
+          id: 'R' + r.id,
+          kind: 'RESERVATION',
+          at: r.slot.startAt,
+          endAt: r.slot.endAt,
+          title: r.product.name,
+          customer: r.contactName || r.user.nickname,
+          phone: r.contactPhone || null,
+          headcount: r.headcount,
+          status: RESV[r.status] ?? r.status,
+          cancelled: r.status === 'CANCELLED',
+          used: !!r.voucher?.usedAt,
+          payLabel: payLabel(order),
+          amount: money(order, r.product.id),
+          paidAt: order?.paidAt ?? r.createdAt,
+          method: methodOf(order),
+          orderNo: order?.orderNo ?? null,
+          savedAmount: null,
+          source: source(r.product.campaign?.title, 'PRODUCT', !!item && item.unitPrice < r.product.basePrice),
+          memo: r.memo ?? null,
+        };
+      }),
+      // 예약이 붙은 이용권은 예약 줄로 이미 보이므로 건너뛴다 (한 건이 두 줄로 보이면 안 된다)
+      ...redemptions
+        .filter((x: any) => !(x.type === 'VOUCHER' && x.voucher?.reservation))
+        .map((x: any) => {
+          const v = x.voucher;
+          const c = x.dropClaim;
+          const order = v?.order ?? c?.order ?? null;
+          const prod = v?.product ?? null;
+          const item = (order?.items ?? []).find((i: any) => prod && i.productId === prod.id);
+          const kind = x.type === 'VOUCHER' ? 'TICKET' : x.type === 'DROP' ? 'DROP' : 'BENEFIT';
+          return {
+            id: 'U' + x.id,
+            kind,
+            at: x.createdAt,
+            endAt: null,
+            title: prod?.name ?? c?.drop.title ?? x.userBenefit?.benefit.title ?? '-',
+            customer: x.user.nickname,
+            phone: null,
+            headcount: x.headcount,
+            status: x.status === 'DONE' ? '사용 완료' : '사용 취소',
+            cancelled: x.status !== 'DONE',
+            used: true,
+            payLabel: kind === 'BENEFIT' ? '할인 쿠폰(무료)' : payLabel(order),
+            amount: money(order, prod?.id ?? null, c?.dropId ?? null),
+            paidAt: order?.paidAt ?? null,
+            method: methodOf(order),
+            orderNo: order?.orderNo ?? null,
+            savedAmount: x.savedAmount || null,
+            source: source(prod?.campaign?.title ?? c?.drop.campaign?.title, kind === 'TICKET' ? 'PRODUCT' : kind, !!item && !!prod && item.unitPrice < prod.basePrice),
+            memo: null,
+          };
+        }),
+    ].sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
+
+    return { from: start, to: end, entries, pending: { tickets: pendingTickets, drops: pendingClaims } };
+  }
+
   /** 판매·사용내역 엑셀 — 사무실 정리용 */
   @Get('my/report')
   async myReport(@UserId() userId: string, @Query('days') days?: string, @Res() res?: any) {

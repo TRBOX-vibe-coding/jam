@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { api, dt } from '@/lib/api';
 import { Badge, Button, Card, CardHeader, Empty, Stat, StatSkeleton, Table, TableSkeleton, Td } from '@/components/ui';
 import { dropStateLabel, isLiveDrop, liveFirst } from '@/lib/drop-state';
+import { SalesCalendar } from '@/components/sales-calendar';
 
 const TYPE_LABEL: Record<string, string> = { BENEFIT: '혜택', DROP: 'DROP', VOUCHER: '이용권' };
 
@@ -53,6 +54,9 @@ export default function Dashboard() {
           <Stat label="진행 중 DROP" value={`${(summary.drops ?? []).filter((d: any) => isLiveDrop(d)).length}개`} sub={`승인 대기 ${(summary.drops ?? []).filter((d: any) => d.status === 'PENDING').length}건`} />
         </div>
       )}
+
+      {/* 달력 — 숙박 PMS처럼 '손님이 이용한 날' 기준. 아래 '최근 판매'는 팔렸지만 아직 안 온 건을 잡아 준다 */}
+      <SalesCalendar />
 
       {/* 매장 코드 — 손님이 결제 상품(이용권)을 쓸 때 사장님이 손님 휴대폰에 입력한다 (2026-09-08 확정) */}
       <Card className="p-5">
