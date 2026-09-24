@@ -22,7 +22,7 @@ class RejectDto {
 class CreateBenefitDto {
   @IsString() merchantId!: string;
   @IsString() @MinLength(2) title!: string;
-  @IsIn(['PERCENT', 'AMOUNT', 'FREEBIE']) type!: 'PERCENT' | 'AMOUNT' | 'FREEBIE';
+  @IsIn(['PERCENT', 'AMOUNT', 'AMOUNT_PER_PERSON', 'FREEBIE']) type!: 'PERCENT' | 'AMOUNT' | 'AMOUNT_PER_PERSON' | 'FREEBIE';
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) value?: number;
   @IsOptional() @IsString() freebieName?: string;
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(20) companionLimit?: number;

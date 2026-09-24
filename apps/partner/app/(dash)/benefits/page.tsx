@@ -58,7 +58,7 @@ export default function MyBenefitsPage() {
     f.title.length >= 2 &&
     (f.type === 'FREEBIE' ? f.freebieName.length >= 1 : Number(f.value) >= 1) &&
     (f.type !== 'PERCENT' || Number(f.value) <= 100) &&
-    (f.type !== 'AMOUNT' || Number(f.value) >= 500);
+    ((f.type !== 'AMOUNT' && f.type !== 'AMOUNT_PER_PERSON') || Number(f.value) >= 500);
 
   return (
     <div className="space-y-6">
@@ -81,12 +81,22 @@ export default function MyBenefitsPage() {
             <select className={inputCls} value={f.type} onChange={(e) => setF({ ...f, type: e.target.value, value: '', freebieName: '' })}>
               <option value="PERCENT">% 할인</option>
               <option value="AMOUNT">금액 할인</option>
+              <option value="AMOUNT_PER_PERSON">1인당 금액 할인</option>
               <option value="FREEBIE">서비스 증정</option>
             </select>
             {f.type === 'FREEBIE' ? (
               <input className={inputCls} placeholder="증정 품목 * (예: 아메리카노 1잔)" value={f.freebieName} onChange={(e) => setF({ ...f, freebieName: e.target.value })} />
             ) : (
-              <input className={inputCls} placeholder={f.type === 'PERCENT' ? '할인율 * (1~100)' : '할인 금액 * (500원↑)'} value={f.value} onChange={(e) => setF({ ...f, value: e.target.value.replace(/\D/g, '') })} />
+              <input
+                className={inputCls}
+                placeholder={
+                  f.type === 'PERCENT' ? '할인율 * (1~100)'
+                  : f.type === 'AMOUNT_PER_PERSON' ? '1인당 할인 금액 * (500원↑)'
+                  : '할인 금액 * (500원↑)'
+                }
+                value={f.value}
+                onChange={(e) => setF({ ...f, value: e.target.value.replace(/\D/g, '') })}
+              />
             )}
             <input className={inputCls} placeholder="동반 적용 인원 (선택)" value={f.companionLimit} onChange={(e) => setF({ ...f, companionLimit: e.target.value.replace(/\D/g, '') })} />
             <input className={inputCls} placeholder="1일 사용 한도 (선택)" value={f.maxUsePerDay} onChange={(e) => setF({ ...f, maxUsePerDay: e.target.value.replace(/\D/g, '') })} />

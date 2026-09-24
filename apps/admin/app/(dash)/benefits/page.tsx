@@ -349,6 +349,7 @@ export default function BenefitsPage() {
                 <select className={inputCls} value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
                   <option value="PERCENT">% 할인</option>
                   <option value="AMOUNT">금액 할인</option>
+                  <option value="AMOUNT_PER_PERSON">1인당 금액 할인</option>
                   <option value="FREEBIE">증정</option>
                 </select>
               </div>
@@ -364,8 +365,13 @@ export default function BenefitsPage() {
               </div>
             ) : (
               <div>
-                <label className="mb-1 block text-xs font-semibold text-ink-3">{form.type === 'PERCENT' ? '할인율(%) *' : '할인 금액(원) *'}</label>
-                <input className={inputCls} value={form.value} onChange={(e) => setForm({ ...form, value: e.target.value.replace(/\D/g, '') })} placeholder={form.type === 'PERCENT' ? '20' : '3000'} />
+                <label className="mb-1 block text-xs font-semibold text-ink-3">
+                  {form.type === 'PERCENT' ? '할인율(%) *' : form.type === 'AMOUNT_PER_PERSON' ? '1인당 할인 금액(원) *' : '할인 금액(원) *'}
+                </label>
+                <input className={inputCls} value={form.value} onChange={(e) => setForm({ ...form, value: e.target.value.replace(/\D/g, '') })} placeholder={form.type === 'PERCENT' ? '20' : form.type === 'AMOUNT_PER_PERSON' ? '5000' : '3000'} />
+                {form.type === 'AMOUNT_PER_PERSON' && (
+                  <p className="mt-1 text-[11px] text-ink-3">인원수를 곱해서 할인됩니다. 1인당 5,000원이면 4명일 때 20,000원입니다.</p>
+                )}
               </div>
             )}
             <div>

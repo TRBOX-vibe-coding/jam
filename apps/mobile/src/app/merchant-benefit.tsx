@@ -17,11 +17,12 @@ function notify(title: string, msg: string) {
 const TYPES = [
   { key: 'PERCENT', label: '% 할인', desc: '주문 금액에서 비율 할인 (예: 20%)' },
   { key: 'AMOUNT', label: '금액 할인', desc: '정해진 금액을 깎아주기 (예: 3,000원)' },
+  { key: 'AMOUNT_PER_PERSON', label: '1인당 금액 할인', desc: '사람 수만큼 깎아주기 (예: 1인당 5,000원 × 4명 = 20,000원)' },
   { key: 'FREEBIE', label: '증정', desc: '무언가를 무료로 드리기 (예: 아메리카노 1잔)' },
 ] as const;
 
 export default function MerchantBenefitCreate() {
-  const [type, setType] = useState<'PERCENT' | 'AMOUNT' | 'FREEBIE'>('PERCENT');
+  const [type, setType] = useState<'PERCENT' | 'AMOUNT' | 'AMOUNT_PER_PERSON' | 'FREEBIE'>('PERCENT');
   const [title, setTitle] = useState('');
   const [value, setValue] = useState('');
   const [freebieName, setFreebieName] = useState('');
@@ -94,6 +95,7 @@ export default function MerchantBenefitCreate() {
           placeholder={
             type === 'PERCENT' ? '예) 전 메뉴 20% 할인'
             : type === 'AMOUNT' ? '예) 3,000원 즉시 할인'
+            : type === 'AMOUNT_PER_PERSON' ? '예) 1인당 5,000원 할인'
             : '예) 아메리카노 1잔 무료'
           }
           placeholderTextColor={C.ink3}
@@ -109,10 +111,12 @@ export default function MerchantBenefitCreate() {
           </>
         ) : (
           <>
-            <Text style={st.label}>{type === 'PERCENT' ? '할인율 (%)' : '할인 금액 (원)'}</Text>
+            <Text style={st.label}>
+              {type === 'PERCENT' ? '할인율 (%)' : type === 'AMOUNT_PER_PERSON' ? '1인당 할인 금액 (원)' : '할인 금액 (원)'}
+            </Text>
             <TextInput
               style={st.input} value={value} onChangeText={setValue}
-              placeholder={type === 'PERCENT' ? '20' : '3000'}
+              placeholder={type === 'PERCENT' ? '20' : type === 'AMOUNT_PER_PERSON' ? '5000' : '3000'}
               placeholderTextColor={C.ink3} keyboardType="number-pad"
             />
           </>
