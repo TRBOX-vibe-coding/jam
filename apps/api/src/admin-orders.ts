@@ -10,8 +10,9 @@
  * 정산은 가게에서 이용권을 '사용 처리'한 건만 센다(admin.ts settlements/generate). 사용한 이용권은 취소가
  * 막혀 있으므로, 취소된 건은 따로 빼지 않아도 정산에 들어가지 않는다.
  *
- * 대표 걱정(9/28): "가게에서 쓰고 사장님이 사용 처리를 안 해서 환불받으면?" — 본사가 환불 전에 가게에
- * 확인하도록 취소 창에 늘 안내하고, 이용 시각이 지난 예약은 따로 경고한다.
+ * 대표 걱정(9/28): "가게에서 쓰고 사장님이 사용 처리를 안 해서 환불받으면?" — 가게에 따로 확인하지 않는다.
+ * 정산이 사용 처리 기준이라 사용 처리를 안 하면 가게가 그 손님 몫을 못 받는다. 그래서 가게가 스스로 챙기고,
+ * 빼먹어 환불되더라도 홀릭잼은 받은 돈을 돌려준 것이라 손해가 없다. 사용 처리된 건은 취소가 막힌다.
  */
 import {
   BadRequestException, Body, Controller, Get, Module, NotFoundException,
@@ -119,7 +120,7 @@ async function analyze(db: PrismaService['client'], o: any, policy: RefundPolicy
     if (v.reservation) {
       const useAt = new Date(v.reservation.slot.startAt);
       if (useAt <= now) {
-        warnings.push(`이용 시각(${fmt(useAt)})이 이미 지났습니다. 손님이 다녀갔는지 가게에 먼저 확인하세요.`);
+        warnings.push(`이용 시각(${fmt(useAt)})이 이미 지났습니다.`);
       }
       parts.push({
         label: `${v.product.name} · ${fmt(useAt)} · ${v.reservation.headcount}명`,

@@ -209,9 +209,6 @@ export default function OrdersPage() {
                 {pv.warnings.map((w, i) => (
                   <div key={i} className="rounded-lg bg-warn-soft px-4 py-2.5 text-warn">⚠ {w}</div>
                 ))}
-                <div className="rounded-lg bg-warn-soft px-4 py-2.5 text-warn">
-                  가게에서 이미 쓰고 사용 처리를 안 했을 수 있습니다. 환불하기 전에 손님이 다녀갔는지 가게에 확인하세요.
-                </div>
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="block">
