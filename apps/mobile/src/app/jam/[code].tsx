@@ -52,7 +52,13 @@ export default function JamBuyScreen() {
 
   const load = useCallback(() => {
     setFailed(false);
-    api<Detail>(`/membership/plans/${code}`).then(setD).catch(() => setFailed(true));
+    api<Detail>(`/membership/plans/${code}`)
+      .then((r) => {
+        setD(r);
+        // 잼 화면을 본 기록 — 본사 대시보드 '잼별 전환율'(본 사람 중 산 비율)에 쓴다
+        track('plan_view', { type: 'plan', id: String(code) });
+      })
+      .catch(() => setFailed(true));
     api<Named[]>('/regions').then(setRegions).catch(() => {});
     api<Named[]>('/categories').then(setCats).catch(() => {});
     // 여행이 있으면 여행 첫날을 기본 시작일로 — 손님이 날짜를 다시 생각할 일을 줄인다

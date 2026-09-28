@@ -20,6 +20,7 @@ import { TripsModule } from './trips';
 import { AdsModule } from './ads';
 import { AdminOrdersModule } from './admin-orders';
 import { HomeModule } from './home';
+import { AdminDashboardModule } from './admin-dashboard';
 import { UploadsController } from './uploads.controller';
 
 @Controller()
@@ -51,6 +52,7 @@ class HealthController {
     AdsModule,
     AdminOrdersModule,
     HomeModule,
+    AdminDashboardModule,
   ],
   controllers: [HealthController, UploadsController],
   providers: [{ provide: APP_INTERCEPTOR, useClass: I18nInterceptor }],

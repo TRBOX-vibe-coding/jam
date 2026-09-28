@@ -297,7 +297,8 @@ async function refreshVisitDemo(now: Date) {
   const visit = day(4);
 
   const rules = await db.benefitGrantRule.findMany({
-    where: { trigger: 'PRODUCT', isActive: true, product: { isActive: true, type: { in: ['TICKET', 'PASS'] } } },
+    // 이용일이 정해진 티켓(불꽃축제 크루즈 등)은 가는 날을 고르지 않으니 뺀다
+    where: { trigger: 'PRODUCT', isActive: true, product: { isActive: true, type: { in: ['TICKET', 'PASS'] }, useFrom: null } },
     select: { productId: true, benefitId: true, validDays: true },
   });
   const productIds = [...new Set(rules.map((r) => r.productId).filter(Boolean) as string[])];
@@ -447,6 +448,37 @@ async function refreshDatedTicket(now: Date) {
   return { created, moved: soon && !created };
 }
 
+/**
+ * 시연용 잼 화면 조회 기록 — 본사 대시보드 '잼별 전환율'(잼 화면을 본 사람 중 산 비율)이 비지 않게.
+ * 조회 기록(plan_view)은 2026-09-28부터 쌓기 시작해서, 지난 30일에 하나도 없을 때만 한 번 채운다.
+ * 이 달에 산 사람은 모두 한 번씩 본 것으로 넣고, 사지 않고 본 사람을 잼마다 몇 명 더한다.
+ */
+async function refreshPlanViews(now: Date) {
+  const since = new Date(now.getTime() - 30 * DAY);
+  const have = await db.eventLog.count({ where: { event: 'plan_view', createdAt: { gte: since } } });
+  if (have > 0) return 0;
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const plans = await db.membershipPlan.findMany({ where: { price: { gt: 0 }, isActive: true }, select: { id: true, code: true, sortOrder: true } });
+  const rows: { userId: string | null; anonId: string | null; event: string; entityType: string; entityId: string; createdAt: Date }[] = [];
+  for (const p of plans) {
+    const buyers = await db.userMembership.findMany({
+      where: { planId: p.id, source: 'PURCHASE', createdAt: { gte: monthStart } },
+      select: { userId: true, createdAt: true },
+    });
+    for (const b of buyers) {
+      rows.push({ userId: b.userId, anonId: null, event: 'plan_view', entityType: 'plan', entityId: p.code, createdAt: new Date(b.createdAt.getTime() - 5 * 60_000) });
+    }
+    // 사지 않고 본 사람 — 싼 잼일수록 많이 본다
+    const browsers = 6 + ((p.sortOrder * 7 + p.code.length * 3) % 9);
+    for (let i = 0; i < browsers; i++) {
+      const at = new Date(Math.max(monthStart.getTime(), now.getTime() - ((i * 37) % 26) * DAY - (i % 5) * 3_600_000));
+      rows.push({ userId: null, anonId: `demo-anon-${p.code}-${i}`, event: 'plan_view', entityType: 'plan', entityId: p.code, createdAt: at });
+    }
+  }
+  if (rows.length) await db.eventLog.createMany({ data: rows });
+  return rows.length;
+}
+
 async function main() {
   const now = new Date();
   const drops = await refreshDrops(now);
@@ -459,13 +491,15 @@ async function main() {
   const visit = await refreshVisitDemo(now);
   const home = await refreshMemberHome(now);
   const dated = await refreshDatedTicket(now);
+  const planViews = await refreshPlanViews(now);
   console.log(`DROP ${drops}개 다시 열림 · 승인 대기 ${pending}개 기간 연장 · 기획전 ${campaigns}개 연장 · 예약 상품 ${slots.products}개에 시간대 ${slots.created}개 추가`);
   console.log(
     resv.skipped
       ? 'API가 꺼져 있어 예약·판매는 건너뜀 (API를 켜고 다시 돌리면 채워짐)'
       : `앞으로의 예약 ${resv.created}건 · 오늘 티켓 판매 ${tickets.created}건 추가 · 시연 손님 가는 날 예시 ${visit.changed ? '나흘 뒤로 맞춤' : '그대로 둠'}`
         + ` · 시연 손님 여행 ${home.tripMoved ? '오늘부터로 옮김' : '그대로'} · 예약 ${home.booked ? '1건 추가' : '그대로'}`
-        + ` · 날짜 있는 티켓 예시 ${dated.created ? '만듦' : dated.moved ? '한 달 뒤로 옮김' : '그대로'}`,
+        + ` · 날짜 있는 티켓 예시 ${dated.created ? '만듦' : dated.moved ? '한 달 뒤로 옮김' : '그대로'}`
+        + ` · 잼 화면 조회 기록 ${planViews ? `${planViews}건 채움` : '그대로'}`,
   );
 }
 
