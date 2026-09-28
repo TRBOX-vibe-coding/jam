@@ -54,7 +54,7 @@ export class MembershipController {
       orderBy: { sortOrder: 'asc' },
       select: {
         id: true, code: true, name: true, description: true, price: true, durationDays: true,
-        scope: true, scopeRegionIds: true, scopeCategoryIds: true, isPrivate: true, imageUrl: true, i18n: true,
+        scope: true, scopeRegionIds: true, scopeCategoryIds: true, scopeTags: true, isPrivate: true, imageUrl: true, i18n: true,
       },
     });
     return rows;
@@ -112,7 +112,7 @@ export class MembershipController {
       name: trField(plan, 'name', lang),
       description: trField(plan, 'description', lang),
       price: plan.price, durationDays: plan.durationDays,
-      scope: plan.scope, scopeRegionIds: plan.scopeRegionIds, scopeCategoryIds: plan.scopeCategoryIds,
+      scope: plan.scope, scopeRegionIds: plan.scopeRegionIds, scopeCategoryIds: plan.scopeCategoryIds, scopeTags: plan.scopeTags,
       isPrivate: plan.isPrivate, imageUrl: plan.imageUrl,
       couponCount: ids.length,
       merchantCount,

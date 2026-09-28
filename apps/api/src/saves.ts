@@ -8,7 +8,7 @@ import { PrismaService } from './prisma.service';
 import { AuthModule, UserGuard, UserId } from './auth';
 import { langOf, trField } from './i18n.util';
 import { benefitSaving, productSaving } from './savings.util';
-import { activePaidPlanIds, usableBenefitIds } from './plan-scope.util';
+import { MERCHANT_SCOPE_SELECT, memberPriceProductIds, usableBenefitIds } from './plan-scope.util';
 
 class ToggleSaveDto {
   @IsIn(['BENEFIT', 'PRODUCT']) itemType!: 'BENEFIT' | 'PRODUCT';
@@ -84,7 +84,7 @@ export class SavesController {
         where: { id: { in: productIds } },
         include: {
           merchant: {
-            select: { id: true, name: true, i18n: true, region: { select: { name: true, i18n: true } } },
+            select: { id: true, name: true, i18n: true, region: { select: { name: true, i18n: true } }, ...MERCHANT_SCOPE_SELECT },
           },
         },
       }),
@@ -98,8 +98,8 @@ export class SavesController {
     const ubByBenefit = new Map(myUbs.map((u) => [u.benefitId, u.id]));
     const bMap = new Map(benefitRows.map((b) => [b.id, b]));
     const pMap = new Map(productRows.map((p) => [p.id, p]));
-    // 상품마다 할인 줄 잼이 다르다 — 서버가 계산해서 내려준다 (2026-09-18 대표 확정)
-    const myPlanIds = await activePaidPlanIds(db, userId);
+    // 회원가는 가진 잼의 범위를 따른다 — 서버가 계산해서 내려준다 (2026-09-24 대표 확정 3-5 A)
+    const memberPriced = await memberPriceProductIds(db, userId, productRows);
     const usable = await usableBenefitIds(db, userId);
 
     return {
@@ -136,10 +136,7 @@ export class SavesController {
             imageUrl: p.imageUrl,
             basePrice: p.basePrice,
             memberPrice: p.memberPrice,
-            memberPriceApplies:
-              p.memberPrice != null &&
-              myPlanIds.length > 0 &&
-              (p.memberPricePlanIds.length === 0 || p.memberPricePlanIds.some((id) => myPlanIds.includes(id))),
+            memberPriceApplies: memberPriced.has(p.id),
             type: p.type,
             isActive: p.isActive,
             estimatedSaving: productSaving(p, headcount),

@@ -16,7 +16,7 @@ import { AuthModule, OptionalUserGuard, UserGuard, UserId } from './auth';
 import { addDays, makeOrderNo, makeVoucherCode } from './util';
 import { activeAdRanks, clickCounts, rankSort } from './ranking.util';
 import { PRODUCT_COUPON_VALID_DAYS } from './membership.util';
-import { activePaidPlanIds, canGetMemberPrice } from './plan-scope.util';
+import { MERCHANT_SCOPE_SELECT, memberPriceProductIds, plansGivingMemberPrice } from './plan-scope.util';
 import {
   dayKey, dayLabel, parseDay, syncBundledCoupons, visitDateError, visitDateRange,
 } from './bundled-coupons.util';
@@ -55,12 +55,15 @@ export class OrdersController {
         ...(type ? { type: type as never } : {}),
       },
       include: {
-        merchant: { select: { id: true, name: true, i18n: true, region: { select: { name: true, i18n: true } } } },
+        merchant: {
+          select: { id: true, name: true, i18n: true, region: { select: { name: true, i18n: true } }, ...MERCHANT_SCOPE_SELECT },
+        },
         category: { select: { name: true, emoji: true, i18n: true } },
       },
       orderBy: { createdAt: 'asc' },
     });
-    const myPlanIds = await activePaidPlanIds(db, userId);
+    // 회원가는 잼 범위를 따른다 (2026-09-24 대표 확정 3-5 A) — plan-scope.util.ts
+    const memberPriced = await memberPriceProductIds(db, userId, rows);
     // 상위 노출 — 광고(기간 내 rank) → 클릭수 → 나머지 (2026-09-10 픽스)
     const [clicks, ads] = await Promise.all([
       clickCounts(db, ['product_view', 'product_purchase', 'product_redeem']),
@@ -74,11 +77,8 @@ export class OrdersController {
     }).map((r) => ({
       ...r,
       isAd: ads.has(`PRODUCT:${r.id}`),
-      /** 지금 보는 사람이 유료 회원 할인가를 받는지 (상품마다 대상 잼이 다르다) */
-      memberPriceApplies:
-        r.memberPrice != null &&
-        myPlanIds.length > 0 &&
-        (r.memberPricePlanIds.length === 0 || r.memberPricePlanIds.some((id) => myPlanIds.includes(id))),
+      /** 지금 보는 사람이 유료 회원 할인가를 받는지 — 가진 잼의 범위에 이 가게가 드는지 */
+      memberPriceApplies: memberPriced.has(r.id),
     }));
   }
 
@@ -89,7 +89,7 @@ export class OrdersController {
     const p = await db.product.findUnique({
       where: { id },
       include: {
-        merchant: { select: { id: true, name: true, address: true, i18n: true } },
+        merchant: { select: { id: true, name: true, address: true, i18n: true, ...MERCHANT_SCOPE_SELECT } },
         slots: {
           where: { isOpen: true, startAt: { gt: new Date() } },
           orderBy: { startAt: 'asc' },
@@ -99,15 +99,9 @@ export class OrdersController {
     });
     if (!p) throw new NotFoundException('상품을 찾을 수 없습니다');
 
-    // 이 상품의 할인가를 받는 잼과, 보는 사람이 그 대상인지 (2026-09-18 대표 확정)
-    const memberPricePlans = p.memberPricePlanIds.length
-      ? await db.membershipPlan.findMany({
-          where: { id: { in: p.memberPricePlanIds } },
-          select: { id: true, code: true, name: true, i18n: true },
-        })
-      : [];
-    const memberPriceApplies =
-      p.memberPrice != null && (await canGetMemberPrice(db, userId, p.memberPricePlanIds));
+    // 이 상품에 회원가를 주는 잼과, 보는 사람이 그 대상인지 — 잼 범위를 따른다 (2026-09-24 대표 확정 3-5 A)
+    const memberPricePlans = await plansGivingMemberPrice(db, p);
+    const memberPriceApplies = (await memberPriceProductIds(db, userId, [p])).has(p.id);
 
     // 결제하면 함께 받는 '근처 할인 쿠폰' — 슈퍼 관리자만 연결한다 (2026-09-12 대표 확정).
     // 구매 전에 미리 보여줘 결제를 밀어주고, 결제하면 무료 회원도 실제로 쓸 수 있게 발급된다.
@@ -136,7 +130,7 @@ export class OrdersController {
       // 티켓형 남은 수량 (null=무제한)
       remainingQty: p.totalQty != null ? Math.max(0, p.totalQty - p.soldQty) : null,
       slots: p.slots.map((s) => ({ ...s, remaining: s.capacity - s.reserved })),
-      /** 이 상품의 할인가를 받는 잼. 비어 있으면 유료 잼이면 모두 */
+      /** 이 상품에 회원가를 주는 잼 (판매 중인 공개 잼) */
       memberPricePlans,
       /** 지금 보는 사람이 할인가를 받는지 */
       memberPriceApplies,
@@ -167,12 +161,12 @@ export class OrdersController {
   async purchase(@UserId() userId: string, @Param('id') id: string, @Body() dto: PurchaseProductDto) {
     const db = this.prisma.client;
     const now = new Date();
-    const product = await db.product.findUnique({ where: { id } });
+    const product = await db.product.findUnique({ where: { id }, include: { merchant: { select: MERCHANT_SCOPE_SELECT } } });
     if (!product || !product.isActive) throw new NotFoundException('판매 중인 상품이 아닙니다');
 
     // 2026-09-12 대표 확정: 상품 '유료 회원 가격'은 유료 잼 보유자만. 무료 회원은 기본 판매가로 산다.
-    // 2026-09-18 대표 확정: 상품마다 '할인 줄 잼'을 지정한다. 비워두면 유료 잼이면 모두.
-    const isMember = await canGetMemberPrice(db, userId, product.memberPricePlanIds);
+    // 2026-09-24 대표 확정(3-5 A): 어느 잼이 회원가를 받는지는 잼 범위를 따른다 (상품마다 고르지 않는다).
+    const isMember = (await memberPriceProductIds(db, userId, [product])).has(id);
     const unitPrice = isMember && product.memberPrice != null ? product.memberPrice : product.basePrice;
 
     if (product.type === 'RESERVATION' && !dto.slotId) {

@@ -405,6 +405,7 @@ const D: Record<string, [string, string, string, string]> = {
   weather: ['기상 영향', 'Weather dependent', '受天气影响', '天候の影響あり'],
   staffVerify: ['직원 확인', 'Staff verify', '店员确认', 'スタッフ確認'],
   memberPriceHint: ['잼 회원은 {price}', 'JAM members pay {price}', 'JAM会员{price}', 'JAM会員は{price}'],
+  memberPriceHintPlans: ['{plans} 회원은 {price}', '{plans} members pay {price}', '{plans}会员{price}', '{plans}会員は{price}'],
   memberPriceShort: ['잼 {price}', 'JAM {price}', 'JAM {price}', 'JAM {price}'],
   pickTime: ['시간 선택', 'Pick a time', '选择时间', '時間を選ぶ'],
   noSlots: ['예약 가능한 시간이 없습니다', 'No times available', '暂无可预订时间', '予約可能な時間がありません'],

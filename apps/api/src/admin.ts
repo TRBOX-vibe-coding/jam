@@ -5,16 +5,17 @@
  */
 import {
   BadRequestException, Body, Controller, Delete, Get, Module, NotFoundException,
-  Param, Patch, Post, Query, UseGuards,
+  Param, Patch, Post, Put, Query, UseGuards,
 } from '@nestjs/common';
 import { saveImageDataUrl } from './uploads';
 import {
-  IsIn, IsInt, IsNumber, IsOptional, IsString, Max, Min, MinLength,
+  IsIn, IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min, MinLength,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { randomBytes } from 'node:crypto';
 import { PrismaService } from './prisma.service';
 import { AdminGuard, AdminId, AuthModule } from './auth';
+import { MERCHANT_SCOPE_SELECT, PLAN_SCOPE_SELECT, planGivesMemberPrice, planProductRules, scopeCovers } from './plan-scope.util';
 
 class RejectDto {
   @IsString() @MinLength(2) reason!: string;
@@ -78,6 +79,12 @@ class CreateMerchantDto {
   @IsOptional() @IsString() address?: string;
   @IsOptional() @IsString() ownerUserId?: string;
   @IsOptional() @Type(() => Number) @IsNumber() @Min(0) @Max(30) commissionRate?: number;
+  @IsOptional() @IsString() contactPhone?: string;
+  @IsOptional() @IsString() contactEmail?: string;
+  @IsOptional() @IsString() ownerName?: string;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(0) @Max(10000000) avgSpendPerPerson?: number;
+  /** 가게 꼬리표 — 예) 러닝코스 (2026-09-24 대표 확정 3-5) */
+  @IsOptional() @IsString({ each: true }) @MaxLength(20, { each: true }) tags?: string[];
 }
 class PatchMerchantDto {
   @IsOptional() @IsIn(['PENDING', 'ACTIVE', 'SUSPENDED', 'CLOSED']) status?: string;
@@ -94,6 +101,13 @@ class PatchMerchantDto {
   @IsOptional() @IsString() thumbnailBase64?: string;
   /** 1인 평균 이용금액 — % 쿠폰 예상 절약액 계산 기준 (2026-09-09 픽스) */
   @IsOptional() @Type(() => Number) @IsInt() @Min(0) @Max(10000000) avgSpendPerPerson?: number;
+  /** 가게 꼬리표 — 예) 러닝코스. 보낸 목록으로 통째로 바꾼다 (2026-09-24 대표 확정 3-5) */
+  @IsOptional() @IsString({ each: true }) @MaxLength(20, { each: true }) tags?: string[];
+}
+/** 꼬리표 정리 — 앞뒤 빈칸·#을 떼고, 같은 것은 하나만 */
+function cleanTags(tags?: string[]): string[] | undefined {
+  if (!tags) return undefined;
+  return [...new Set(tags.map((t) => t.replace(/^#/, '').trim()).filter(Boolean))].slice(0, 10);
 }
 class PatchUserDto {
   @IsIn(['ACTIVE', 'DORMANT', 'WITHDRAWN']) status!: string;
@@ -129,9 +143,8 @@ class CreateProductDto {
   @IsString() @MinLength(2) name!: string;
   @IsIn(['TICKET', 'RESERVATION', 'PASS']) type!: string;
   @Type(() => Number) @IsInt() @Min(100) basePrice!: number;
+  /** 회원가 — 어느 잼이 받는지는 잼 범위를 따른다 (2026-09-24 대표 확정 3-5 A) */
   @IsOptional() @Type(() => Number) @IsInt() @Min(100) memberPrice?: number;
-  /** 할인가를 받는 잼. 비우면 유료 잼이면 모두 (2026-09-18 대표 확정) */
-  @IsOptional() @IsString({ each: true }) memberPricePlanIds?: string[];
   @IsOptional() @IsIn(['QR_ONLY', 'QR_PIN', 'STAFF_CONFIRM']) verification?: string;
   @IsOptional() @IsString() description?: string;
   @IsOptional() cancelPolicy?: string;
@@ -145,14 +158,16 @@ class PatchProductDto {
   @IsOptional() isActive?: boolean;
   @IsOptional() @Type(() => Number) @IsInt() @Min(100) basePrice?: number;
   @IsOptional() @Type(() => Number) @IsInt() @Min(100) memberPrice?: number;
-  /** 할인가를 받는 잼. 비우면 유료 잼이면 모두 (2026-09-18 대표 확정) */
-  @IsOptional() @IsString({ each: true }) memberPricePlanIds?: string[];
   @IsOptional() @IsString() @MinLength(2) name?: string;
   @IsOptional() @IsString() imageBase64?: string;
   /** 총 판매 수량. 0이면 무제한으로 돌린다 */
   @IsOptional() @Type(() => Number) @IsInt() @Min(0) @Max(100000) totalQty?: number;
   /** 한 사람당 수량. 0이면 제한 없음으로 돌린다 */
   @IsOptional() @Type(() => Number) @IsInt() @Min(0) @Max(100) maxPerUser?: number;
+}
+/** 이 상품에 회원가를 주는 잼 — 화면에서 체크한 결과 그대로. 잼 범위와 다른 것만 예외로 남는다 (3-5 A) */
+class SetProductMemberPlansDto {
+  @IsString({ each: true }) planIds!: string[];
 }
 /** 결제 상품에 묶어 파는 '근처 할인 쿠폰' 설정 — 슈퍼 관리자 전용 (2026-09-12 대표 확정) */
 class SetProductCouponsDto {
@@ -344,6 +359,11 @@ export class AdminController {
         address: dto.address,
         ownerUserId: dto.ownerUserId,
         commissionRate: dto.commissionRate ?? 0,
+        contactPhone: dto.contactPhone,
+        contactEmail: dto.contactEmail,
+        ownerName: dto.ownerName,
+        avgSpendPerPerson: dto.avgSpendPerPerson,
+        tags: cleanTags(dto.tags) ?? [],
         status: 'ACTIVE',
       },
     });
@@ -369,10 +389,23 @@ export class AdminController {
         ...(dto.categoryId ? { categoryId: dto.categoryId } : {}),
         ...(dto.thumbnailBase64 ? { thumbnailUrl: saveImageDataUrl(dto.thumbnailBase64, 'merchant') } : {}),
         ...(dto.avgSpendPerPerson != null ? { avgSpendPerPerson: dto.avgSpendPerPerson } : {}),
+        ...(dto.tags ? { tags: cleanTags(dto.tags) } : {}),
       },
     });
     await this.audit(adminId, 'MERCHANT_UPDATE', 'Merchant', id, JSON.stringify({ ...dto, thumbnailBase64: dto.thumbnailBase64 ? '(사진)' : undefined }));
     return m;
+  }
+
+  /** 지금 쓰는 가게 꼬리표와 붙은 가게 수 — 꼬리표를 고를 때 보기로 쓴다 */
+  @Get('merchant-tags')
+  async merchantTags() {
+    const rows = await this.prisma.client.merchant.findMany({
+      where: { status: { not: 'CLOSED' }, NOT: { tags: { isEmpty: true } } },
+      select: { tags: true },
+    });
+    const count = new Map<string, number>();
+    for (const r of rows) for (const t of r.tags) count.set(t, (count.get(t) ?? 0) + 1);
+    return [...count.entries()].sort((a, b) => b[1] - a[1]).map(([tag, merchants]) => ({ tag, merchants }));
   }
 
   /** 가맹점 삭제 — 거래 이력이 있으면 폐점 처리(기록 보존), 없으면 완전 삭제 */
@@ -592,15 +625,89 @@ export class AdminController {
   // ---------------- 상품 · 예약 슬롯 ----------------
 
   @Get('products')
-  products() {
-    return this.prisma.client.product.findMany({
+  async products() {
+    const db = this.prisma.client;
+    const rows = await db.product.findMany({
       orderBy: { createdAt: 'desc' },
       include: {
-        merchant: { select: { id: true, name: true } },
+        merchant: { select: { id: true, name: true, ...MERCHANT_SCOPE_SELECT } },
         category: { select: { name: true, emoji: true } },
         _count: { select: { slots: true, vouchers: true } },
       },
     });
+    // 회원가를 받는 잼 이름 — 잼 범위 + 예외로 계산해 목록에 보여준다 (3-5 A)
+    const plans = await db.membershipPlan.findMany({
+      where: { price: { gt: 0 } },
+      orderBy: { sortOrder: 'asc' },
+      select: { ...PLAN_SCOPE_SELECT, name: true },
+    });
+    const rules = await planProductRules(db, plans.map((p) => p.id), rows.map((r) => r.id));
+    return rows.map((r) => ({
+      ...r,
+      memberPlanNames: plans.filter((pl) => planGivesMemberPrice(pl, r, rules)).map((pl) => pl.name),
+      memberPlanExceptions: plans.filter((pl) => rules.has(`${pl.id}:${r.id}`)).length,
+    }));
+  }
+
+  /**
+   * 이 상품에 회원가를 주는 잼 — 2026-09-24 대표 확정(3-5 A).
+   * 회원가는 잼 범위를 따른다. 여기서는 범위와 다르게 할 잼만 예외로 더하거나 뺀다.
+   */
+  @Get('products/:id/member-plans')
+  async productMemberPlans(@Param('id') id: string) {
+    const db = this.prisma.client;
+    const product = await db.product.findUnique({
+      where: { id },
+      select: {
+        id: true, name: true, memberPrice: true, basePrice: true,
+        merchant: { select: { name: true, ...MERCHANT_SCOPE_SELECT, region: { select: { name: true } }, category: { select: { name: true, emoji: true } } } },
+      },
+    });
+    if (!product) throw new NotFoundException('상품을 찾을 수 없습니다');
+    const plans = await db.membershipPlan.findMany({
+      where: { price: { gt: 0 } },
+      orderBy: { sortOrder: 'asc' },
+      select: { ...PLAN_SCOPE_SELECT, code: true, name: true, isActive: true, isPrivate: true },
+    });
+    const rules = await planProductRules(db, plans.map((p) => p.id), [id]);
+    return {
+      product,
+      plans: plans.map((pl) => {
+        const ex = rules.get(`${pl.id}:${id}`);
+        return {
+          id: pl.id, code: pl.code, name: pl.name, isActive: pl.isActive, isPrivate: pl.isPrivate,
+          /** 잼 범위만으로 회원가를 받는지 */
+          inScope: scopeCovers(pl, product),
+          /** 예외 — 'ADD' 범위 밖인데 준다 / 'REMOVE' 범위 안인데 안 준다 */
+          rule: ex === true ? 'REMOVE' : ex === false ? 'ADD' : null,
+          gives: planGivesMemberPrice(pl, { ...product, memberPrice: product.memberPrice ?? 0 }, rules),
+        };
+      }),
+    };
+  }
+
+  @Put('products/:id/member-plans')
+  async setProductMemberPlans(@AdminId() adminId: string, @Param('id') id: string, @Body() dto: SetProductMemberPlansDto) {
+    const db = this.prisma.client;
+    const product = await db.product.findUnique({
+      where: { id },
+      select: { id: true, name: true, merchant: { select: MERCHANT_SCOPE_SELECT } },
+    });
+    if (!product) throw new NotFoundException('상품을 찾을 수 없습니다');
+    const plans = await db.membershipPlan.findMany({ where: { price: { gt: 0 } }, select: PLAN_SCOPE_SELECT });
+    const wanted = new Set(dto.planIds ?? []);
+    let exceptions = 0;
+    await db.$transaction(async (tx) => {
+      await tx.planProductRule.deleteMany({ where: { productId: id } });
+      for (const pl of plans) {
+        const want = wanted.has(pl.id);
+        if (want === scopeCovers(pl, product)) continue; // 범위대로면 예외를 남기지 않는다
+        await tx.planProductRule.create({ data: { planId: pl.id, productId: id, isExcluded: !want } });
+        exceptions++;
+      }
+    });
+    await this.audit(adminId, 'PRODUCT_MEMBER_PLANS', 'Product', id, `${product.name} · 회원가 잼 ${wanted.size}개 · 예외 ${exceptions}`);
+    return { ok: true, count: wanted.size, exceptions };
   }
 
   @Post('products')
@@ -619,7 +726,6 @@ export class AdminController {
         type: dto.type as never,
         basePrice: dto.basePrice,
         memberPrice: dto.memberPrice ?? null,
-        memberPricePlanIds: dto.memberPricePlanIds ?? [],
         verification: (dto.verification ?? 'QR_ONLY') as never,
         description: dto.description,
         cancelPolicy: dto.cancelPolicy,
@@ -662,7 +768,6 @@ export class AdminController {
         ...(dto.isActive != null ? { isActive: dto.isActive } : {}),
         ...(dto.basePrice != null ? { basePrice: dto.basePrice } : {}),
         ...(dto.memberPrice != null ? { memberPrice: dto.memberPrice } : {}),
-        ...(dto.memberPricePlanIds ? { memberPricePlanIds: dto.memberPricePlanIds } : {}),
         ...(dto.name ? { name: dto.name.trim() } : {}),
         ...(dto.imageBase64 ? { imageUrl: saveImageDataUrl(dto.imageBase64, 'product') } : {}),
       },
@@ -692,7 +797,6 @@ export class AdminController {
           imageUrl: src.imageUrl,
           basePrice: src.basePrice,
           memberPrice: src.memberPrice,
-          memberPricePlanIds: src.memberPricePlanIds,
           verification: src.verification,
           totalQty: src.totalQty,
           maxPerUser: src.maxPerUser,
@@ -721,6 +825,11 @@ export class AdminController {
             isActive: r.isActive,
           },
         });
+      }
+      // 회원가 예외도 같이 가져온다 (3-5 A)
+      const planRules = await tx.planProductRule.findMany({ where: { productId: id } });
+      for (const r of planRules) {
+        await tx.planProductRule.create({ data: { planId: r.planId, productId: p.id, isExcluded: r.isExcluded } });
       }
       return { product: p, copiedCoupons: rules.length };
     });

@@ -12,7 +12,7 @@ import {
 import { IsBoolean, IsIn, IsInt, IsISO8601, IsObject, IsOptional, IsString, Min, MinLength } from 'class-validator';
 import { Type } from 'class-transformer';
 import { PrismaService } from './prisma.service';
-import { scopeCovers } from './plan-scope.util';
+import { MERCHANT_SCOPE_SELECT, planProductRules, scopeCovers } from './plan-scope.util';
 import { AdminGuard, AdminId, AuthModule } from './auth';
 import { saveImageDataUrl } from './uploads';
 
@@ -42,9 +42,12 @@ class CreatePlanDto {
   @Type(() => Number) @IsInt() @Min(0) price!: number;
   @Type(() => Number) @IsInt() @Min(1) durationDays!: number;
   @IsOptional() @Type(() => Number) @IsInt() sortOrder?: number;
-  @IsOptional() @IsIn(['ALL', 'REGION', 'CATEGORY', 'MANUAL']) scope?: string;
+  /** 'FILTER'(조건으로 고르기)를 빠뜨려 저장이 막히던 것을 고친다 (2026-09-28) */
+  @IsOptional() @IsIn(['ALL', 'FILTER', 'REGION', 'CATEGORY', 'MANUAL']) scope?: string;
   @IsOptional() @IsString({ each: true }) scopeRegionIds?: string[];
   @IsOptional() @IsString({ each: true }) scopeCategoryIds?: string[];
+  /** 가게 꼬리표 조건 — 이 중 하나라도 붙은 가게만 (2026-09-24 대표 확정 3-5) */
+  @IsOptional() @IsString({ each: true }) scopeTags?: string[];
   @IsOptional() @IsBoolean() isPrivate?: boolean;
   @IsOptional() @IsString() orgCode?: string;
   @IsOptional() @IsString() imageUrl?: string;
@@ -62,9 +65,12 @@ class PatchPlanDto {
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) durationDays?: number;
   @IsOptional() @Type(() => Number) @IsInt() sortOrder?: number;
   @IsOptional() @IsBoolean() isActive?: boolean;
-  @IsOptional() @IsIn(['ALL', 'REGION', 'CATEGORY', 'MANUAL']) scope?: string;
+  /** 'FILTER'(조건으로 고르기)를 빠뜨려 저장이 막히던 것을 고친다 (2026-09-28) */
+  @IsOptional() @IsIn(['ALL', 'FILTER', 'REGION', 'CATEGORY', 'MANUAL']) scope?: string;
   @IsOptional() @IsString({ each: true }) scopeRegionIds?: string[];
   @IsOptional() @IsString({ each: true }) scopeCategoryIds?: string[];
+  /** 가게 꼬리표 조건 — 이 중 하나라도 붙은 가게만 (2026-09-24 대표 확정 3-5) */
+  @IsOptional() @IsString({ each: true }) scopeTags?: string[];
   @IsOptional() @IsBoolean() isPrivate?: boolean;
   @IsOptional() @IsString() orgCode?: string;
   @IsOptional() @IsString() imageUrl?: string;
@@ -212,6 +218,7 @@ export class AdminSettingsController {
         scope: (dto.scope ?? 'ALL') as never,
         scopeRegionIds: dto.scopeRegionIds ?? [],
         scopeCategoryIds: dto.scopeCategoryIds ?? [],
+        scopeTags: dto.scopeTags ?? [],
         isPrivate: dto.isPrivate ?? false,
         orgCode: dto.orgCode ? dto.orgCode.trim().toUpperCase() : null,
         imageUrl: dto.imageUrl ?? null,
@@ -245,7 +252,7 @@ export class AdminSettingsController {
       include: {
         merchant: {
           select: {
-            id: true, name: true, regionId: true, categoryId: true,
+            id: true, name: true, ...MERCHANT_SCOPE_SELECT,
             region: { select: { name: true } },
             category: { select: { name: true, emoji: true } },
           },
@@ -281,6 +288,31 @@ export class AdminSettingsController {
     return { plan, benefits: rows };
   }
 
+  /**
+   * 이 잼의 회원가 상품 — 2026-09-24 대표 확정(3-5 A). 회원가도 쿠폰과 같은 범위를 따른다.
+   * 화면에서 범위를 바꿔 보는 대로 바로 다시 계산할 수 있게 가게 정보와 예외를 함께 준다.
+   * 예외(더하기/빼기)는 상품 목록의 [회원가 잼]에서 고친다.
+   */
+  @Get('plans/:id/products')
+  async planProducts(@Param('id') id: string) {
+    const db = this.prisma.client;
+    const plan = await db.membershipPlan.findUnique({ where: { id } });
+    if (!plan) throw new NotFoundException('잼을 찾을 수 없습니다');
+    const products = await db.product.findMany({
+      where: { isActive: true, memberPrice: { not: null }, merchant: { status: 'ACTIVE' } },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true, name: true, type: true, basePrice: true, memberPrice: true,
+        merchant: { select: { name: true, ...MERCHANT_SCOPE_SELECT, region: { select: { name: true } } } },
+      },
+    });
+    const rules = await planProductRules(db, [id], products.map((p) => p.id));
+    return products.map((p) => {
+      const ex = rules.get(`${id}:${p.id}`);
+      return { ...p, rule: ex === true ? 'REMOVE' : ex === false ? 'ADD' : null };
+    });
+  }
+
   /** 이 잼에 들어갈 쿠폰을 확정한다. 성격과 다른 것만 예외로 남긴다. */
   @Post('plans/:id/benefits')
   async setPlanBenefits(@AdminId() adminId: string, @Param('id') id: string, @Body() dto: SetPlanBenefitsDto) {
@@ -290,7 +322,7 @@ export class AdminSettingsController {
 
     const benefits = await db.benefit.findMany({
       where: { isActive: true, approval: 'ACTIVE', merchant: { status: 'ACTIVE' } },
-      select: { id: true, merchant: { select: { regionId: true, categoryId: true } } },
+      select: { id: true, merchant: { select: MERCHANT_SCOPE_SELECT } },
     });
     const wanted = new Set(dto.benefitIds ?? []);
 
@@ -334,6 +366,7 @@ export class AdminSettingsController {
           scope: src.scope,
           scopeRegionIds: src.scopeRegionIds,
           scopeCategoryIds: src.scopeCategoryIds,
+          scopeTags: src.scopeTags,
           isPrivate: src.isPrivate,
           imageUrl: src.imageUrl,
           i18n: (src as any).i18n ?? undefined,

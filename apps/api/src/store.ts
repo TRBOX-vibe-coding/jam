@@ -5,7 +5,7 @@
 import { Controller, Get, Module, NotFoundException, Param, Query, UseGuards } from '@nestjs/common';
 import { PrismaService } from './prisma.service';
 import { AuthModule, OptionalUserGuard, UserId } from './auth';
-import { activePaidPlanIds, usableBenefitIds } from './plan-scope.util';
+import { memberPriceProductIds, usableBenefitIds } from './plan-scope.util';
 
 @Controller('merchants')
 export class StoreController {
@@ -71,7 +71,7 @@ export class StoreController {
           where: { isActive: true },
           select: {
             id: true, name: true, type: true, imageUrl: true,
-            basePrice: true, memberPrice: true, memberPricePlanIds: true, i18n: true,
+            basePrice: true, memberPrice: true, i18n: true,
           },
         },
         drops: {
@@ -85,19 +85,14 @@ export class StoreController {
     });
     if (!m) throw new NotFoundException('매장을 찾을 수 없습니다');
 
-    // 상품마다 할인 줄 잼이 다르므로 서버가 판단해서 내려준다 (2026-09-18 대표 확정)
-    const myPlanIds = await activePaidPlanIds(db, userId);
+    // 회원가는 가진 잼의 범위를 따르므로 서버가 판단해서 내려준다 (2026-09-24 대표 확정 3-5 A)
+    const scope = { regionId: m.regionId, categoryId: m.categoryId, tags: m.tags };
+    const memberPriced = await memberPriceProductIds(db, userId, m.products.map((p) => ({ ...p, merchant: scope })));
     const usable = await usableBenefitIds(db, userId);
     return {
       ...m,
       benefits: m.benefits.map((b) => ({ ...b, canUse: usable.has(b.id) })),
-      products: m.products.map((p) => ({
-        ...p,
-        memberPriceApplies:
-          p.memberPrice != null &&
-          myPlanIds.length > 0 &&
-          (p.memberPricePlanIds.length === 0 || p.memberPricePlanIds.some((id) => myPlanIds.includes(id))),
-      })),
+      products: m.products.map((p) => ({ ...p, memberPriceApplies: memberPriced.has(p.id) })),
     };
   }
 }

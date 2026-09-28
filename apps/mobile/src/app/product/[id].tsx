@@ -123,7 +123,16 @@ export default function ProductDetail() {
               <>
                 <Text style={st.price}>{won(p.basePrice)}</Text>
                 {p.memberPrice != null && (
-                  <Text style={st.memberHint}>{t('memberPriceHint', { price: won(p.memberPrice) })}</Text>
+                  <Text style={st.memberHint}>
+                    {/* 회원가는 잼 범위를 따르므로 어느 잼인지 이름으로 알려준다 (2026-09-24 대표 확정 3-5 A) */}
+                    {p.memberPricePlans?.length
+                      ? t('memberPriceHintPlans', {
+                          plans: p.memberPricePlans.slice(0, 3).map((x: any) => x.name).join('·') +
+                            (p.memberPricePlans.length > 3 ? ` +${p.memberPricePlans.length - 3}` : ''),
+                          price: won(p.memberPrice),
+                        })
+                      : t('memberPriceHint', { price: won(p.memberPrice) })}
+                  </Text>
                 )}
               </>
             )}

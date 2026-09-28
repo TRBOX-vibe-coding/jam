@@ -106,19 +106,21 @@ async function main() {
   type MSeed = {
     key: string; name: string; cat: string; region: string; intro: string;
     owner?: string; commission?: number; address?: string;
+    /** 가게 꼬리표 — 잼 담는 기준에 쓴다 (2026-09-24 대표 확정 3-5). 러닝코스는 대표님께 드린 그림의 예시와 같게 */
+    tags?: string[];
   };
   const merchantSeeds: MSeed[] = [
-    { key: 'casabusano', name: '까사부사노', cat: 'cafe', region: 'busan-gwangalli', intro: '낮에는 카페, 밤에는 위스키', owner: ownerUser.id, address: '부산 수영구 광안해변로' },
-    { key: 'scruffy', name: '스크러피', cat: 'cafe', region: 'busan-haeundae', intro: '내가 찾던 그 에그타르트' },
+    { key: 'casabusano', name: '까사부사노', cat: 'cafe', region: 'busan-gwangalli', intro: '낮에는 카페, 밤에는 위스키', owner: ownerUser.id, address: '부산 수영구 광안해변로', tags: ['러닝코스'] },
+    { key: 'scruffy', name: '스크러피', cat: 'cafe', region: 'busan-haeundae', intro: '내가 찾던 그 에그타르트', tags: ['러닝코스'] },
     { key: 'podo', name: 'PODO', cat: 'bar', region: 'busan-gwangalli', intro: '다양한 와인과 그로서리' },
     { key: 'basement', name: '베이스먼트', cat: 'bar', region: 'busan-seomyeon', intro: '부산 대표 스피크이지 바' },
-    { key: 'dough', name: '도우개러지', cat: 'food', region: 'busan-songjeong', intro: '부산 대표 수제 피자 펍' },
+    { key: 'dough', name: '도우개러지', cat: 'food', region: 'busan-songjeong', intro: '부산 대표 수제 피자 펍', tags: ['러닝코스'] },
     { key: 'ssummoi', name: '씀모이가든', cat: 'food', region: 'busan-haeundae', intro: '해운대 정원식 브런치' },
-    { key: 'surfholic-sj', name: '서프홀릭 송정본점', cat: 'marine', region: 'busan-songjeong', intro: '전국 최초 서핑 프랜차이즈 본점', owner: surfOwner.id, commission: 10 },
-    { key: 'yachtholic', name: '요트홀릭', cat: 'marine', region: 'busan-gwangalli', intro: '광안대교 아래 프라이빗 요트투어', commission: 10 },
-    { key: 'rivercruise', name: '해운대리버크루즈', cat: 'marine', region: 'busan-haeundae', intro: '해운대 야경 리버크루즈', commission: 10 },
+    { key: 'surfholic-sj', name: '서프홀릭 송정본점', cat: 'marine', region: 'busan-songjeong', intro: '전국 최초 서핑 프랜차이즈 본점', owner: surfOwner.id, commission: 10, tags: ['러닝코스'] },
+    { key: 'yachtholic', name: '요트홀릭', cat: 'marine', region: 'busan-gwangalli', intro: '광안대교 아래 프라이빗 요트투어', commission: 10, tags: ['야경코스'] },
+    { key: 'rivercruise', name: '해운대리버크루즈', cat: 'marine', region: 'busan-haeundae', intro: '해운대 야경 리버크루즈', commission: 10, tags: ['야경코스'] },
     { key: 'museum1', name: '뮤지엄원', cat: 'exhibit', region: 'busan-haeundae', intro: '미디어아트 뮤지엄' },
-    { key: 'busanx', name: '부산엑스더스카이', cat: 'attraction', region: 'busan-haeundae', intro: '해운대 100층 전망대' },
+    { key: 'busanx', name: '부산엑스더스카이', cat: 'attraction', region: 'busan-haeundae', intro: '해운대 100층 전망대', tags: ['야경코스'] },
     { key: 'kidsbaking', name: '리틀셰프 베이킹랩', cat: 'kids', region: 'busan-seomyeon', intro: '아이와 함께하는 원데이 베이킹' },
   ];
 
@@ -134,6 +136,7 @@ async function main() {
       ownerUserId: m.owner ?? null,
       commissionRate: m.commission ?? 0,
       address: m.address ?? '부산광역시',
+      tags: m.tags ?? [],
     };
     merchants[m.key] = found
       ? await prisma.merchant.update({ where: { id: found.id }, data })

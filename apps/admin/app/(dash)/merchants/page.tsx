@@ -18,7 +18,7 @@ function fileToDataUrl(file: File): Promise<string> {
   });
 }
 
-const EMPTY_FORM = { name: '', regionId: '', categoryId: '', address: '', ownerName: '', contactPhone: '', contactEmail: '', intro: '', commissionRate: '0', avgSpendPerPerson: '' };
+const EMPTY_FORM = { name: '', regionId: '', categoryId: '', address: '', ownerName: '', contactPhone: '', contactEmail: '', intro: '', commissionRate: '0', avgSpendPerPerson: '', tags: [] as string[] };
 
 export default function MerchantsPage() {
   const [rows, setRows] = useState<any[] | null>(null);
@@ -28,9 +28,13 @@ export default function MerchantsPage() {
   const [msg, setMsg] = useState('');
   const [editing, setEditing] = useState<any | 'new' | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [tagInput, setTagInput] = useState('');
+  /** 지금 쓰는 꼬리표와 붙은 가게 수 — 꼬리표를 고를 때 보기로 */
+  const [allTags, setAllTags] = useState<{ tag: string; merchants: number }[]>([]);
 
   const load = useCallback(() => {
     api<any[]>('/admin/merchants').then(setRows).catch(() => setRows([]));
+    api<{ tag: string; merchants: number }[]>('/admin/merchant-tags').then(setAllTags).catch(() => {});
   }, []);
   useEffect(() => {
     load();
@@ -82,6 +86,7 @@ export default function MerchantsPage() {
 
   function openNew() {
     setForm(EMPTY_FORM);
+    setTagInput('');
     setEditing('new');
   }
   function openEdit(m: any) {
@@ -89,8 +94,20 @@ export default function MerchantsPage() {
       name: m.name, regionId: m.regionId ?? m.region?.id ?? '', categoryId: m.categoryId ?? m.category?.id ?? '',
       address: m.address ?? '', ownerName: m.ownerName ?? '', contactPhone: m.contactPhone ?? '',
       contactEmail: m.contactEmail ?? '', intro: m.intro ?? '', commissionRate: String(Number(m.commissionRate ?? 0)), avgSpendPerPerson: m.avgSpendPerPerson != null ? String(m.avgSpendPerPerson) : '',
+      tags: m.tags ?? [],
     });
+    setTagInput('');
     setEditing(m);
+  }
+  /** 꼬리표 붙이기 — 잼 담는 기준에 쓰인다 (2026-09-24 대표 확정 3-5). 예) 러닝코스 */
+  function addTag(raw: string) {
+    const t = raw.replace(/^#/, '').replace(/,/g, '').trim();
+    setTagInput('');
+    if (!t || form.tags.includes(t) || form.tags.length >= 10) return;
+    setForm({ ...form, tags: [...form.tags, t.slice(0, 20)] });
+  }
+  function removeTag(t: string) {
+    setForm({ ...form, tags: form.tags.filter((x) => x !== t) });
   }
   async function save() {
     try {
@@ -99,6 +116,7 @@ export default function MerchantsPage() {
         contactPhone: form.contactPhone || undefined, contactEmail: form.contactEmail || undefined,
         intro: form.intro || undefined, commissionRate: Number(form.commissionRate) || 0,
         avgSpendPerPerson: form.avgSpendPerPerson ? Number(form.avgSpendPerPerson) : undefined,
+        tags: tagInput.trim() ? [...new Set([...form.tags, tagInput.trim()])] : form.tags,
       };
       if (editing === 'new') {
         await api('/admin/merchants', {
@@ -164,6 +182,13 @@ export default function MerchantsPage() {
                 </Td>
                 <Td className="whitespace-nowrap text-xs">
                   {m.region.name} · {m.category.emoji} {m.category.name}
+                  {m.tags?.length > 0 && (
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {m.tags.map((t: string) => (
+                        <span key={t} className="rounded-full bg-ok-soft px-2 py-px text-[10px] font-bold text-ok">{t}</span>
+                      ))}
+                    </div>
+                  )}
                 </Td>
                 <Td className="tabular-nums">{Number(m.commissionRate)}%</Td>
                 <Td className="tabular-nums text-xs text-ink-3">
@@ -255,6 +280,46 @@ export default function MerchantsPage() {
             <div>
               <label className="mb-1 block text-xs font-semibold text-ink-3">한 줄 소개</label>
               <input className={inputCls} value={form.intro} onChange={(e) => setForm({ ...form, intro: e.target.value })} />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="mb-1 block text-xs font-semibold text-ink-3">꼬리표 — 잼에 가게를 담는 기준으로 씁니다</label>
+              <div className="flex flex-wrap items-center gap-1.5 rounded-md border border-line bg-white px-2 py-1.5 focus-within:border-brand">
+                {form.tags.map((t) => (
+                  <span key={t} className="inline-flex items-center gap-1 rounded-full bg-ok-soft py-0.5 pl-2.5 pr-1.5 text-xs font-bold text-ok">
+                    {t}
+                    <button type="button" onClick={() => removeTag(t)} aria-label={`${t} 떼기`} className="rounded-full px-1 leading-none hover:bg-white/60">×</button>
+                  </span>
+                ))}
+                <input
+                  className="min-w-[160px] flex-1 py-1 text-sm outline-none"
+                  placeholder={form.tags.length ? '꼬리표 더 붙이기' : '예) 러닝코스 — 입력하고 Enter'}
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.nativeEvent.isComposing) return; // 한글 조합 중 Enter는 무시
+                    if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addTag(tagInput); }
+                    if (e.key === 'Backspace' && !tagInput && form.tags.length) removeTag(form.tags[form.tags.length - 1]);
+                  }}
+                />
+              </div>
+              {allTags.filter((t) => !form.tags.includes(t.tag)).length > 0 && (
+                <div className="mt-1.5 flex flex-wrap items-center gap-1">
+                  <span className="text-[11px] text-ink-3">지금 쓰는 꼬리표:</span>
+                  {allTags.filter((t) => !form.tags.includes(t.tag)).map((t) => (
+                    <button
+                      key={t.tag}
+                      type="button"
+                      onClick={() => addTag(t.tag)}
+                      className="rounded-full border border-dashed border-line px-2 py-0.5 text-[11px] font-semibold text-ink-2 hover:border-ok hover:text-ok"
+                    >
+                      + {t.tag} <span className="text-ink-3">{t.merchants}곳</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              <p className="mt-1 text-[11px] text-ink-3">
+                지역·종류로 묶이지 않는 가게를 잼에 담을 때 씁니다. 한 가게에 여러 개 붙일 수 있습니다. 예) 러닝코스 · 야경코스
+              </p>
             </div>
           </div>
           <div className="mt-4 flex justify-end gap-2">

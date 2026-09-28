@@ -20,7 +20,7 @@ type Plan = {
   id: string; code: string; name: string; description: string | null;
   price: number; durationDays: number;
   scope: 'ALL' | 'FILTER' | 'REGION' | 'CATEGORY' | 'MANUAL';
-  scopeRegionIds: string[]; scopeCategoryIds: string[];
+  scopeRegionIds: string[]; scopeCategoryIds: string[]; scopeTags?: string[];
   isPrivate: boolean; imageUrl: string | null;
 };
 type Named = { id: string; name: string; emoji?: string };
@@ -61,10 +61,13 @@ export default function JamScreen() {
     if (p.scope === 'ALL') return t('jamScopeAll');
     if (p.scope === 'MANUAL') return t('jamScopePicked');
     // 열린 지역을 전부 고른 잼(3일잼·5일잼)은 사실상 전체다 — 지역 이름을 6개 늘어놓지 않는다
+    const tags = p.scopeTags ?? [];
     const everyRegion = regions.length > 0 && p.scopeRegionIds.length >= regions.length;
-    if (everyRegion && p.scopeCategoryIds.length === 0) return t('jamScopeAll');
+    if (everyRegion && p.scopeCategoryIds.length === 0 && tags.length === 0) return t('jamScopeAll');
+    // 가게 꼬리표(예: 러닝코스)가 있으면 그게 이 잼의 성격이라 앞에 둔다 (2026-09-24 대표 확정 3-5)
     const names = [
-      ...p.scopeRegionIds.map((id) => regions.find((r) => r.id === id)?.name),
+      ...tags,
+      ...(everyRegion ? [] : p.scopeRegionIds.map((id) => regions.find((r) => r.id === id)?.name)),
       ...p.scopeCategoryIds.map((id) => cats.find((c) => c.id === id)?.name),
     ].filter(Boolean) as string[];
     if (names.length === 0) return t('jamScopeAll');

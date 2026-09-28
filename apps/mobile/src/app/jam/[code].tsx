@@ -25,7 +25,7 @@ type Sample = {
 type Detail = {
   id: string; code: string; name: string; description: string | null;
   price: number; durationDays: number;
-  scope: string; scopeRegionIds: string[]; scopeCategoryIds: string[];
+  scope: string; scopeRegionIds: string[]; scopeCategoryIds: string[]; scopeTags?: string[];
   isPrivate: boolean; imageUrl: string | null;
   couponCount: number; merchantCount: number;
   samples: Sample[];
@@ -70,10 +70,13 @@ export default function JamBuyScreen() {
   function scopeLine(p: Detail) {
     if (p.scope === 'ALL') return t('jamScopeAll');
     if (p.scope === 'MANUAL') return t('jamScopePicked');
+    const tags = p.scopeTags ?? [];
     const everyRegion = regions.length > 0 && p.scopeRegionIds.length >= regions.length;
-    if (everyRegion && p.scopeCategoryIds.length === 0) return t('jamScopeAll');
+    if (everyRegion && p.scopeCategoryIds.length === 0 && tags.length === 0) return t('jamScopeAll');
+    // 가게 꼬리표(예: 러닝코스)가 있으면 그게 이 잼의 성격이라 앞에 둔다 (2026-09-24 대표 확정 3-5)
     const names = [
-      ...p.scopeRegionIds.map((id) => regions.find((r) => r.id === id)?.name),
+      ...tags,
+      ...(everyRegion ? [] : p.scopeRegionIds.map((id) => regions.find((r) => r.id === id)?.name)),
       ...p.scopeCategoryIds.map((id) => cats.find((c) => c.id === id)?.name),
     ].filter(Boolean) as string[];
     return names.length ? names.join(' · ') : t('jamScopeAll');

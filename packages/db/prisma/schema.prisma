@@ -252,12 +252,15 @@ model MembershipPlan {
   description  String?
   price        Int
   durationDays Int
-  /// 이 잼이 여는 쿠폰의 범위
+  /// 이 잼이 여는 쿠폰의 범위. 상품 회원가도 이 범위를 따른다 (2026-09-24 대표 확정 3-5 A)
   scope            PlanScope @default(ALL)
-  /// scope=REGION일 때 대상 지역
+  /// 조건으로 고르기 — 대상 지역 (비우면 제한 없음)
   scopeRegionIds   String[]  @default([])
-  /// scope=CATEGORY일 때 대상 카테고리
+  /// 조건으로 고르기 — 대상 종류 (비우면 제한 없음)
   scopeCategoryIds String[]  @default([])
+  /// 조건으로 고르기 — 가게 꼬리표. 이 중 하나라도 붙은 가게만 (비우면 제한 없음)
+  /// 예) 러닝잼 = 지역 부산 + 꼬리표 러닝코스
+  scopeTags        String[]  @default([])
 
   /// 단체 전용 잼 — 단체 코드를 가진 회원에게만 보이고 팔린다 (공무원노조, 공사 임직원 등)
   isPrivate Boolean @default(false)
@@ -270,8 +273,24 @@ model MembershipPlan {
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
 
-  memberships UserMembership[]
-  grantRules  BenefitGrantRule[]
+  memberships  UserMembership[]
+  grantRules   BenefitGrantRule[]
+  productRules PlanProductRule[]
+}
+
+/// 회원가 예외 — 회원가는 잼 범위를 따르고, 범위와 다르게 할 상품만 여기에 적는다 (2026-09-24 대표 확정 3-5 A).
+///   isExcluded=false  범위 밖이라도 이 잼 회원에게 회원가를 준다
+///   isExcluded=true   범위 안이라도 이 잼 회원에게는 회원가를 주지 않는다
+model PlanProductRule {
+  id         String         @id @default(cuid())
+  planId     String
+  productId  String
+  plan       MembershipPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  product    Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  isExcluded Boolean        @default(false)
+  createdAt  DateTime       @default(now())
+
+  @@unique([planId, productId])
 }
 
 model UserMembership {
@@ -333,6 +352,10 @@ model Merchant {
 
   /// 1인 평균 이용금액 — % 할인 쿠폰의 예상 절약액 계산 기준 (슈퍼 관리자가 등록, 2026-09-09 픽스)
   avgSpendPerPerson Int?
+
+  /// 가게 꼬리표 — 예) 러닝코스, 야경코스. 슈퍼 관리자가 붙인다 (2026-09-24 대표 확정 3-5).
+  /// 지역·종류로는 못 묶는 가게 모음(부산 곳곳의 러닝코스 가게)을 잼에 담을 때 조건으로 쓴다.
+  tags String[] @default([])
 
   /// 거래 수수료율(%). 상품 판매에만 적용하고 상시 할인 혜택에는 수수료가 없다.
   commissionRate Decimal @default(0) @db.Decimal(5, 2)
@@ -691,9 +714,8 @@ model Product {
   soldQty  Int  @default(0)
   /// 한 사람이 살 수 있는 수량. 비우면 제한 없음 (2026-09-24 대표 확정 3-3 — 기획전이 '1인 1장'을 요구)
   maxPerUser Int?
-  /// 유료 회원 할인가를 받는 잼. 비워두면 유료 잼이면 모두 받는다 (2026-09-18 대표 확정).
-  /// 예) 부산 요트는 3일잼·5일잼·잼마스터, 다낭 호텔은 다낭잼만
-  memberPricePlanIds String[] @default([])
+  /// 유료 회원 할인가(memberPrice)를 받는 잼은 상품마다 고르지 않는다 — 잼 범위를 따른다 (2026-09-24 대표 확정 3-5 A).
+  /// 다르게 할 것만 PlanProductRule에 예외로 적는다. 계산은 api/src/plan-scope.util.ts
 
   /// 예약형 회차당 기본 정원 — 본사가 회차를 만들 때 기본값으로 쓴다.
   defaultCapacity Int?
@@ -716,6 +738,7 @@ model Product {
   drops        Drop[]
   grantRules   BenefitGrantRule[]
   reservations Reservation[]
+  planRules    PlanProductRule[]
 
   @@index([merchantId, isActive])
 }

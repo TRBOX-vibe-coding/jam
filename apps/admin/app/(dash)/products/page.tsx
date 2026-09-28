@@ -4,7 +4,6 @@ import { API_BASE, api, dt, won } from '@/lib/api';
 import { Badge, Button, Card, CardHeader, Empty, Modal, Table, TableSkeleton, Td } from '@/components/ui';
 import { ProductCouponsModal } from '@/components/product-coupons';
 import { ProductQtyModal } from '@/components/product-qty-modal';
-import { PlanPicker } from '@/components/plan-picker';
 import { ProductPlansModal } from '@/components/product-plans';
 
 const TYPE_LABEL: Record<string, string> = { TICKET: '티켓', RESERVATION: '예약형', PASS: 'PASS' };
@@ -39,7 +38,6 @@ export default function ProductsPage() {
   const [msg, setMsg] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState({ merchantId: '', name: '', type: 'RESERVATION', basePrice: '', memberPrice: '', verification: 'QR_ONLY', totalQty: '', maxPerUser: '' });
-  const [formPlanIds, setFormPlanIds] = useState<string[]>([]);
   const [image, setImage] = useState<string | null>(null); // data URL
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -91,7 +89,6 @@ export default function ProductsPage() {
           type: form.type,
           basePrice: Number(form.basePrice),
           memberPrice: form.memberPrice ? Number(form.memberPrice) : undefined,
-          memberPricePlanIds: formPlanIds,
           verification: form.verification,
           totalQty: form.type !== 'RESERVATION' && form.totalQty ? Number(form.totalQty) : undefined,
           maxPerUser: form.maxPerUser ? Number(form.maxPerUser) : undefined,
@@ -287,9 +284,11 @@ export default function ProductsPage() {
                 )}
                 <input className={inputCls} placeholder="한 사람당 최대 (비우면 제한 없음)" title="예) 기획전 1인 1장" value={form.maxPerUser} onChange={(e) => setForm({ ...form, maxPerUser: e.target.value.replace(/\D/g, '') })} />
               </div>
-              <div className="mt-3">
-                <PlanPicker value={formPlanIds} onChange={setFormPlanIds} />
-              </div>
+              {/* 회원가는 잼 범위를 따른다 — 상품마다 잼을 고르지 않는다 (2026-09-24 대표 확정 3-5 A) */}
+              <p className="mt-3 text-[12px] leading-5 text-ink-3">
+                유료 회원가는 잼마다 정해 둔 범위(지역·종류·가게 꼬리표)를 따라 저절로 적용됩니다.
+                이 상품만 다르게 하려면 등록한 뒤 목록의 [회원가 잼]에서 바꾸세요.
+              </p>
               <div className="mt-3 flex flex-wrap items-center gap-3">
                 <select className={inputCls} value={form.verification} onChange={(e) => setForm({ ...form, verification: e.target.value })}>
                   <option value="QR_ONLY">현장 확인: 사장님 확인만</option>
@@ -330,7 +329,19 @@ export default function ProductsPage() {
                     </Td>
                     <Td><Badge>{TYPE_LABEL[p.type] ?? p.type}</Badge></Td>
                     <Td className="tabular-nums">{won(p.basePrice)}</Td>
-                    <Td className="tabular-nums">{p.memberPrice != null ? won(p.memberPrice) : <span className="text-ink-3">—</span>}</Td>
+                    <Td className="tabular-nums">
+                      {p.memberPrice != null ? won(p.memberPrice) : <span className="text-ink-3">—</span>}
+                      {p.memberPrice != null && (
+                        <div className="max-w-[150px] text-[11px] leading-4 text-ink-3" title={p.memberPlanNames?.join(' · ')}>
+                          {!p.memberPlanNames?.length
+                            ? '받는 잼 없음'
+                            : p.memberPlanNames.length > 3
+                              ? `${p.memberPlanNames.slice(0, 3).join(' · ')} 외 ${p.memberPlanNames.length - 3}`
+                              : p.memberPlanNames.join(' · ')}
+                          {p.memberPlanExceptions > 0 && <span className="ml-1 font-semibold text-warn">예외 {p.memberPlanExceptions}</span>}
+                        </div>
+                      )}
+                    </Td>
                     <Td className="whitespace-nowrap text-xs tabular-nums">
                       {p.type === 'RESERVATION'
                         ? <span className="text-ink-3">회차 정원</span>
@@ -350,7 +361,7 @@ export default function ProductsPage() {
                         )}
                         <Button small onClick={() => setCouponFor(p)}>쿠폰 묶기</Button>
                         <Button small variant="ghost" onClick={() => setQtyFor(p)}>수량</Button>
-                        <Button small variant="ghost" onClick={() => setPlanFor(p)}>할인 잼</Button>
+                        <Button small variant="ghost" onClick={() => setPlanFor(p)}>회원가 잼</Button>
                         <Button small onClick={() => duplicateProduct(p)}>복사</Button>
                         <label className="cursor-pointer">
                           <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => changeImage(p, e)} />
@@ -524,7 +535,7 @@ export default function ProductsPage() {
       {planFor && (
         <ProductPlansModal
           product={planFor}
-          onClose={(saved) => { setPlanFor(null); if (saved) { setMsg('할인 줄 잼을 저장했습니다'); load(); } }}
+          onClose={(saved) => { setPlanFor(null); if (saved) { setMsg(`'${planFor.name}' 회원가 잼을 저장했습니다`); load(); } }}
         />
       )}
     </div>
