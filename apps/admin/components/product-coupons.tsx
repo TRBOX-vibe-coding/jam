@@ -4,8 +4,10 @@
  *
  * 2026-09-12 대표 확정:
  *  - 점주는 자기 상품과 판매 가격까지만. 쿠폰을 붙이는 건 홀릭잼(본사)만 한다.
- *  - 여기서 고른 쿠폰은 상품 상세에 미리 보이고, 결제하면 바로 발급된다.
+ *  - 여기서 고른 쿠폰은 상품 상세에 미리 보이고, 결제하면 손님 앱에 담긴다.
  *  - 발급된 쿠폰은 무료 회원도 실제로 쓴다 — 이게 유료 전환 유도의 핵심이다.
+ * 2026-09-24 대표 확정(3-2): 쿠폰이 언제 열리는지는 여기서 고르지 않는다. 상품 종류와 손님이 고른
+ * '가는 날'로 저절로 정해진다 (api/src/bundled-coupons.util.ts).
  */
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
@@ -31,7 +33,6 @@ export function ProductCouponsModal({
   const [data, setData] = useState<any | null>(null);
   const [picked, setPicked] = useState<string[]>([]);
   const [validDays, setValidDays] = useState('');
-  const [startMode, setStartMode] = useState('PURCHASE');
   const [q, setQ] = useState('');
   const [regionId, setRegionId] = useState('');
   const [categoryId, setCategoryId] = useState('');
@@ -44,7 +45,6 @@ export function ProductCouponsModal({
         setData(r);
         setPicked(r.linked.map((l: any) => l.benefitId));
         setValidDays(r.validDays ? String(r.validDays) : '');
-        setStartMode(r.product?.couponStartMode ?? 'PURCHASE');
       })
       .catch((e) => setMsg(e.message));
   }, [product.id]);
@@ -59,7 +59,7 @@ export function ProductCouponsModal({
     try {
       await api(`/admin/products/${product.id}/coupons`, {
         method: 'POST',
-        body: { benefitIds: picked, validDays: validDays ? Number(validDays) : undefined, startMode },
+        body: { benefitIds: picked, validDays: validDays ? Number(validDays) : undefined },
       });
       onClose(true);
     } catch (e: any) {
@@ -82,34 +82,25 @@ export function ProductCouponsModal({
   return (
     <Modal title={`딸려 줄 쿠폰 · ${product.name}`} onClose={() => onClose(false)} wide>
       <p className="mb-3 text-[13px] leading-5 text-ink-2">
-        여기서 고른 쿠폰은 상품 상세에 미리 보이고, 손님이 결제하면 바로 발급됩니다.
+        여기서 고른 쿠폰은 상품 상세에 미리 보이고, 손님이 결제하면 손님 앱에 담깁니다.
         <b className="text-ink"> 무료 회원도 이 쿠폰은 실제로 씁니다.</b> 전체 쿠폰에서 지역·종류로 찾아 고르세요.
         같은 지역 쿠폰이 위에 먼저 나옵니다.
       </p>
 
       <div className="mb-3 rounded-lg border border-line bg-ground/50 p-3">
-        <p className="mb-2 text-xs font-semibold text-ink-3">쿠폰이 언제부터 열릴까요</p>
-        <div className="flex flex-col gap-1.5">
-          {[
-            ['PURCHASE', '결제하는 순간', '부산에 사는 손님, 바로 쓸 상품'],
-            ['REDEEM', '현장에서 이용권을 쓰는 순간', '날짜가 정해지지 않은 티켓 (권장)'],
-            ['RESERVATION', '예약 확정일 00시', '날짜·시간이 정해진 예약 상품'],
-          ].map(([v, label, hint]) => (
-            <label key={v} className="flex cursor-pointer items-start gap-2 text-sm">
-              <input
-                type="radio"
-                name="startMode"
-                checked={startMode === v}
-                onChange={() => setStartMode(v)}
-                className="mt-1 size-4"
-              />
-              <span>
-                <span className="font-medium">{label}</span>
-                <span className="ml-2 text-xs text-ink-3">{hint}</span>
-              </span>
-            </label>
-          ))}
-        </div>
+        <p className="mb-1.5 text-xs font-semibold text-ink-3">쿠폰이 열리는 때 — 고를 필요 없이 저절로 정해집니다</p>
+        <ul className="flex flex-col gap-1 text-[13px] leading-5 text-ink-2">
+          {data?.product?.type === 'RESERVATION' ? (
+            <li>· 예약 상품이라 <b className="text-ink">손님이 예약한 날 0시</b>에 열립니다.</li>
+          ) : (
+            <>
+              <li>· 손님이 결제할 때 <b className="text-ink">&lsquo;가는 날&rsquo;을 고르면 그날 0시</b>에 열립니다.</li>
+              <li>· 가는 날을 안 고르면 <b className="text-ink">가게에서 이용권을 쓸 때</b> 열립니다.</li>
+            </>
+          )}
+          <li>· 그보다 먼저 가게에서 이용권을 쓰면 그 자리에서 바로 열립니다.</li>
+          <li>· 열린 날부터 아래 &lsquo;사용 기간&rsquo;(비우면 90일) 동안 쓸 수 있습니다.</li>
+        </ul>
       </div>
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <select className={`${inputCls} max-w-[140px]`} value={regionId} onChange={(e) => setRegionId(e.target.value)}>

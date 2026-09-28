@@ -2,13 +2,14 @@
  * 상품 · 주문 · 이용권 · 예약.
  *  - RESERVATION 상품은 날짜·시간·인원 선택 → 결제 → 예약확정까지 앱 안에서 끝난다.
  *    (기존 서비스의 "결제 후 전화 예약" 단절을 없애는 부분)
- *  - PASS 상품은 결제 즉시 연결된 지역 혜택이 자동으로 열린다 (부산 바다 PASS 방식).
+ *  - 티켓·PASS는 결제할 때 '가는 날'을 고를 수 있다(안 골라도 된다). 딸려 받은 쿠폰이 언제 열리는지는
+ *    bundled-coupons.util.ts 한 곳에서 정한다 (2026-09-24 대표 확정 3-2).
  */
 import {
   BadRequestException, Body, Controller, Get, Module, NotFoundException,
-  Param, Post, Query, UseGuards,
+  Param, Patch, Post, Query, UseGuards,
 } from '@nestjs/common';
-import { IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsInt, IsOptional, IsString, Matches, Max, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 import { PrismaService } from './prisma.service';
 import { AuthModule, OptionalUserGuard, UserGuard, UserId } from './auth';
@@ -16,12 +17,25 @@ import { addDays, makeOrderNo, makeVoucherCode } from './util';
 import { activeAdRanks, clickCounts, rankSort } from './ranking.util';
 import { PRODUCT_COUPON_VALID_DAYS } from './membership.util';
 import { activePaidPlanIds, canGetMemberPrice } from './plan-scope.util';
+import {
+  dayKey, dayLabel, parseDay, syncBundledCoupons, visitDateError, visitDateRange,
+} from './bundled-coupons.util';
+
+/** 티켓·PASS 이용권을 쓸 수 있는 기간(일) */
+const TICKET_VALID_DAYS = 30;
 
 class PurchaseProductDto {
   @IsOptional() @IsString() slotId?: string;
   @Type(() => Number) @IsInt() @Min(1) @Max(20) headcount!: number;
   @IsOptional() @IsString() contactName?: string;
   @IsOptional() @IsString() contactPhone?: string;
+  /** 가는 날 'YYYY-MM-DD' — 티켓·PASS만, 안 골라도 된다 (2026-09-24 대표 확정 3-2) */
+  @IsOptional() @Matches(/^\d{4}-\d{2}-\d{2}$/) visitDate?: string;
+}
+
+class VisitDateDto {
+  /** 'YYYY-MM-DD'. 비우면 '안 정함' — 가게에서 이용권을 쓸 때 쿠폰이 열린다 */
+  @IsOptional() @Matches(/^\d{4}-\d{2}-\d{2}$/) visitDate?: string | null;
 }
 
 @Controller()
@@ -126,6 +140,12 @@ export class OrdersController {
       memberPricePlans,
       /** 지금 보는 사람이 할인가를 받는지 */
       memberPriceApplies,
+      /** 가는 날로 고를 수 있는 범위 'YYYY-MM-DD' — 예약 상품은 예약한 날이 곧 가는 날이라 null */
+      visitRange: p.type === 'RESERVATION' ? null : (() => {
+        const now = new Date();
+        const r = visitDateRange(now, addDays(now, TICKET_VALID_DAYS));
+        return { from: dayKey(r.from), to: dayKey(r.to) };
+      })(),
       bundledCoupons: links.filter((l, i, a) => a.findIndex((x) => x.benefitId === l.benefitId) === i).map((l) => ({
         benefitId: l.benefitId,
         title: l.benefit.title,
@@ -157,6 +177,15 @@ export class OrdersController {
 
     if (product.type === 'RESERVATION' && !dto.slotId) {
       throw new BadRequestException('예약 시간을 선택해 주세요');
+    }
+
+    // 가는 날 — 티켓·PASS만. 예약 상품은 예약한 날이 곧 가는 날이다.
+    const ticketValidTo = addDays(now, TICKET_VALID_DAYS);
+    let visitDate: Date | null = null;
+    if (dto.visitDate && product.type !== 'RESERVATION') {
+      visitDate = parseDay(dto.visitDate);
+      const err = visitDateError(visitDate, now, ticketValidTo);
+      if (err) throw new BadRequestException(err);
     }
 
     return db.$transaction(async (tx) => {
@@ -230,8 +259,9 @@ export class OrdersController {
           productId: id,
           code: makeVoucherCode(),
           headcount: dto.headcount,
-          validTo: slot ? slot.endAt : addDays(now, 30),
+          validTo: slot ? slot.endAt : ticketValidTo,
           status: slot ? 'RESERVED' : 'ISSUED',
+          visitDate,
         },
       });
 
@@ -251,14 +281,10 @@ export class OrdersController {
         });
       }
 
-      // 상품에 묶인 '근처 할인 쿠폰'을 구매자에게 발급한다.
-      // 언제부터 열리는지는 상품 설정을 따른다 (2026-09-12 대표 확정):
-      //   PURCHASE    결제 즉시
-      //   REDEEM      현장에서 이용권을 '사용 처리'하는 순간 (날짜 미정 티켓) — 지금은 담아만 둔다
-      //   RESERVATION 예약 확정일 00시
-      // 고객이 날짜를 입력하는 화면은 만들지 않는다. 결제·예약·현장 사용이 곧 신호다.
-      let grantedBenefits = 0;
-      let pendingBenefits = 0;
+      // 상품에 묶인 '근처 할인 쿠폰'을 구매자에게 담아 준다 (2026-09-12 대표 확정).
+      // 언제 열리는지는 상품 종류와 손님이 고른 날로 저절로 정해진다 (2026-09-24 대표 확정 3-2):
+      //   예약 상품 = 예약한 날 0시 / 티켓·PASS = 가는 날 0시, 안 고르면 가게에서 이용권을 쓸 때
+      // 일단 잠가 담고, 여는 날은 syncBundledCoupons가 한 곳에서 맞춘다.
       const seen = new Set<string>();
       const rules = await tx.benefitGrantRule.findMany({
         where: { trigger: 'PRODUCT', productId: id, isActive: true },
@@ -267,63 +293,64 @@ export class OrdersController {
       for (const rule of rules) {
         if (seen.has(rule.benefitId)) continue;
         seen.add(rule.benefitId);
-        const days = rule.validDays ?? PRODUCT_COUPON_VALID_DAYS;
-
-        let status: 'ACTIVE' | 'PENDING' = 'ACTIVE';
-        let validFrom = now;
-        let validTo = addDays(now, days);
-        if (product.couponStartMode === 'REDEEM') {
-          // 아직 열지 않는다 — 이용권을 쓰는 날이 이 손님의 여행 시작일이다.
-          // 이용권이 살아 있는 동안은 사라지지 않게 이용권 기한을 따라간다.
-          status = 'PENDING';
-          validTo = voucher.validTo;
-        } else if (product.couponStartMode === 'RESERVATION' && slot) {
-          const day = new Date(slot.startAt);
-          day.setHours(0, 0, 0, 0);
-          validFrom = day;
-          validTo = addDays(day, days);
-        }
-
-        await tx.userBenefit.upsert({
-          where: {
-            userId_benefitId_sourceType_sourceId: {
+        const key = {
+          userId_benefitId_sourceType_sourceId: { userId, benefitId: rule.benefitId, sourceType: 'PRODUCT' as const, sourceId: id },
+        };
+        const had = await tx.userBenefit.findUnique({ where: key, select: { status: true, validTo: true } });
+        const alive = had && (had.status === 'PENDING' || had.status === 'ACTIVE') && (!had.validTo || had.validTo > now);
+        if (!had) {
+          await tx.userBenefit.create({
+            data: {
               userId, benefitId: rule.benefitId, sourceType: 'PRODUCT', sourceId: id,
+              status: 'PENDING', validFrom: now, validTo: voucher.validTo,
             },
-          },
-          update: { status, validFrom, validTo },
-          create: {
-            userId,
-            benefitId: rule.benefitId,
-            sourceType: 'PRODUCT',
-            sourceId: id,
-            status,
-            validFrom,
-            validTo,
-          },
-        });
-        if (status === 'PENDING') pendingBenefits++; else grantedBenefits++;
+          });
+        } else if (!alive) {
+          // 다 쓴·기한 지난·거둬들인 쿠폰 — 같은 상품을 또 샀으니 한 벌 더 받는다
+          await tx.userBenefit.update({ where: key, data: { status: 'PENDING', validFrom: now, validTo: voucher.validTo } });
+        }
+        // 아직 살아 있는 쿠폰은 그대로 둔다 — 이미 열린 쿠폰이 다시 잠기지 않게
       }
+      await syncBundledCoupons(tx, userId, id, now);
+
+      const mine = seen.size
+        ? await tx.userBenefit.findMany({
+            where: { userId, sourceType: 'PRODUCT', sourceId: id, benefitId: { in: [...seen] }, status: { in: ['PENDING', 'ACTIVE'] } },
+            select: { status: true, validFrom: true },
+          })
+        : [];
+      const pendingBenefits = mine.filter((b) => b.status === 'PENDING').length;
+      const later = mine.filter((b) => b.status === 'ACTIVE' && b.validFrom > now);
+      const grantedBenefits = mine.length - pendingBenefits;
+      const opensAt = later[0]?.validFrom ?? null;
+      const openNow = grantedBenefits - later.length;
       return {
         ok: true,
         orderNo: order.orderNo,
         paidAmount: amount,
         memberApplied: isMember && product.memberPrice != null,
-        voucher: { id: voucher.id, code: voucher.code, validTo: voucher.validTo },
+        voucher: { id: voucher.id, code: voucher.code, validTo: voucher.validTo, visitDay: visitDate ? dayKey(visitDate) : null },
         reservation: reservation
           ? { id: reservation.id, startAt: slot!.startAt, headcount: reservation.headcount, status: reservation.status }
           : null,
         grantedBenefits,
         /** 아직 열리지 않은 쿠폰 — 현장에서 이용권을 쓰면 열린다 */
         pendingBenefits,
+        /** 예약한 날·가는 날 0시에 열리는 쿠폰이면 그 시각 */
+        couponsOpenAt: opensAt,
         message: pendingBenefits > 0
           ? `결제 완료! 할인 쿠폰 ${pendingBenefits}장을 담았어요. 현장에서 이용권을 쓰면 바로 열립니다.`
-          : reservation
-            ? grantedBenefits > 0
-              ? `예약이 확정됐어요! 할인 쿠폰 ${grantedBenefits}장은 이용일부터 쓸 수 있어요.`
-              : '결제와 예약이 함께 확정되었습니다.'
-            : grantedBenefits > 0
-              ? `결제 완료! 근처에서 바로 쓸 수 있는 할인 쿠폰 ${grantedBenefits}장을 함께 받았어요.`
-              : '결제 완료! 이용권이 발급되었습니다.',
+          : later.length > 0
+            ? reservation
+              ? `예약이 확정됐어요! 할인 쿠폰 ${later.length}장은 이용일부터 쓸 수 있어요.`
+              : `결제 완료! 할인 쿠폰 ${later.length}장은 가는 날(${dayLabel(opensAt!)}) 0시에 열려요. 그 전에 가게에서 이용권을 쓰면 바로 열립니다.`
+            : openNow > 0
+              ? reservation
+                ? `예약이 확정됐어요! 할인 쿠폰 ${openNow}장을 지금부터 쓸 수 있어요.`
+                : `결제 완료! 근처에서 바로 쓸 수 있는 할인 쿠폰 ${openNow}장을 함께 받았어요.`
+              : reservation
+                ? '결제와 예약이 함께 확정되었습니다.'
+                : '결제 완료! 이용권이 발급되었습니다.',
       };
     });
   }
@@ -357,7 +384,55 @@ export class OrdersController {
         reservation: { include: { slot: { select: { startAt: true, endAt: true } } } },
       },
     });
-    return rows;
+    const now = new Date();
+    return rows.map((v) => {
+      // 가는 날은 안 쓴 티켓·PASS에서, 고른 날이 오기 전까지만 고르거나 바꾼다 (그날 0시에 쿠폰이 열리므로)
+      const editable =
+        v.product.type !== 'RESERVATION' && v.status === 'ISSUED' && v.validTo > now &&
+        !(v.visitDate && v.visitDate <= now);
+      const r = editable ? visitDateRange(now, v.validTo) : null;
+      return {
+        ...v,
+        /** 손님이 고른 가는 날 'YYYY-MM-DD' (없으면 null) */
+        visitDay: v.visitDate ? dayKey(v.visitDate) : null,
+        /** 가는 날을 고르거나 바꿀 수 있으면 고를 수 있는 범위 */
+        visitRange: r ? { from: dayKey(r.from), to: dayKey(r.to) } : null,
+      };
+    });
+  }
+
+  /**
+   * 가는 날 고르기·바꾸기·지우기 — 2026-09-24 대표 확정(3-2) "고른 가는 날은 나중에 바꿀 수 있게".
+   * 고른 날이 오면(그날 0시에 쿠폰이 열리면) 더는 바꾸지 않는다. 열린 쿠폰이 다시 잠기면 헷갈린다.
+   */
+  @Patch('me/vouchers/:id/visit-date')
+  @UseGuards(UserGuard)
+  async setVisitDate(@UserId() userId: string, @Param('id') id: string, @Body() dto: VisitDateDto) {
+    const db = this.prisma.client;
+    const now = new Date();
+    const v = await db.voucher.findFirst({ where: { id, userId }, include: { product: { select: { type: true } } } });
+    if (!v) throw new NotFoundException('이용권을 찾을 수 없습니다');
+    if (v.product.type === 'RESERVATION') throw new BadRequestException('예약 상품은 예약한 날에 쿠폰이 열립니다');
+    if (v.status !== 'ISSUED' || v.validTo <= now) {
+      throw new BadRequestException('아직 쓰지 않은 이용권만 가는 날을 바꿀 수 있습니다');
+    }
+    if (v.visitDate && v.visitDate <= now) {
+      throw new BadRequestException(`가는 날(${dayLabel(v.visitDate)})이 되어 쿠폰이 이미 열렸어요. 날짜는 그 전까지만 바꿀 수 있습니다`);
+    }
+    let day: Date | null = null;
+    if (dto.visitDate) {
+      day = parseDay(dto.visitDate);
+      const err = visitDateError(day, now, v.validTo);
+      if (err) throw new BadRequestException(err);
+    }
+    return db.$transaction(async (tx) => {
+      await tx.voucher.update({ where: { id }, data: { visitDate: day } });
+      const opensAt = await syncBundledCoupons(tx, userId, v.productId, now);
+      await tx.eventLog.create({
+        data: { userId, event: 'visit_date_set', entityType: 'voucher', entityId: id, meta: { visitDay: day ? dayKey(day) : null } },
+      });
+      return { ok: true, visitDay: day ? dayKey(day) : null, couponsOpenAt: opensAt };
+    });
   }
 
   @Get('me/claims')

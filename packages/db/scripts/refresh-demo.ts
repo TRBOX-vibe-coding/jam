@@ -280,6 +280,70 @@ async function refreshTicketSales(now: Date) {
   return { skipped: false, created };
 }
 
+/**
+ * 시연 손님(demo-user-1)의 '가는 날' 예시 — 2026-09-24 대표 확정(3-2).
+ * [이용권 · 예약]에 "가는 날 ○월 ○일 · 이날 0시에 아래 쿠폰이 열려요 [바꾸기]"가 늘 보이게,
+ * 딸린 쿠폰이 있는 티켓 하나의 가는 날을 나흘 뒤로 맞춰 둔다. 없으면 API로 한 장 산다.
+ * 시연 손님이 이미 가게에서 쓴 상품은 건드리지 않는다 — 열린 쿠폰을 다시 잠그면 이야기가 안 맞는다.
+ */
+async function refreshVisitDemo(now: Date) {
+  const alive = await fetch(`${API}/health`).then((r) => r.ok).catch(() => false);
+  if (!alive) return { skipped: true, changed: 0 };
+  const user = await db.user.findFirst({ where: { providerId: 'demo-user-1' }, select: { id: true, nickname: true } });
+  if (!user) return { skipped: true, changed: 0 };
+
+  const day = (n: number) => { const d = new Date(now); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + n); return d; };
+  const key = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const visit = day(4);
+
+  const rules = await db.benefitGrantRule.findMany({
+    where: { trigger: 'PRODUCT', isActive: true, product: { isActive: true, type: { in: ['TICKET', 'PASS'] } } },
+    select: { productId: true, benefitId: true, validDays: true },
+  });
+  const productIds = [...new Set(rules.map((r) => r.productId).filter(Boolean) as string[])];
+  for (const pid of productIds) {
+    const everUsed = await db.voucher.count({ where: { userId: user.id, productId: pid, status: 'USED' } });
+    if (everUsed > 0) continue;
+    let v = await db.voucher.findFirst({
+      where: { userId: user.id, productId: pid, status: 'ISSUED', validTo: { gt: day(5) } },
+      orderBy: { createdAt: 'desc' },
+    });
+    let bought = false;
+    if (!v) {
+      const token = await fetch(`${API}/auth/social`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ provider: 'KAKAO', providerId: 'demo-user-1', nickname: user.nickname }),
+      }).then((r) => r.json()).then((j: any) => j.token as string | undefined).catch(() => undefined);
+      if (!token) return { skipped: true, changed: 0 };
+      const r = await fetch(`${API}/products/${pid}/purchase`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+        body: JSON.stringify({ headcount: 1, visitDate: key(visit) }),
+      }).catch(() => null);
+      if (!r || !r.ok) continue;
+      v = await db.voucher.findFirst({ where: { userId: user.id, productId: pid, status: 'ISSUED' }, orderBy: { createdAt: 'desc' } });
+      if (!v) continue;
+      bought = true;
+    }
+    const waiting = await db.userBenefit.count({
+      where: { userId: user.id, sourceType: 'PRODUCT', sourceId: pid, status: 'ACTIVE', validFrom: { gt: day(1) } },
+    });
+    if (v.visitDate && v.visitDate > day(1) && waiting > 0) return { skipped: false, changed: bought ? 1 : 0 };
+
+    // 가는 날이 다가왔거나 지났으면 나흘 뒤로 다시 — 시연용이라 아직 안 쓴 쿠폰은 다시 잠가 둔다
+    await db.voucher.update({ where: { id: v.id }, data: { visitDate: visit } });
+    for (const r of rules.filter((x) => x.productId === pid)) {
+      await db.userBenefit.updateMany({
+        where: { userId: user.id, benefitId: r.benefitId, sourceType: 'PRODUCT', sourceId: pid, status: { in: ['ACTIVE', 'PENDING'] }, usedCount: 0 },
+        data: { status: 'ACTIVE', validFrom: visit, validTo: new Date(visit.getTime() + (r.validDays ?? 90) * DAY) },
+      });
+    }
+    return { skipped: false, changed: 1 };
+  }
+  return { skipped: false, changed: 0 };
+}
+
 async function main() {
   const now = new Date();
   const drops = await refreshDrops(now);
@@ -289,11 +353,12 @@ async function main() {
   // 시간대를 채운 다음에 예약을 넣어야 앞으로의 회차에 손님이 들어간다
   const resv = await refreshReservations(now);
   const tickets = await refreshTicketSales(now);
+  const visit = await refreshVisitDemo(now);
   console.log(`DROP ${drops}개 다시 열림 · 승인 대기 ${pending}개 기간 연장 · 기획전 ${campaigns}개 연장 · 예약 상품 ${slots.products}개에 시간대 ${slots.created}개 추가`);
   console.log(
     resv.skipped
       ? 'API가 꺼져 있어 예약·판매는 건너뜀 (API를 켜고 다시 돌리면 채워짐)'
-      : `앞으로의 예약 ${resv.created}건 · 오늘 티켓 판매 ${tickets.created}건 추가`,
+      : `앞으로의 예약 ${resv.created}건 · 오늘 티켓 판매 ${tickets.created}건 추가 · 시연 손님 가는 날 예시 ${visit.changed ? '나흘 뒤로 맞춤' : '그대로 둠'}`,
   );
 }
 

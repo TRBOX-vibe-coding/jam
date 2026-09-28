@@ -13,6 +13,7 @@ import { C } from '../../lib/theme';
 import { Btn, Card, LoadError, Loading, Screen, Tag } from '../../lib/ui';
 import { couponValue } from '../../lib/coupons';
 import { RefundNotice } from '../../lib/refund-notice';
+import { VisitDateModal, visitDayText } from '../../lib/visit-date';
 
 function notify(title: string, msg: string) {
   if (Platform.OS === 'web') window.alert(`${title}\n${msg}`);
@@ -29,6 +30,9 @@ export default function ProductDetail() {
   const [slotId, setSlotId] = useState<string | null>(null);
   const [headcount, setHeadcount] = useState(1);
   const [busy, setBusy] = useState(false);
+  /** 가는 날 'YYYY-MM-DD' — 티켓·PASS만, 안 골라도 된다 (2026-09-24 대표 확정 3-2) */
+  const [visitDay, setVisitDay] = useState<string | null>(null);
+  const [picking, setPicking] = useState(false);
 
   const load = useCallback(() => {
     setFailed(false);
@@ -63,7 +67,10 @@ export default function ProductDetail() {
     try {
       const r = await api<any>(`/products/${id}/purchase`, {
         method: 'POST',
-        body: { slotId: slotId ?? undefined, headcount, contactName: me.nickname },
+        body: {
+          slotId: slotId ?? undefined, headcount, contactName: me.nickname,
+          visitDate: p.type !== 'RESERVATION' && visitDay ? visitDay : undefined,
+        },
       });
       track('product_purchase', { type: 'product', id: String(id) }, { headcount });
       notify(t('doneTitle'), r.message);
@@ -81,6 +88,9 @@ export default function ProductDetail() {
 
   const unit = p.memberPriceApplies ? p.memberPrice : p.basePrice;
   const total = p.type === 'RESERVATION' ? unit * headcount : unit;
+  // 가는 날은 딸려 받는 쿠폰이 있는 티켓·PASS에서만 묻는다 — 쿠폰 여는 날을 정하는 게 쓰임새다
+  const asksVisit = p.type !== 'RESERVATION' && !!p.visitRange && p.bundledCoupons?.length > 0;
+  const couponDays = p.bundledCoupons?.length ? Math.min(...p.bundledCoupons.map((c: any) => c.validDays)) : 0;
 
   return (
     <Screen>
@@ -175,12 +185,35 @@ export default function ProductDetail() {
                 </View>
               ))}
               <Text style={st.bundledDays}>
-                {p.couponStartMode === 'REDEEM'
-                  ? t('pendingGuide')
-                  : p.couponStartMode === 'RESERVATION'
-                  ? t('bundledFromResv', { n: Math.min(...p.bundledCoupons.map((c: any) => c.validDays)) })
-                  : t('bundledDays', { n: Math.min(...p.bundledCoupons.map((c: any) => c.validDays)) })}
+                {p.type === 'RESERVATION'
+                  ? t('bundledFromResv', { n: couponDays })
+                  : visitDay
+                  ? t('bundledFromVisit', { date: visitDayText(visitDay, locale), n: couponDays })
+                  : t('pendingGuide')}
               </Text>
+            </Card>
+          </>
+        )}
+
+        {/* 가는 날 — 고르면 그날 0시에 쿠폰이 열린다. 안 고르면 가게에서 이용권을 쓸 때 (3-2) */}
+        {asksVisit && (
+          <>
+            <Text style={st.section}>
+              {t('visitTitle')} <Text style={st.sectionHint}>· {t('visitOptional')}</Text>
+            </Text>
+            <Card>
+              <Pressable style={st.visitRow} onPress={() => setPicking(true)}>
+                <View style={[st.visitIcon, !!visitDay && st.visitIconOn]}>
+                  <Ionicons name="calendar-outline" size={18} color={visitDay ? '#fff' : C.brand} />
+                </View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={[st.visitValue, !visitDay && { color: C.ink3 }]}>
+                    {visitDay ? t('visitChosen', { date: visitDayText(visitDay, locale) }) : t('visitNone')}
+                  </Text>
+                  <Text style={st.visitGuide}>{visitDay ? t('visitGuideSet') : t('visitGuideUnset')}</Text>
+                </View>
+                <Text style={st.visitBtn}>{visitDay ? t('visitChange') : t('visitPick')}</Text>
+              </Pressable>
             </Card>
           </>
         )}
@@ -211,6 +244,16 @@ export default function ProductDetail() {
           {p.type === 'RESERVATION' ? t('resvNote') : p.type === 'PASS' ? t('passNote') : t('ticketNote')}
         </Text>
       </View>
+
+      {asksVisit && (
+        <VisitDateModal
+          visible={picking}
+          value={visitDay}
+          range={p.visitRange}
+          onClose={() => setPicking(false)}
+          onSave={(day) => { setVisitDay(day); setPicking(false); }}
+        />
+      )}
     </Screen>
   );
 }
@@ -245,6 +288,19 @@ const st = StyleSheet.create({
   bundledName: { fontSize: 13.5, fontWeight: '700', color: C.ink },
   bundledMerchant: { fontSize: 11.5, color: C.ink3, marginTop: 1 },
   bundledDays: { fontSize: 11, color: C.ink3, marginTop: 8, textAlign: 'right' },
+  sectionHint: { fontSize: 12, fontWeight: '600', color: C.ink3 },
+  visitRow: { flexDirection: 'row', alignItems: 'center', gap: 11 },
+  visitIcon: {
+    width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: C.brandSoft,
+  },
+  visitIconOn: { backgroundColor: C.brand },
+  visitValue: { fontSize: 15, fontWeight: '800', color: C.ink },
+  visitGuide: { fontSize: 11.5, color: C.ink2, marginTop: 3, lineHeight: 16 },
+  visitBtn: {
+    fontSize: 12.5, fontWeight: '800', color: C.brand,
+    borderWidth: 1, borderColor: C.brand, borderRadius: 9, paddingHorizontal: 10, paddingVertical: 6, overflow: 'hidden',
+  },
   payBar: {
     position: 'absolute', left: 0, right: 0, bottom: 0,
     backgroundColor: C.white, borderTopWidth: 1, borderTopColor: C.line,

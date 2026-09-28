@@ -9,6 +9,7 @@ import { useI18n } from '../lib/i18n';
 import { useRedeem } from '../lib/redeem';
 import { C } from '../lib/theme';
 import { Btn, Card, EmptyText, Loading, Screen, Tag } from '../lib/ui';
+import { VisitDateModal, visitDayText } from '../lib/visit-date';
 
 const VSTATUS: Record<string, { key: string; tone: 'ok' | 'brand' | 'bad' | 'warn' }> = {
   ISSUED: { key: 'stIssued', tone: 'ok' },
@@ -32,6 +33,9 @@ export default function WalletScreen() {
   const [vouchers, setVouchers] = useState<any[] | null>(null);
   const [claims, setClaims] = useState<any[] | null>(null);
   const [coupons, setCoupons] = useState<any[]>([]);
+  /** 가는 날을 고르는 중인 이용권 (2026-09-24 대표 확정 3-2) */
+  const [visitFor, setVisitFor] = useState<any | null>(null);
+  const [visitBusy, setVisitBusy] = useState(false);
 
   const load = useCallback(() => {
     if (!me) return;
@@ -69,6 +73,23 @@ export default function WalletScreen() {
   }
   function notifyPending(productName: string) {
     const msg = t('pendingOpensWith', { name: productName });
+    if (Platform.OS === 'web') window.alert(msg); else Alert.alert('', msg);
+  }
+  /** 가는 날 고르기·바꾸기·지우기 — 그날 0시에 딸려 받은 쿠폰이 열린다 */
+  async function saveVisit(day: string | null) {
+    if (!visitFor) return;
+    setVisitBusy(true);
+    let msg: string;
+    try {
+      await api(`/me/vouchers/${visitFor.id}/visit-date`, { method: 'PATCH', body: { visitDate: day } });
+      msg = day ? t('visitSaved', { date: visitDayText(day, locale) }) : t('visitCleared');
+      setVisitFor(null);
+      load();
+    } catch (e: any) {
+      msg = e.message;
+    } finally {
+      setVisitBusy(false);
+    }
     if (Platform.OS === 'web') window.alert(msg); else Alert.alert('', msg);
   }
 
@@ -129,6 +150,23 @@ export default function WalletScreen() {
               {couponsOf(v.productId).length > 0 && (
                 <View style={st.bundle}>
                   <Text style={st.bundleTitle}>{t('bundledWith', { n: couponsOf(v.productId).length })}</Text>
+                  {/* 가는 날 — 그날 0시에 아래 쿠폰이 열린다. 그날이 오기 전까지 바꿀 수 있다 (3-2).
+                      쿠폰이 이미 열렸으면(먼저 가서 썼거나 그날이 왔으면) 감춘다 */}
+                  {v.visitRange && couponsOf(v.productId).some((b: any) => b.opensAt || b.pending) && (
+                    <View style={st.visitLine}>
+                      <Ionicons name="calendar-outline" size={14} color={C.brand} />
+                      <Text style={st.visitText}>
+                        {v.visitDay
+                          ? t('visitWalletSet', { date: visitDayText(v.visitDay, locale) })
+                          : t('visitWalletUnset')}
+                      </Text>
+                      {v.visitRange && (
+                        <Pressable hitSlop={8} style={st.visitBtn} onPress={() => setVisitFor(v)}>
+                          <Text style={st.visitBtnText}>{v.visitDay ? t('visitChange') : t('visitPick')}</Text>
+                        </Pressable>
+                      )}
+                    </View>
+                  )}
                   {couponsOf(v.productId).map((b: any) => (
                     <View key={b.id} style={st.bundleRow}>
                       <View style={{ flex: 1, minWidth: 0 }}>
@@ -213,6 +251,17 @@ export default function WalletScreen() {
 
       {/* 사용 처리 — 이용권은 사장님이 매장 코드, 딜은 사장님 확인 (lib/redeem) */}
       {redeem.modal}
+
+      {visitFor?.visitRange && (
+        <VisitDateModal
+          visible
+          value={visitFor.visitDay}
+          range={visitFor.visitRange}
+          busy={visitBusy}
+          onClose={() => setVisitFor(null)}
+          onSave={saveVisit}
+        />
+      )}
     </Screen>
   );
 }
@@ -220,6 +269,13 @@ export default function WalletScreen() {
 const st = StyleSheet.create({
   bundle: { marginTop: 12, borderTopWidth: 1, borderTopColor: C.line, paddingTop: 10 },
   bundleTitle: { fontSize: 12, fontWeight: '800', color: C.ink2, marginBottom: 7 },
+  visitLine: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: C.brandSoft, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, marginBottom: 9,
+  },
+  visitText: { flex: 1, fontSize: 12, fontWeight: '700', color: C.ink, lineHeight: 17 },
+  visitBtn: { backgroundColor: C.white, borderRadius: 8, borderWidth: 1, borderColor: C.brand, paddingHorizontal: 9, paddingVertical: 4 },
+  visitBtnText: { fontSize: 12, fontWeight: '800', color: C.brand },
   bundleRow: { flexDirection: 'row', alignItems: 'center', gap: 9, marginBottom: 7 },
   bundleName: { fontSize: 13, fontWeight: '700', color: C.ink },
   bundleSub: { fontSize: 11.5, color: C.ink3, marginTop: 1 },

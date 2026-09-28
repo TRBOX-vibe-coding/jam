@@ -157,10 +157,9 @@ class PatchProductDto {
 /** 결제 상품에 묶어 파는 '근처 할인 쿠폰' 설정 — 슈퍼 관리자 전용 (2026-09-12 대표 확정) */
 class SetProductCouponsDto {
   @IsString({ each: true }) benefitIds!: string[];
-  /** 발급 후 사용 기간(일). 비우면 기본 90일 */
+  /** 쿠폰이 열린 뒤 쓸 수 있는 기간(일). 비우면 기본 90일.
+   *  언제 열리는지는 고르지 않는다 — 상품 종류와 손님이 고른 날로 저절로 정해진다 (bundled-coupons.util.ts) */
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(365) validDays?: number;
-  /** 쿠폰이 언제부터 열리는가 — 날짜 미정 티켓은 REDEEM(현장 사용 시)이 기본 */
-  @IsOptional() @IsIn(['PURCHASE', 'REDEEM', 'RESERVATION']) startMode?: string;
 }
 class CreateSlotDto {
   @IsString() startAt!: string; // ISO
@@ -698,7 +697,6 @@ export class AdminController {
           totalQty: src.totalQty,
           maxPerUser: src.maxPerUser,
           defaultCapacity: src.defaultCapacity,
-          couponStartMode: src.couponStartMode,
           weatherDependent: src.weatherDependent,
           cancelPolicy: src.cancelPolicy,
           i18n: (src as any).i18n ?? undefined,
@@ -744,7 +742,7 @@ export class AdminController {
     const db = this.prisma.client;
     const product = await db.product.findUnique({
       where: { id },
-      select: { id: true, name: true, type: true, couponStartMode: true, merchant: { select: { id: true, name: true, regionId: true } } },
+      select: { id: true, name: true, type: true, merchant: { select: { id: true, name: true, regionId: true } } },
     });
     if (!product) throw new NotFoundException('상품을 찾을 수 없습니다');
 
@@ -786,9 +784,6 @@ export class AdminController {
     if (ids.length > 10) throw new BadRequestException('한 상품에 최대 10장까지 묶을 수 있습니다');
 
     await db.$transaction(async (tx) => {
-      if (dto.startMode) {
-        await tx.product.update({ where: { id }, data: { couponStartMode: dto.startMode as never } });
-      }
       await tx.benefitGrantRule.deleteMany({ where: { trigger: 'PRODUCT', productId: id } });
       for (let i = 0; i < ids.length; i++) {
         await tx.benefitGrantRule.create({

@@ -26,6 +26,7 @@ import {
   REFUND_POLICY_KEY, getRefundPolicy, reservationRule, undatedRule,
   type RefundPolicy, type RefundRule,
 } from './refund-policy.util';
+import { syncBundledCoupons } from './bundled-coupons.util';
 
 class RefundPolicyDto {
   @Type(() => Number) @IsInt() @Min(0) @Max(1440) graceMinutes!: number;
@@ -303,11 +304,15 @@ export class AdminOrdersController {
       }
 
       // 딸려 받은 쿠폰 거둬들이기. 쿠폰은 상품마다 한 벌이라, 같은 상품을 또 산 이용권이 살아 있으면 그대로 둔다.
+      // 이때 아직 안 열린 쿠폰은 남은 이용권의 가는 날·예약한 날에 다시 맞춘다.
       for (const pid of a.productIds) {
         const other = await tx.voucher.count({
           where: { userId: o.userId, productId: pid, orderId: { not: o.id }, status: { in: ['ISSUED', 'RESERVED', 'USED'] } },
         });
-        if (other > 0) continue;
+        if (other > 0) {
+          await syncBundledCoupons(tx, o.userId, pid, now);
+          continue;
+        }
         await tx.userBenefit.updateMany({
           where: { userId: o.userId, sourceType: 'PRODUCT', sourceId: pid, status: { in: ['PENDING', 'ACTIVE'] } },
           data: { status: 'REVOKED' },

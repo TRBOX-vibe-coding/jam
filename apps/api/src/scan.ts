@@ -75,6 +75,10 @@ export class ScanController {
     const usableBenefits = [];
     for (const ub of benefits) {
       let blocked: string | null = null;
+      // 예약한 날·가는 날 0시에 열리는 쿠폰은 그 전까지 막는다 (bundled-coupons.util.ts)
+      if (ub.validFrom > now) {
+        blocked = `${ub.validFrom.getMonth() + 1}월 ${ub.validFrom.getDate()}일 0시에 열려요`;
+      }
       if (ub.benefit.maxUsePerDay) {
         const todayUsed = await db.redemption.count({
           where: { userBenefitId: ub.id, status: 'DONE', createdAt: { gte: todayStart } },
@@ -222,7 +226,7 @@ export class ScanController {
         if (!bf) throw new BadRequestException('사용할 수 없는 혜택입니다');
 
         // ① 결제 상품에 묶여 받은 쿠폰인가 — 무료 회원도 쓰는 유일한 예외 (2026-09-12 확정)
-        //    예약 상품 쿠폰은 예약한 날 0시(validFrom)부터다 — 그 전에는 여기서 걸리지 않는다
+        //    예약한 날·가는 날 0시(validFrom)부터다 — 그 전에는 여기서 걸리지 않는다
         let ub = await tx.userBenefit.findFirst({
           where: {
             userId, benefitId: bf.id, sourceType: 'PRODUCT', status: 'ACTIVE',
@@ -251,7 +255,7 @@ export class ScanController {
           // 잼으로도 못 쓰는데 예약 상품 쿠폰이 기다리고 있으면 — 언제 열리는지 알려준다
           if (notYet && (!paidJam || !usable.has(bf.id))) {
             const d = notYet.validFrom;
-            throw new BadRequestException(`이 쿠폰은 ${d.getMonth() + 1}월 ${d.getDate()}일 0시부터 쓸 수 있어요. 예약한 날에 열립니다.`);
+            throw new BadRequestException(`이 쿠폰은 ${d.getMonth() + 1}월 ${d.getDate()}일 0시에 열려요. 그 전에 가게에서 이용권을 먼저 쓰면 바로 열립니다.`);
           }
           if (!paidJam) {
             throw new BadRequestException('할인 쿠폰은 잼 멤버십 기간에 사용할 수 있어요. MY에서 잼을 시작해 주세요!');
@@ -387,11 +391,15 @@ export class ScanController {
           verifyToken, verifyExpires,
         },
       });
-      // 이 상품에 묶여 '잠긴 채' 담겨 있던 쿠폰을 지금 연다.
+      // 이 상품에 묶여 아직 안 열린 쿠폰을 지금 연다.
       // 2026-09-12 대표 확정: 현장에서 이용권을 쓰는 날이 곧 이 손님의 여행 시작일이다.
+      // 2026-09-24 대표 확정(3-2): 고른 가는 날·예약한 날보다 먼저 와서 써도 그 자리에서 바로 연다.
       // 고객은 아무것도 누르지 않는다 — 사용 처리 자체가 신호다.
       const locked = await tx.userBenefit.findMany({
-        where: { userId, sourceType: 'PRODUCT', sourceId: voucher.productId, status: 'PENDING' },
+        where: {
+          userId, sourceType: 'PRODUCT', sourceId: voucher.productId,
+          OR: [{ status: 'PENDING' }, { status: 'ACTIVE', validFrom: { gt: now } }],
+        },
         select: { id: true, benefitId: true },
       });
       let openedCoupons = 0;
