@@ -33,6 +33,8 @@ export function ProductCouponsModal({
   const [validDays, setValidDays] = useState('');
   const [startMode, setStartMode] = useState('PURCHASE');
   const [q, setQ] = useState('');
+  const [regionId, setRegionId] = useState('');
+  const [categoryId, setCategoryId] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
 
@@ -68,15 +70,21 @@ export function ProductCouponsModal({
   }
 
   const candidates: any[] = data?.candidates ?? [];
-  const shown = q
-    ? candidates.filter((b) => b.title.includes(q) || b.merchant.name.includes(q))
-    : candidates;
+  // 고를 수 있는 지역·종류 — 후보 쿠폰에 있는 것만
+  const regions = [...new Map(candidates.map((b) => [b.merchant.region?.id, b.merchant.region?.name])).entries()].filter(([id]) => id);
+  const categories = [...new Map(candidates.map((b) => [b.merchant.category?.id, b.merchant.category])).entries()].filter(([id]) => id);
+  const shown = candidates.filter((b) =>
+    (!regionId || b.merchant.region?.id === regionId) &&
+    (!categoryId || b.merchant.category?.id === categoryId) &&
+    (!q || b.title.includes(q) || b.merchant.name.includes(q)),
+  );
 
   return (
-    <Modal title={`근처 쿠폰 묶기 · ${product.name}`} onClose={() => onClose(false)} wide>
+    <Modal title={`딸려 줄 쿠폰 · ${product.name}`} onClose={() => onClose(false)} wide>
       <p className="mb-3 text-[13px] leading-5 text-ink-2">
         여기서 고른 쿠폰은 상품 상세에 미리 보이고, 손님이 결제하면 바로 발급됩니다.
-        <b className="text-ink"> 무료 회원도 이 쿠폰은 실제로 씁니다.</b> 근처 2~4곳을 골라주세요.
+        <b className="text-ink"> 무료 회원도 이 쿠폰은 실제로 씁니다.</b> 전체 쿠폰에서 지역·종류로 찾아 고르세요.
+        같은 지역 쿠폰이 위에 먼저 나옵니다.
       </p>
 
       <div className="mb-3 rounded-lg border border-line bg-ground/50 p-3">
@@ -104,8 +112,20 @@ export function ProductCouponsModal({
         </div>
       </div>
       <div className="mb-3 flex flex-wrap items-center gap-2">
+        <select className={`${inputCls} max-w-[140px]`} value={regionId} onChange={(e) => setRegionId(e.target.value)}>
+          <option value="">지역 전체</option>
+          {regions.map(([id, name]) => (
+            <option key={id} value={id}>{name}{id === data?.productRegionId ? ' (같은 지역)' : ''}</option>
+          ))}
+        </select>
+        <select className={`${inputCls} max-w-[140px]`} value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+          <option value="">종류 전체</option>
+          {categories.map(([id, c]: any) => (
+            <option key={id} value={id}>{c.emoji} {c.name}</option>
+          ))}
+        </select>
         <input
-          className={`${inputCls} max-w-[220px]`}
+          className={`${inputCls} max-w-[200px]`}
           placeholder="쿠폰·가맹점 검색"
           value={q}
           onChange={(e) => setQ(e.target.value)}
@@ -124,7 +144,7 @@ export function ProductCouponsModal({
       {!data ? (
         <p className="py-8 text-center text-sm text-ink-3">불러오는 중…</p>
       ) : shown.length === 0 ? (
-        <Empty text="같은 지역에 묶을 수 있는 다른 가맹점 쿠폰이 없습니다" />
+        <Empty text="조건에 맞는 쿠폰이 없습니다" />
       ) : (
         <div className="max-h-[46vh] divide-y divide-line overflow-y-auto rounded-lg border border-line">
           {shown.map((b) => {
@@ -142,6 +162,9 @@ export function ProductCouponsModal({
                   <span className="block truncate text-sm font-medium">{b.title}</span>
                   <span className="block truncate text-xs text-ink-3">
                     {b.merchant.category?.emoji} {b.merchant.name} · {b.merchant.region?.name}
+                    {b.merchant.region?.id === data?.productRegionId && (
+                      <span className="ml-1.5 rounded bg-brand-soft px-1 py-px text-[10px] font-bold text-brand">같은 지역</span>
+                    )}
                   </span>
                 </span>
               </label>

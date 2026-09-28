@@ -716,9 +716,9 @@ export class AdminController {
     if (!product) throw new NotFoundException('상품을 찾을 수 없습니다');
 
     const merchantSel = {
-      id: true, name: true, thumbnailUrl: true,
-      region: { select: { name: true } },
-      category: { select: { name: true, emoji: true } },
+      id: true, name: true, thumbnailUrl: true, regionId: true, categoryId: true,
+      region: { select: { id: true, name: true } },
+      category: { select: { id: true, name: true, emoji: true } },
     };
     const [linked, candidates] = await Promise.all([
       db.benefitGrantRule.findMany({
@@ -726,18 +726,22 @@ export class AdminController {
         orderBy: { sortOrder: 'asc' },
         include: { benefit: { include: { merchant: { select: merchantSel } } } },
       }),
-      // 후보는 같은 지역의 '다른' 가맹점 쿠폰 — 자기 매장 쿠폰을 스스로 묶는 건 의미가 없다
+      // 후보는 전체 쿠폰(2026-09-19 문서 4-4, 대표 확정). 예) 카페 투어 상품에 부산 전 지역의 카페 쿠폰.
+      // 자기 매장 쿠폰을 스스로 묶는 건 의미가 없어서 뺀다.
       db.benefit.findMany({
         where: {
           isActive: true, approval: 'ACTIVE',
-          merchant: { status: 'ACTIVE', regionId: product.merchant.regionId, id: { not: product.merchant.id } },
+          merchant: { status: 'ACTIVE', id: { not: product.merchant.id } },
         },
         orderBy: { createdAt: 'desc' },
-        take: 300,
+        take: 1000,
         include: { merchant: { select: merchantSel } },
       }),
     ]);
-    return { product, validDays: linked[0]?.validDays ?? null, linked, candidates };
+    // 같은 지역 쿠폰을 목록 위쪽에 먼저 (그 안에서는 최근 순서 그대로)
+    const same = (b: { merchant: { regionId: string } }) => (b.merchant.regionId === product.merchant.regionId ? 1 : 0);
+    candidates.sort((a, b) => same(b) - same(a));
+    return { product, productRegionId: product.merchant.regionId, validDays: linked[0]?.validDays ?? null, linked, candidates };
   }
 
   @Post('products/:id/coupons')
