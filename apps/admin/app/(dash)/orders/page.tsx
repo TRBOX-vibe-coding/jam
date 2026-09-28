@@ -104,7 +104,7 @@ export default function OrdersPage() {
         </ol>
         <p className="mt-3 text-xs text-ink-3">
           환불 비율과 결제 직후 전액 환불 시간은 <Link href="/settings" className="font-bold text-brand">설정 → 취소·환불 규정</Link>에서 바꿉니다.
-          손님이 앱에서 직접 취소하는 기능은 오픈 후에 넣습니다.
+          손님이 앱에서 직접 취소하는 기능은 아직 없습니다.
         </p>
       </Card>
 
