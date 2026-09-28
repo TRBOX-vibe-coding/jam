@@ -138,6 +138,10 @@ class PatchSlotDto {
 class CancelRedemptionDto {
   @IsString() @MinLength(2) reason!: string;
 }
+/** 정산 보류 이유 — 가게 정산 화면에 그대로 보인다 (2026-09-24 대표 확정 2-2 B) */
+class HoldSettlementDto {
+  @IsString() @MinLength(2) @MaxLength(200) reason!: string;
+}
 class GenerateSettlementDto {
   @IsString() periodStart!: string; // ISO
   @IsString() periodEnd!: string;
@@ -624,6 +628,35 @@ export class AdminController {
     }
     await this.audit(adminId, 'SETTLEMENT_GENERATE', 'Settlement', `${dto.periodStart}~${dto.periodEnd}`, `${created.length}건`);
     return { ok: true, count: created.length, settlements: created };
+  }
+
+  /**
+   * 정산 보류 표시 — 2026-09-24 대표 확정 2-2 B.
+   * 돈을 멈추는 건 토스 관리자 화면에서 한다(이 가게 지급요청서를 보내지 않거나, 예약해 둔 요청을 '전송취소').
+   * 여기서는 보류했다는 사실과 이유를 남겨 대시보드와 가게 정산 화면에 보이게 한다.
+   */
+  @Post('settlements/:id/hold')
+  async holdSettlement(@AdminId() adminId: string, @Param('id') id: string, @Body() dto: HoldSettlementDto) {
+    const s = await this.prisma.client.settlement.findUnique({ where: { id }, include: { merchant: { select: { name: true } } } });
+    if (!s) throw new NotFoundException('정산을 찾을 수 없습니다');
+    if (s.status === 'PAID') throw new BadRequestException('이미 지급한 정산은 보류할 수 없습니다');
+    const row = await this.prisma.client.settlement.update({
+      where: { id },
+      data: { heldAt: new Date(), holdReason: dto.reason.trim() },
+    });
+    await this.audit(adminId, 'SETTLEMENT_HOLD', 'Settlement', id, `${s.merchant.name} · ${dto.reason.trim()}`);
+    return row;
+  }
+
+  /** 보류 풀기 — 토스에서 그 가게 몫을 다시 보낼 때 함께 누른다 */
+  @Post('settlements/:id/release')
+  async releaseSettlement(@AdminId() adminId: string, @Param('id') id: string) {
+    const row = await this.prisma.client.settlement.update({
+      where: { id },
+      data: { heldAt: null, holdReason: null },
+    });
+    await this.audit(adminId, 'SETTLEMENT_RELEASE', 'Settlement', id);
+    return row;
   }
 
   @Post('settlements/:id/confirm')

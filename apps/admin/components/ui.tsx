@@ -40,6 +40,7 @@ const badgeStyles: Record<string, string> = {
   SUSPENDED: 'bg-bad-soft text-bad',
   DONE: 'bg-ok-soft text-ok',
   PAID: 'bg-ok-soft text-ok',
+  보류: 'bg-bad-soft text-bad',
   CONFIRMED: 'bg-brand-soft text-brand',
   B2B_GRANT: 'bg-warn-soft text-warn',
   PURCHASE: 'bg-ok-soft text-ok',

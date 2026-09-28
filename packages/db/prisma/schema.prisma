@@ -1015,6 +1015,11 @@ model Settlement {
   memo        String?
   createdAt   DateTime  @default(now())
 
+  /// 정산 보류 — 2026-09-24 대표 확정 2-2 B. 돈을 멈추는 건 토스에서 한다(그 가게 지급요청서를 안 보냄).
+  /// 홀릭잼에는 보류했다는 표시와 이유만 남겨, 본사 대시보드와 가게 정산 화면에 보이게 한다.
+  heldAt     DateTime?
+  holdReason String?
+
   @@unique([merchantId, periodStart, periodEnd])
   @@index([status, periodEnd])
 }
