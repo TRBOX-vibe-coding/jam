@@ -344,6 +344,56 @@ async function refreshVisitDemo(now: Date) {
   return { skipped: false, changed: 0 };
 }
 
+/**
+ * 시연 손님(demo-user-1, 유료)의 홈 — 2026-09-19 문서 4-2 대표 확정(유료 회원 홈).
+ * '오늘 사용할 혜택'과 '예약·구매 상품'이 비지 않게 한다.
+ *  - 여행 일정이 오늘을 품지 않으면 오늘부터 시작하게 옮긴다 (기간·담은 쿠폰의 Day는 그대로)
+ *  - 앞으로의 예약이 없으면 가까운 요트투어 회차를 2명으로 하나 예약한다 (API로 — 결제·예약 흐름 그대로)
+ */
+async function refreshMemberHome(now: Date) {
+  const alive = await fetch(`${API}/health`).then((r) => r.ok).catch(() => false);
+  if (!alive) return { skipped: true, tripMoved: false, booked: false };
+  const user = await db.user.findFirst({ where: { providerId: 'demo-user-1' }, select: { id: true, nickname: true } });
+  if (!user) return { skipped: true, tripMoved: false, booked: false };
+
+  const today = new Date(now); today.setHours(0, 0, 0, 0);
+  let tripMoved = false;
+  const trip = await db.trip.findUnique({ where: { userId: user.id } });
+  if (trip && (trip.startDate > today || trip.endDate < today)) {
+    const len = Math.round((trip.endDate.getTime() - trip.startDate.getTime()) / DAY);
+    await db.trip.update({ where: { id: trip.id }, data: { startDate: today, endDate: new Date(today.getTime() + len * DAY) } });
+    tripMoved = true;
+  }
+
+  let booked = false;
+  const upcoming = await db.reservation.count({ where: { userId: user.id, status: 'CONFIRMED', slot: { startAt: { gt: now } } } });
+  if (upcoming === 0) {
+    const slot = await db.productSlot.findFirst({
+      where: {
+        isOpen: true,
+        startAt: { gt: new Date(now.getTime() + 2 * HOUR), lte: new Date(now.getTime() + 3 * DAY) },
+        product: { isActive: true, type: 'RESERVATION', name: { contains: '요트' } },
+      },
+      orderBy: { startAt: 'asc' },
+      select: { id: true, productId: true, capacity: true, reserved: true },
+    });
+    const token = await fetch(`${API}/auth/social`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ provider: 'KAKAO', providerId: 'demo-user-1', nickname: user.nickname }),
+    }).then((r) => r.json()).then((j: any) => j.token as string | undefined).catch(() => undefined);
+    if (slot && token && slot.reserved + 2 <= slot.capacity) {
+      const r = await fetch(`${API}/products/${slot.productId}/purchase`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+        body: JSON.stringify({ slotId: slot.id, headcount: 2, contactName: user.nickname, contactPhone: '010-2468-1357' }),
+      }).catch(() => null);
+      booked = !!r?.ok;
+    }
+  }
+  return { skipped: false, tripMoved, booked };
+}
+
 async function main() {
   const now = new Date();
   const drops = await refreshDrops(now);
@@ -354,11 +404,13 @@ async function main() {
   const resv = await refreshReservations(now);
   const tickets = await refreshTicketSales(now);
   const visit = await refreshVisitDemo(now);
+  const home = await refreshMemberHome(now);
   console.log(`DROP ${drops}개 다시 열림 · 승인 대기 ${pending}개 기간 연장 · 기획전 ${campaigns}개 연장 · 예약 상품 ${slots.products}개에 시간대 ${slots.created}개 추가`);
   console.log(
     resv.skipped
       ? 'API가 꺼져 있어 예약·판매는 건너뜀 (API를 켜고 다시 돌리면 채워짐)'
-      : `앞으로의 예약 ${resv.created}건 · 오늘 티켓 판매 ${tickets.created}건 추가 · 시연 손님 가는 날 예시 ${visit.changed ? '나흘 뒤로 맞춤' : '그대로 둠'}`,
+      : `앞으로의 예약 ${resv.created}건 · 오늘 티켓 판매 ${tickets.created}건 추가 · 시연 손님 가는 날 예시 ${visit.changed ? '나흘 뒤로 맞춤' : '그대로 둠'}`
+        + ` · 시연 손님 여행 ${home.tripMoved ? '오늘부터로 옮김' : '그대로'} · 예약 ${home.booked ? '1건 추가' : '그대로'}`,
   );
 }
 

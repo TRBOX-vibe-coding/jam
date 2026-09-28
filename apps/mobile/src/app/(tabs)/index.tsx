@@ -1,9 +1,9 @@
 /**
- * 홈 — 커플패스 홈 구조 + 오전열시 "매일 도착" 리듬.
- *  ① 인사 + 내 상태 카드 (멤버십·절약액·바로가기 3버튼)
- *  ② 오늘 도착한 DROP (매일 아침 10시 도착 — 가로 스크롤 사진 카드)
- *  ③ 액티비티 예약 (프립 스타일 — 원형 카테고리 + 대형 사진 카드)
- *  ④ 내 혜택 매장
+ * 홈 — 무료 회원과 유료 회원에게 맨 위를 다르게 보여준다 (2026-09-19 문서 4-2 대표 확정, 3-6 A).
+ *  무료 회원(비로그인 포함)  ① 잼 시작하기 + 예상 절약액(상태 카드)  ② 인기 쿠폰(실제로 많이 쓰인 순)  ③ 상품 구매 혜택
+ *  유료 회원                ① 오늘 사용할 혜택 — 비는 날은 인기 쿠폰  ② 만료 예정 잼  ③ 예약·구매 상품
+ *  그 아래 기획전 · (비회원) 오늘의 무료 쿠폰 · DROP · 상품은 둘 다 지금처럼.
+ *  맨 위 블록에 필요한 것은 /home 한 번으로 받는다 (api/src/home.ts).
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -21,6 +21,8 @@ import { Screen } from '../../lib/ui';
 import { HScroll } from '../../lib/hscroll';
 import { Logo } from '../../lib/logo';
 
+type Tr = (key: string, vars?: Record<string, string | number>) => string;
+
 type Drop = {
   id: string; title: string; imageUrl: string | null;
   merchant: { name: string }; region: { name: string };
@@ -32,10 +34,39 @@ type Product = {
   id: string; name: string; imageUrl: string | null; basePrice: number; memberPrice: number | null; memberPriceApplies?: boolean;
   type: string; merchant: { name: string; region: { name: string } };
 };
-type BenefitGroup = {
+type CouponLite = {
+  id: string; title: string; type: string; value: number; freebieName: string | null; canUse: boolean;
   merchant: { id: string; name: string; thumbnailUrl: string | null; region: { name: string }; category: { emoji: string } };
-  items: { id: string; title: string; type: string; value: number }[];
 };
+type PopularCoupon = CouponLite & { useCount: number; estimatedSaving: number | null };
+type ProductLite = { id: string; name: string; imageUrl: string | null; type: string; merchant: { id: string; name: string } };
+type HomeItem = { kind: 'RESERVATION' | 'TICKET'; id: string; at: string | null; headcount: number; product: ProductLite };
+type HomeData = {
+  popularCoupons: PopularCoupon[];
+  bundleProducts: {
+    id: string; name: string; imageUrl: string | null; type: string;
+    basePrice: number; memberPrice: number | null; memberPriceApplies: boolean;
+    merchant: { name: string; region: { name: string } };
+    couponCount: number; coupons: { title: string }[];
+  }[];
+  starter: { code: string; name: string; price: number; couponCount: number; estCount: number; estSaving: number } | null;
+  today: { items: HomeItem[]; coupons: CouponLite[] } | null;
+  upcoming: HomeItem[] | null;
+};
+
+/** 쿠폰 할인 표시 — 사진 카드 왼쪽 아래 빨간 딱지 */
+function couponLabel(t: Tr, b: { type: string; value: number }) {
+  return b.type === 'PERCENT'
+    ? `${b.value}% ${t('offLabel')}`
+    : b.type === 'AMOUNT'
+    ? `${b.value.toLocaleString()}원 ${t('offLabel')}`
+    : b.type === 'AMOUNT_PER_PERSON'
+    ? `${t('perPersonOff')} ${b.value.toLocaleString()}원`
+    : t('freeLabel');
+}
+
+const DAY_MS = 86_400_000;
+const dayStartMs = (d: Date) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x.getTime(); };
 type Campaign = { id: string; title: string; subtitle: string | null; bannerImageUrl: string | null; subsidyLabel: string | null; endAt: string | null };
 type CouponSlot = { time: string; opensAt: string; closesAt: string; state: 'upcoming' | 'open' | 'soldout' | 'ended'; remaining: number; total: number };
 type CouponDrop = {
@@ -48,8 +79,6 @@ function notifyHome(title: string, msg: string) {
   if (Platform.OS === 'web') window.alert(`${title}\n${msg}`);
   else Alert.alert(title, msg);
 }
-
-type Tr = (key: string, vars?: Record<string, string | number>) => string;
 
 /** 다음 오픈까지 남은 시간 문구 */
 function untilText(t: Tr, opensAt: string, now: number) {
@@ -83,8 +112,11 @@ export default function HomeScreen() {
   const [products, setProducts] = useState<Product[] | null>(null);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [cats, setCats] = useState<{ id: string; name: string; emoji: string | null }[]>([]);
-  const [benefits, setBenefits] = useState<BenefitGroup[]>([]);
-  const [trip, setTrip] = useState<{ days: number; headcount: number; totalSaving: number; grade: string | null; items: any[] } | null>(null);
+  const [home, setHome] = useState<HomeData | null>(null);
+  const [trip, setTrip] = useState<{
+    days: number; headcount: number; totalSaving: number; grade: string | null; items: any[];
+    recommendedPlan: { code: string; name: string; price: number } | null;
+  } | null>(null);
   const [coupons, setCoupons] = useState<CouponDrop[]>([]);
   const [couponBusy, setCouponBusy] = useState(false);
   const [nowTick, setNowTick] = useState(Date.now());
@@ -113,12 +145,10 @@ export default function HomeScreen() {
     api<Campaign[]>('/campaigns/active').then(setCampaigns).catch(() => setCampaigns([]));
     api<{ id: string; name: string; emoji: string | null }[]>('/categories').then(setCats).catch(() => {});
     track('home_view');
+    api<HomeData>('/home').then(setHome).catch(() => setHome(null));
     if (me) {
-      api<{ merchants: BenefitGroup[] }>('/me/benefits')
-        .then((b) => setBenefits(b.merchants))
-        .catch(() => setBenefits([]));
       api<{ trip: any }>('/me/trip').then((r) => setTrip(r.trip)).catch(() => setTrip(null));
-    } else { setBenefits([]); setTrip(null); }
+    } else setTrip(null);
     // 타임 쿠폰 — 멤버십 회원에겐 안 보여주므로 비멤버/비로그인일 때만 조회
     if (!me?.membership) {
       api<{ drops: CouponDrop[] }>('/coupon-drops/today')
@@ -130,6 +160,65 @@ export default function HomeScreen() {
   useFocusEffect(useCallback(() => { load().catch(() => {}); }, [load]));
 
   const greeting = useMemo(() => pickGreeting(lang), [lang]);
+  const isPaid = !!me?.membership?.isPaid;
+  // 무료 회원 ① — 여행을 만들었으면 그 여행에 맞는 잼, 아니면 가장 싼 잼
+  const starterPlan = trip?.recommendedPlan ?? (home?.starter ? { name: home.starter.name, price: home.starter.price } : null);
+  const starterLine =
+    trip && trip.totalSaving > 0
+      ? t('homeStarterTrip', { amt: won(trip.totalSaving) })
+      : home?.starter && home.starter.estSaving > 0
+      ? t('homeStarterEst', { n: home.starter.estCount, amt: won(home.starter.estSaving) })
+      : home?.starter
+      ? t('homeStarterCoupons', { n: home.starter.couponCount })
+      : '';
+  // 유료 회원 ② — 가진 유료 잼을 끝나는 날이 가까운 순으로
+  const paidJams = (me?.memberships ?? [])
+    .filter((m) => m.isPaid)
+    .sort((a, b) => new Date(a.endAt).getTime() - new Date(b.endAt).getTime())
+    .slice(0, 3);
+  // 올해가 아니면 연도까지 — 잼마스터는 끝나는 날이 내년이다
+  const md = (d: string | Date) => {
+    const x = new Date(d);
+    return x.toLocaleDateString(locale, { ...(x.getFullYear() !== new Date().getFullYear() ? { year: 'numeric' } : {}), month: 'long', day: 'numeric' });
+  };
+  const mdw = (d: string | Date) => new Date(d).toLocaleDateString(locale, { month: 'numeric', day: 'numeric', weekday: 'short' });
+  const hm = (d: string | Date) => new Date(d).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
+  /** 잼 한 줄 — 'D-1 · 내일 밤 23:59까지' / 시작 전이면 '10월 1일 시작 · 10월 4일 23:59까지' */
+  function jamLine(m: { startAt: string; endAt: string; started: boolean }) {
+    const last = new Date(new Date(m.endAt).getTime() - 60_000);
+    if (!m.started) return { d: '', text: `${t('homeJamStarts', { date: md(m.startAt) })} · ${t('homeJamEndsOn', { date: md(last) })}` };
+    const left = Math.round((dayStartMs(last) - dayStartMs(new Date())) / DAY_MS);
+    return {
+      d: left <= 0 ? 'D-day' : `D-${left}`,
+      text: left <= 0 ? t('homeJamEndsToday') : left === 1 ? t('homeJamEndsTomorrow') : t('homeJamEndsOn', { date: md(last) }),
+    };
+  }
+  /** 인기 쿠폰 사진 카드 줄 — 무료 회원 ②, 유료 회원이 오늘 쓸 게 없는 날(3-6 A) */
+  const popularRow = (list: PopularCoupon[]) => (
+    <HScroll contentContainerStyle={{ paddingHorizontal: 16, gap: 10 }}>
+      {list.slice(0, 8).map((b) => (
+        <Pressable key={b.id} style={st.dropCard} onPress={() => router.push(`/store/${b.merchant.id}`)}>
+          <View>
+            {b.merchant.thumbnailUrl ? (
+              <Image source={{ uri: img(b.merchant.thumbnailUrl, 480) }} style={st.dropImg} />
+            ) : (
+              <View style={[st.dropImg, { backgroundColor: C.brandSoft, alignItems: 'center', justifyContent: 'center' }]}>
+                <Text style={{ fontSize: 30 }}>{b.merchant.category.emoji}</Text>
+              </View>
+            )}
+            <View style={st.couponBadge}><Text style={st.couponBadgeText}>{couponLabel(t, b)}</Text></View>
+            {b.useCount > 0 && (
+              <View style={st.usedChip}><Text style={st.usedChipText}>🔥 {t('homeUsedTimes', { n: b.useCount })}</Text></View>
+            )}
+          </View>
+          <View style={{ padding: 10 }}>
+            <Text style={st.dropTitle} numberOfLines={1}>{b.title}</Text>
+            <Text style={st.dropMerchant} numberOfLines={1}>{b.merchant.name} · {b.merchant.region.name}</Text>
+          </View>
+        </Pressable>
+      ))}
+    </HScroll>
+  );
 
   return (
     <Screen>
@@ -173,9 +262,18 @@ export default function HomeScreen() {
         {/* 상태 카드 — 기간잼·여행이 있으면 '내 여행' 요약, 잼마스터는 누적 절약 (2026-09-09 픽스) */}
         <Pressable
           style={st.statusCard}
-          onPress={() => router.push((!me ? '/(tabs)/my' : me.membership?.isPaid ? (trip ? '/(tabs)/trip' : '/benefits') : '/(tabs)/jam') as never)}
+          onPress={() => router.push((isPaid ? (trip ? '/(tabs)/trip' : '/benefits') : '/(tabs)/jam') as never)}
         >
-            {me ? (
+            {!isPaid && starterPlan ? (
+              // 무료 회원 ① 잼 시작하기 + 예상 절약액 (2026-09-19 문서 4-2)
+              <View style={st.statusRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={st.statusPlan}>{t('homeStarterTitle', { plan: starterPlan.name, price: won(starterPlan.price) })}</Text>
+                  {!!starterLine && <Text style={[st.statusSaving, { color: C.brand, fontWeight: '700' }]}>{starterLine}</Text>}
+                </View>
+                <Text style={st.loginBtn}>{t('homeStarterCta')}</Text>
+              </View>
+            ) : me ? (
               <View style={st.statusRow}>
                 <View style={{ flex: 1 }}>
                   <Text style={st.statusPlan}>
@@ -216,6 +314,174 @@ export default function HomeScreen() {
               </View>
             )}
         </Pressable>
+
+        {/* ─── 무료 회원 ② 인기 쿠폰 · ③ 상품 구매 혜택 ─── */}
+        {!isPaid && home && home.popularCoupons.length > 0 && (
+          <>
+            <View style={st.sectionHead}>
+              <View>
+                <Text style={st.sectionTitle}>{t('homePopularTitle')}</Text>
+                <Text style={st.sectionSub}>{t('homePopularSub')}</Text>
+              </View>
+              <Pressable onPress={() => router.push('/(tabs)/store')}>
+                <Text style={st.more}>{t('more')}</Text>
+              </Pressable>
+            </View>
+            {popularRow(home.popularCoupons)}
+          </>
+        )}
+        {!isPaid && home && home.bundleProducts.length > 0 && (
+          <>
+            <View style={st.sectionHead}>
+              <View>
+                <Text style={st.sectionTitle}>{t('homeBundleTitle')}</Text>
+                <Text style={st.sectionSub}>{t('homeBundleSub')}</Text>
+              </View>
+            </View>
+            <HScroll contentContainerStyle={{ paddingHorizontal: 16, gap: 10 }}>
+              {home.bundleProducts.map((p) => (
+                <Pressable key={p.id} style={st.prodCard} onPress={() => router.push(`/product/${p.id}`)}>
+                  <View>
+                    {p.imageUrl ? (
+                      <Image source={{ uri: img(p.imageUrl, 480) }} style={st.prodImg} />
+                    ) : (
+                      <View style={[st.prodImg, { backgroundColor: C.brandSoft }]} />
+                    )}
+                    <View style={st.bundleBadge}><Text style={st.bundleBadgeText}>🎁 {t('homeBundleBadge', { n: p.couponCount })}</Text></View>
+                  </View>
+                  <View style={{ padding: 10 }}>
+                    <Text style={st.dropTitle} numberOfLines={1}>{p.name}</Text>
+                    <Text style={st.dropMerchant} numberOfLines={1}>{p.merchant.region.name} · {p.merchant.name}</Text>
+                    <View style={st.dropPriceRow}>
+                      {p.memberPriceApplies ? (
+                        <>
+                          <Text style={st.memberTag}>{t('memberPrice')}</Text>
+                          <Text style={st.prodPrice}>{won(p.memberPrice ?? p.basePrice)}</Text>
+                        </>
+                      ) : (
+                        <Text style={st.prodPrice}>{won(p.basePrice)}</Text>
+                      )}
+                    </View>
+                    {p.coupons[0] && <Text style={st.bundleLine} numberOfLines={1}>+ {p.coupons[0].title}</Text>}
+                  </View>
+                </Pressable>
+              ))}
+            </HScroll>
+          </>
+        )}
+
+        {/* ─── 유료 회원 ① 오늘 사용할 혜택 — 비는 날은 인기 쿠폰 (3-6 A) ─── */}
+        {isPaid && home?.today && (
+          <>
+            <View style={st.sectionHead}>
+              <View>
+                <Text style={st.sectionTitle}>{t('homeTodayTitle')}</Text>
+                {home.today.items.length + home.today.coupons.length === 0 && (
+                  <Text style={st.sectionSub}>{t('homeTodayEmpty')}</Text>
+                )}
+              </View>
+              <Pressable onPress={() => router.push('/(tabs)/trip' as never)}>
+                <Text style={st.more}>{t('homeTodayPlan')}</Text>
+              </Pressable>
+            </View>
+            {home.today.items.length + home.today.coupons.length === 0 ? (
+              // '오늘 사용할' 칸이라 내 잼으로 쓸 수 있는 쿠폰만. 하나도 없으면 전체 인기 쿠폰
+              popularRow(home.popularCoupons.some((c) => c.canUse) ? home.popularCoupons.filter((c) => c.canUse) : home.popularCoupons)
+            ) : (
+              <View style={st.listCard}>
+                {home.today.items.map((it, i) => (
+                  <Pressable key={it.id} style={[st.listRow, i > 0 && st.listDivider]} onPress={() => router.push('/wallet')}>
+                    <View style={st.listIcon}><Text style={{ fontSize: 16 }}>{it.kind === 'RESERVATION' ? '⏰' : '🎫'}</Text></View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={st.listTitle} numberOfLines={1}>{it.product.name}</Text>
+                      <Text style={st.listSub} numberOfLines={1}>
+                        {it.kind === 'RESERVATION' ? `${hm(it.at!)} · ${t('people', { n: it.headcount })}` : t('homeTodayVisit')} · {it.product.merchant.name}
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={16} color={C.ink3} />
+                  </Pressable>
+                ))}
+                {home.today.coupons.length > 0 && (
+                  <Text style={[st.listHead, home.today.items.length > 0 && st.listDivider]}>
+                    {t('homeTodayCoupons', { n: home.today.coupons.length })}
+                  </Text>
+                )}
+                {home.today.coupons.map((b) => (
+                  <Pressable key={b.id} style={st.listRow} onPress={() => router.push(`/store/${b.merchant.id}`)}>
+                    <View style={st.valueBox}><Text style={st.valueText} numberOfLines={1}>{couponLabel(t, b)}</Text></View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={st.listTitle} numberOfLines={1}>{b.title}</Text>
+                      <Text style={st.listSub} numberOfLines={1}>{b.merchant.category.emoji} {b.merchant.name} · {b.merchant.region.name}</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={16} color={C.ink3} />
+                  </Pressable>
+                ))}
+              </View>
+            )}
+          </>
+        )}
+
+        {/* ─── 유료 회원 ② 만료 예정 잼 ─── */}
+        {isPaid && paidJams.length > 0 && (
+          <>
+            <View style={st.sectionHead}>
+              <Text style={st.sectionTitle}>{t('homeJamsTitle')}</Text>
+              <Pressable onPress={() => router.push('/(tabs)/jam' as never)}>
+                <Text style={st.more}>{t('more')}</Text>
+              </Pressable>
+            </View>
+            <View style={st.listCard}>
+              {paidJams.map((m, i) => {
+                const l = jamLine(m);
+                const soon = l.d === 'D-day' || l.d === 'D-1';
+                return (
+                  <View key={`${m.planCode}-${m.endAt}`} style={[st.listRow, i > 0 && st.listDivider]}>
+                    <View style={st.listIcon}><Text style={{ fontSize: 16 }}>💎</Text></View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={st.listTitle} numberOfLines={1}>{m.planName}</Text>
+                      <Text style={st.listSub} numberOfLines={1}>{l.text}</Text>
+                    </View>
+                    {!!l.d && <Text style={[st.dPill, soon && st.dPillSoon]}>{l.d}</Text>}
+                  </View>
+                );
+              })}
+            </View>
+          </>
+        )}
+
+        {/* ─── 유료 회원 ③ 예약·구매 상품 ─── */}
+        {isPaid && home?.upcoming && (
+          <>
+            <View style={st.sectionHead}>
+              <Text style={st.sectionTitle}>{t('homeUpcomingTitle')}</Text>
+              <Pressable onPress={() => router.push('/wallet')}>
+                <Text style={st.more}>{t('more')}</Text>
+              </Pressable>
+            </View>
+            <View style={st.listCard}>
+              {home.upcoming.length === 0 && (
+                <Pressable style={st.listRow} onPress={() => router.push('/products' as never)}>
+                  <Text style={[st.listSub, { flex: 1 }]}>{t('homeUpcomingEmpty')}</Text>
+                  <Ionicons name="chevron-forward" size={16} color={C.ink3} />
+                </Pressable>
+              )}
+              {home.upcoming.map((u, i) => (
+                <Pressable key={u.id} style={[st.listRow, i > 0 && st.listDivider]} onPress={() => router.push('/wallet')}>
+                  <View style={st.listIcon}><Text style={{ fontSize: 16 }}>{u.kind === 'RESERVATION' ? '📅' : '🎫'}</Text></View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={st.listTitle} numberOfLines={1}>{u.product.name}</Text>
+                    <Text style={st.listSub} numberOfLines={1}>
+                      {u.kind === 'RESERVATION'
+                        ? `${mdw(u.at!)} ${hm(u.at!)} · ${t('people', { n: u.headcount })}`
+                        : u.at ? t('homeVisitDay', { date: mdw(u.at) }) : t('anytime')} · {u.product.merchant.name}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={C.ink3} />
+                </Pressable>
+              ))}
+            </View>
+          </>
+        )}
 
         {/* ①-a 기획전 배너 — 가로 슬라이드(2026-09-08 픽스). 관리자가 노출·순서·기간을 제어하고 기간이 지나면 자동으로 사라진다 */}
         {campaigns.length > 0 && (
@@ -318,54 +584,6 @@ export default function HomeScreen() {
               <Text style={st.couponUpsell}>{t('couponUpsell')}</Text>
             </Pressable>
           </View>
-        )}
-
-        {/* ② 할인 쿠폰 — DROP처럼 쿠폰 자체를 사진 카드 슬라이드로. 전체보기에서 카테고리를 고른다 (2026-09-08 확정 구조) */}
-        {me && benefits.length > 0 && (
-          <>
-            <View style={st.sectionHead}>
-              <View>
-                <Text style={st.sectionTitle}>{t('couponSectionHome')}</Text>
-                <Text style={st.sectionSub}>{t('couponSectionHomeSub')}</Text>
-              </View>
-              <Pressable onPress={() => router.push('/(tabs)/store')}>
-                <Text style={st.more}>{t('more')}</Text>
-              </Pressable>
-            </View>
-            <HScroll contentContainerStyle={{ paddingHorizontal: 16, gap: 10 }}>
-              {benefits
-                .flatMap((g) => g.items.map((b) => ({ g, b })))
-                .slice(0, 10)
-                .map(({ g, b }) => (
-                  <Pressable key={b.id} style={st.dropCard} onPress={() => router.push(`/store/${g.merchant.id}`)}>
-                    <View>
-                      {g.merchant.thumbnailUrl ? (
-                        <Image source={{ uri: img(g.merchant.thumbnailUrl, 480) }} style={st.dropImg} />
-                      ) : (
-                        <View style={[st.dropImg, { backgroundColor: C.brandSoft, alignItems: 'center', justifyContent: 'center' }]}>
-                          <Text style={{ fontSize: 30 }}>{g.merchant.category.emoji}</Text>
-                        </View>
-                      )}
-                      <View style={st.couponBadge}>
-                        <Text style={st.couponBadgeText}>
-                          {b.type === 'PERCENT'
-                            ? `${b.value}% ${t('offLabel')}`
-                            : b.type === 'AMOUNT'
-                            ? `${b.value.toLocaleString()}원 ${t('offLabel')}`
-                            : b.type === 'AMOUNT_PER_PERSON'
-                            ? `${t('perPersonOff')} ${b.value.toLocaleString()}원`
-                            : t('freeLabel')}
-                        </Text>
-                      </View>
-                    </View>
-                    <View style={{ padding: 10 }}>
-                      <Text style={st.dropTitle} numberOfLines={1}>{b.title}</Text>
-                      <Text style={st.dropMerchant} numberOfLines={1}>{g.merchant.name} · {g.merchant.region.name}</Text>
-                    </View>
-                  </Pressable>
-                ))}
-            </HScroll>
-          </>
         )}
 
         {/* ③ 오늘 도착한 DROP */}
@@ -540,6 +758,34 @@ const st = StyleSheet.create({
     borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3,
   },
   couponBadgeText: { color: '#fff', fontSize: 11, fontWeight: '800' },
+  usedChip: {
+    position: 'absolute', top: 8, right: 8, backgroundColor: 'rgba(255,255,255,0.94)',
+    borderRadius: 99, paddingHorizontal: 7, paddingVertical: 2.5,
+  },
+  usedChipText: { color: '#C2410C', fontSize: 10.5, fontWeight: '800' },
+  bundleBadge: {
+    position: 'absolute', left: 8, bottom: 8, backgroundColor: C.brand,
+    borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3,
+  },
+  bundleBadgeText: { color: '#fff', fontSize: 11, fontWeight: '800' },
+  bundleLine: { fontSize: 11, fontWeight: '700', color: C.brand, marginTop: 5 },
+  listCard: {
+    marginHorizontal: 16, backgroundColor: C.white, borderRadius: 16,
+    borderWidth: 1, borderColor: C.line, paddingHorizontal: 14, paddingVertical: 4,
+  },
+  listRow: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 11 },
+  listDivider: { borderTopWidth: 1, borderTopColor: C.line },
+  listHead: { fontSize: 12, fontWeight: '800', color: C.ink2, paddingTop: 11, paddingBottom: 2 },
+  listIcon: { width: 36, height: 36, borderRadius: 11, backgroundColor: C.ground, alignItems: 'center', justifyContent: 'center' },
+  listTitle: { fontSize: 14, fontWeight: '700', color: C.ink },
+  listSub: { fontSize: 12, color: C.ink3, marginTop: 2 },
+  valueBox: { minWidth: 56, maxWidth: 92, borderRadius: 9, backgroundColor: '#FFF1EC', paddingVertical: 7, paddingHorizontal: 6, alignItems: 'center' },
+  valueText: { fontSize: 12, fontWeight: '800', color: '#E8503A' },
+  dPill: {
+    fontSize: 12, fontWeight: '800', color: C.brand, backgroundColor: C.brandSoft,
+    borderRadius: 99, paddingHorizontal: 9, paddingVertical: 3, overflow: 'hidden',
+  },
+  dPillSoon: { color: '#C2410C', backgroundColor: '#FFEDD5' },
   dropPriceRow: { flexDirection: 'row', alignItems: 'baseline', gap: 5, marginTop: 5 },
   dropRate: { fontSize: 14, fontWeight: '700', color: '#E8503A' },
   dropPrice: { fontSize: 14, fontWeight: '700', color: C.ink },
