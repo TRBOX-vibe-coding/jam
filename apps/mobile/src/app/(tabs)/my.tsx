@@ -5,7 +5,7 @@
 import { useState } from 'react';
 import { Alert, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
-import { untilText } from '../../lib/date';
+import { jamPeriodText, jamSpanText } from '../../lib/date';
 import { useAuth } from '../../lib/auth';
 import { LangChips, useI18n } from '../../lib/i18n';
 import { C } from '../../lib/theme';
@@ -106,10 +106,11 @@ export default function MyScreen() {
                   <Text style={st.cardSaving}>
                     {me.membership.started
                       ? <>{t('savedYearTotal', { amt: won(me.savings.total) })}{me.savings.multiple != null && ` · ${t('savedMultiple', { x: me.savings.multiple })}`}</>
-                      : t('cardUpcoming', { plan: me.membership.planName, date: new Date(me.membership.startAt).toLocaleDateString(locale) })}
+                      : t('jamUpcomingPlan', { plan: me.membership.planName })}
                   </Text>
                   <Text style={st.cardUntil}>
-                    {t('untilDate', { date: untilText(me.membership.endAt, locale) })}
+                    {me.membership.durationDays ? `${jamSpanText(me.membership.durationDays, t)} · ` : ''}
+                    {jamPeriodText(me.membership.startAt, me.membership.endAt)}
                   </Text>
                 </>
               ) : (

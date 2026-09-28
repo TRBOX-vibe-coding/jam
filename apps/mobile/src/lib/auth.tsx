@@ -7,6 +7,8 @@ export type Me = {
   provider: string;
   membership: {
     planCode: string; planName: string; source: string; startAt: string; endAt: string;
+    /** 잼 길이(일). '3박 4일 여행용'·'1년' 표시에 쓴다 */
+    durationDays?: number;
     /** 유료 잼인지 (FREE 플랜이면 false) */
     isPaid: boolean;
     /** 사용 시작일이 지났는지 (미리 결제한 잼은 시작 전엔 false) */
@@ -15,6 +17,7 @@ export type Me = {
   /** 지금 가진 잼 전부 — 겹쳐 두면 합쳐서 쓴다 (2026-09-18 대표 확정) */
   memberships: {
     planCode: string; planName: string; startAt: string; endAt: string;
+    durationDays?: number;
     isPaid: boolean; started: boolean; scope: string;
   }[];
   /** 단체 코드 — 넣으면 그 단체 전용 잼을 살 수 있다 */

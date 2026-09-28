@@ -21,6 +21,16 @@ class PurchaseDto {
   @IsOptional() @IsString() @Matches(/^\d{4}-\d{2}-\d{2}$/) startDate?: string;
 }
 
+/** 1년짜리 잼의 끝 — 1년 뒤 같은 날짜의 다음 날 0시 (그 날 23:59까지 쓴다). 365일이면 달력 기준으로 1년을 더한다. */
+function endOfLongJam(startAt: Date, days: number): Date {
+  const e = new Date(startAt);
+  if (days === 365) e.setFullYear(e.getFullYear() + 1);
+  else e.setDate(e.getDate() + days);
+  e.setHours(0, 0, 0, 0);
+  e.setDate(e.getDate() + 1);
+  return e;
+}
+
 @Controller('membership')
 export class MembershipController {
   constructor(private prisma: PrismaService) {}
@@ -161,7 +171,9 @@ export class MembershipController {
       if (s.getTime() - now.getTime() > 90 * 86_400_000) throw new BadRequestException('시작일은 90일 이내로 선택해 주세요');
       startAt = s;
     }
-    const endAt = addDays(startAt, isShortJam ? plan.durationDays + 1 : plan.durationDays);
+    // 끝나는 시각 — 3일잼은 3박4일(시작일 0시 ~ 4일차 끝). 1년짜리(잼마스터)는 결제한 시각부터
+    // 1년 뒤 그 날 밤 11시 59분까지 (2026-09-24 대표 확정 3-4 A) — 그래서 그 다음 날 0시에 끝난다.
+    const endAt = isShortJam ? addDays(startAt, plan.durationDays + 1) : endOfLongJam(startAt, plan.durationDays);
 
     const result = await db.$transaction(async (tx) => {
       const order = await tx.order.create({

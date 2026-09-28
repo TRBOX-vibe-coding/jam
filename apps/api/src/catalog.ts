@@ -75,7 +75,7 @@ export class CatalogController {
     const allMemberships = await db.userMembership.findMany({
       where: { userId, status: 'ACTIVE', endAt: { gt: new Date() } },
       orderBy: [{ endAt: 'desc' }],
-      include: { plan: { select: { code: true, name: true, price: true, scope: true, i18n: true } } },
+      include: { plan: { select: { code: true, name: true, price: true, scope: true, durationDays: true, i18n: true } } },
     });
     // 유료 잼이 있으면 그중 가장 늦게 끝나는 것을 대표로 본다
     const membership = allMemberships.find((m) => m.plan.price > 0) ?? allMemberships[0] ?? null;
@@ -122,6 +122,7 @@ export class CatalogController {
             source: membership.source,
             startAt: membership.startAt,
             endAt: membership.endAt,
+            durationDays: membership.plan.durationDays,
             isPaid: membership.plan.price > 0,
             started: membership.startAt <= new Date(),
           }
@@ -132,6 +133,7 @@ export class CatalogController {
         planName: trField(m.plan, 'name', lang),
         startAt: m.startAt,
         endAt: m.endAt,
+        durationDays: m.plan.durationDays,
         isPaid: m.plan.price > 0,
         started: m.startAt <= new Date(),
         scope: m.plan.scope,

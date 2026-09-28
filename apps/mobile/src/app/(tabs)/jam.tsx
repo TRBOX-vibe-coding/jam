@@ -10,7 +10,7 @@ import { Alert, Image, Platform, Pressable, ScrollView, StyleSheet, Text, View }
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { api, img } from '../../lib/api';
-import { untilText } from '../../lib/date';
+import { jamPeriodText, jamSpanText } from '../../lib/date';
 import { useAuth } from '../../lib/auth';
 import { useI18n } from '../../lib/i18n';
 import { C } from '../../lib/theme';
@@ -141,14 +141,14 @@ export default function JamScreen() {
               <Card key={m.planCode}>
                 <View style={st.rowBetween}>
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={st.planName}>{m.planName}</Text>
-                    <Text style={st.planDesc}>
-                      {m.started
-                        ? t('untilDate', { date: untilText(m.endAt, locale) })
-                        : t('cardUpcoming', { plan: m.planName, date: new Date(m.startAt).toLocaleDateString(locale) })}
+                    <Text style={st.planName}>
+                      {m.planName}
+                      {m.durationDays ? <Text style={st.planSpan}>  {jamSpanText(m.durationDays, t)}</Text> : null}
                     </Text>
+                    <Text style={st.planDesc}>{jamPeriodText(m.startAt, m.endAt)}</Text>
                   </View>
-                  <Tag text={m.started ? t('usableNow') : t('stIssued')} tone={m.started ? 'gold' : 'warn'} />
+                  {/* 시작 전인 잼은 아직 쓸 수 없다 — '사용 가능'이 아니라 '시작 예정' */}
+                  <Tag text={m.started ? t('usableNow') : t('jamUpcomingTag')} tone={m.started ? 'gold' : 'warn'} />
                 </View>
               </Card>
             ))}
@@ -229,6 +229,7 @@ const st = StyleSheet.create({
 
   planName: { fontSize: 15, fontWeight: '700', color: C.ink },
   planDesc: { fontSize: 12.5, color: C.ink3, marginTop: 2 },
+  planSpan: { fontSize: 12, fontWeight: '600', color: C.ink3 },
 
   jamCard: {
     backgroundColor: C.white, borderRadius: 16, borderWidth: 1, borderColor: C.line,

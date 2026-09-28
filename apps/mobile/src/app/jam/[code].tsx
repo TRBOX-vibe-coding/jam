@@ -11,7 +11,7 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { track } from '../../lib/analytics';
 import { api, img } from '../../lib/api';
-import { lastUsableDay } from '../../lib/date';
+import { jamPeriodText, jamSpanText } from '../../lib/date';
 import { useAuth } from '../../lib/auth';
 import { useI18n } from '../../lib/i18n';
 import { C } from '../../lib/theme';
@@ -131,11 +131,20 @@ export default function JamBuyScreen() {
   }
 
   const isShort = d.durationDays <= 30;
-  // 3일잼은 3박4일을 덮는다. 끝나는 시각(그 날 0시)이 아니라 마지막으로 쓸 수 있는 날을 보여준다
-  const endPreview = (() => {
-    const s = new Date(`${startDate}T00:00:00`);
-    s.setDate(s.getDate() + (isShort ? d.durationDays + 1 : d.durationDays));
-    return lastUsableDay(s);
+  // 잼 기간 미리보기 — 서버(membership.ts)와 같은 규칙.
+  // 3일잼은 3박4일(시작일 0시 ~ 4일차 23:59), 1년짜리는 결제한 시각부터 1년 뒤 그 날 23:59까지 (3-4 A)
+  const periodStart = isShort ? new Date(`${startDate}T00:00:00`) : new Date();
+  const periodEnd = (() => {
+    const e = new Date(periodStart);
+    if (isShort) {
+      e.setDate(e.getDate() + d.durationDays + 1);
+      return e;
+    }
+    if (d.durationDays === 365) e.setFullYear(e.getFullYear() + 1);
+    else e.setDate(e.getDate() + d.durationDays);
+    e.setHours(0, 0, 0, 0);
+    e.setDate(e.getDate() + 1);
+    return e;
   })();
 
   return (
@@ -152,7 +161,7 @@ export default function JamBuyScreen() {
           <View style={st.metaRow}>
             <View style={st.metaChip}>
               <Ionicons name="time-outline" size={13} color={C.ink2} />
-              <Text style={st.metaText}>{t('jamDays', { n: d.durationDays })}</Text>
+              <Text style={st.metaText}>{jamSpanText(d.durationDays, t)}</Text>
             </View>
             <View style={st.metaChip}>
               <Ionicons name="pricetags-outline" size={13} color={C.ink2} />
@@ -212,11 +221,17 @@ export default function JamBuyScreen() {
               })}
             </ScrollView>
             <Text style={st.period}>
-              {t('jamPeriod', {
-                from: new Date(`${startDate}T00:00:00`).toLocaleDateString(locale),
-                to: endPreview.toLocaleDateString(locale),
-              })}
+              {jamSpanText(d.durationDays, t)} · {jamPeriodText(periodStart, periodEnd)}
             </Text>
+          </Card>
+        )}
+
+        {/* 1년짜리 잼 — 결제한 시각에 시작해 1년 뒤 그 날 23:59까지 (2026-09-24 대표 확정 3-4 A) */}
+        {!isShort && (
+          <Card>
+            <Text style={st.sectionInCard}>{t('jamPeriodLabel')}</Text>
+            <Text style={st.sectionSub}>{t('jamStartsNow')}</Text>
+            <Text style={st.period}>{jamPeriodText(periodStart, periodEnd)}</Text>
           </Card>
         )}
 

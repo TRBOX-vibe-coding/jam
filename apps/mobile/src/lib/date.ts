@@ -16,6 +16,29 @@ export function lastUsableDay(endAt: string | Date): Date {
   return d;
 }
 
+const p2 = (n: number) => String(n).padStart(2, '0');
+const ymdhm = (d: Date) =>
+  `${d.getFullYear()}.${p2(d.getMonth() + 1)}.${p2(d.getDate())} ${p2(d.getHours())}:${p2(d.getMinutes())}`;
+
+/**
+ * 잼 기간 한 줄 — "2026.09.30 00:00 ~ 2026.10.03 23:59" (2026-09-19 문서 4-3·3-4, 대표 확정).
+ * 결제 화면 · 결제 끝난 화면 · 잼 화면 · MY 네 곳이 모두 이 모양을 쓴다.
+ * endAt은 '끝나는 시각'(대개 다음 날 0시)이라 1분을 빼서 마지막으로 쓸 수 있는 시각을 보여준다.
+ */
+export function jamPeriodText(startAt: string | Date, endAt: string | Date): string {
+  return `${ymdhm(new Date(startAt))} ~ ${ymdhm(new Date(new Date(endAt).getTime() - 60_000))}`;
+}
+
+/** 잼 길이 이름 — 3일잼은 '3박 4일 여행용', 1년짜리는 '1년' */
+export function jamSpanText(
+  durationDays: number,
+  t: (k: string, v?: Record<string, string | number>) => string,
+): string {
+  if (durationDays <= 30) return t('jamSpanTrip', { n: durationDays, m: durationDays + 1 });
+  if (durationDays === 365 || durationDays === 366) return t('jamSpanYear');
+  return t('jamDays', { n: durationDays });
+}
+
 /** 마지막 사용일을 사람이 읽는 날짜로 */
 export function untilText(endAt: string | Date, locale: string, opts?: Intl.DateTimeFormatOptions): string {
   return lastUsableDay(endAt).toLocaleDateString(locale, opts);

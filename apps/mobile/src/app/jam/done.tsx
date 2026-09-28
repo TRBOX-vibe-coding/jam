@@ -7,7 +7,7 @@
 import { useLocalSearchParams, router } from 'expo-router';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { lastUsableDay } from '../../lib/date';
+import { jamPeriodText } from '../../lib/date';
 import { useI18n } from '../../lib/i18n';
 import { C } from '../../lib/theme';
 import { Btn, Card, Screen } from '../../lib/ui';
@@ -20,8 +20,6 @@ export default function JamDoneScreen() {
   const { t, locale } = useI18n();
 
   const start = p.start ? new Date(p.start) : null;
-  const end = p.end ? lastUsableDay(p.end) : null;
-  const fmt = (d: Date) => d.toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric' });
   const upcoming = !!start && start.getTime() > Date.now();
 
   return (
@@ -37,7 +35,7 @@ export default function JamDoneScreen() {
           <View style={st.row}>
             <Text style={st.label}>{t('jamPeriodLabel')}</Text>
             <Text style={st.value}>
-              {start && end ? `${fmt(start)} ~ ${fmt(end)}` : '-'}
+              {p.start && p.end ? jamPeriodText(p.start, p.end) : '-'}
             </Text>
           </View>
           <View style={st.row}>
