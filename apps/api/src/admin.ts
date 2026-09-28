@@ -136,6 +136,10 @@ class CreateProductDto {
   @IsOptional() @IsString() description?: string;
   @IsOptional() cancelPolicy?: string;
   @IsOptional() @IsString() imageBase64?: string;
+  /** 총 판매 수량 — 다 팔리면 저절로 품절. 비우면 무제한 */
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100000) totalQty?: number;
+  /** 한 사람당 살 수 있는 수량. 비우면 제한 없음 (2026-09-24 대표 확정 3-3) */
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) maxPerUser?: number;
 }
 class PatchProductDto {
   @IsOptional() isActive?: boolean;
@@ -145,6 +149,10 @@ class PatchProductDto {
   @IsOptional() @IsString({ each: true }) memberPricePlanIds?: string[];
   @IsOptional() @IsString() @MinLength(2) name?: string;
   @IsOptional() @IsString() imageBase64?: string;
+  /** 총 판매 수량. 0이면 무제한으로 돌린다 */
+  @IsOptional() @Type(() => Number) @IsInt() @Min(0) @Max(100000) totalQty?: number;
+  /** 한 사람당 수량. 0이면 제한 없음으로 돌린다 */
+  @IsOptional() @Type(() => Number) @IsInt() @Min(0) @Max(100) maxPerUser?: number;
 }
 /** 결제 상품에 묶어 파는 '근처 할인 쿠폰' 설정 — 슈퍼 관리자 전용 (2026-09-12 대표 확정) */
 class SetProductCouponsDto {
@@ -616,6 +624,9 @@ export class AdminController {
         verification: (dto.verification ?? 'QR_ONLY') as never,
         description: dto.description,
         cancelPolicy: dto.cancelPolicy,
+        // 예약 상품은 회차 정원으로 막히므로 총 수량은 티켓·PASS에만
+        totalQty: dto.type !== 'RESERVATION' ? dto.totalQty ?? null : null,
+        maxPerUser: dto.maxPerUser ?? null,
         imageUrl,
       },
     });
@@ -625,9 +636,30 @@ export class AdminController {
 
   @Patch('products/:id')
   async patchProduct(@AdminId() adminId: string, @Param('id') id: string, @Body() dto: PatchProductDto) {
+    const cur = await this.prisma.client.product.findUnique({
+      where: { id },
+      select: { totalQty: true, soldQty: true, isActive: true, approval: true },
+    });
+    if (!cur) throw new NotFoundException('상품을 찾을 수 없습니다');
+
+    // 총 판매 수량 — 0이면 무제한. 이미 판 것보다 줄일 수는 없다.
+    const qty: { totalQty?: number | null; isActive?: boolean } = {};
+    if (dto.totalQty != null) {
+      const totalQty = dto.totalQty === 0 ? null : dto.totalQty;
+      if (totalQty != null && totalQty < cur.soldQty) {
+        throw new BadRequestException(`이미 ${cur.soldQty}개가 팔려서 그보다 줄일 수 없습니다`);
+      }
+      qty.totalQty = totalQty;
+      const wasSoldOut = cur.totalQty != null && cur.soldQty >= cur.totalQty;
+      if (totalQty != null && totalQty === cur.soldQty) qty.isActive = false; // 딱 다 팔린 수량이면 품절
+      else if (wasSoldOut && !cur.isActive && cur.approval === 'ACTIVE') qty.isActive = true; // 품절이었는데 수량이 늘면 다시 판매
+    }
+
     const p = await this.prisma.client.product.update({
       where: { id },
       data: {
+        ...qty,
+        ...(dto.maxPerUser != null ? { maxPerUser: dto.maxPerUser === 0 ? null : dto.maxPerUser } : {}),
         ...(dto.isActive != null ? { isActive: dto.isActive } : {}),
         ...(dto.basePrice != null ? { basePrice: dto.basePrice } : {}),
         ...(dto.memberPrice != null ? { memberPrice: dto.memberPrice } : {}),
@@ -664,6 +696,7 @@ export class AdminController {
           memberPricePlanIds: src.memberPricePlanIds,
           verification: src.verification,
           totalQty: src.totalQty,
+          maxPerUser: src.maxPerUser,
           defaultCapacity: src.defaultCapacity,
           couponStartMode: src.couponStartMode,
           weatherDependent: src.weatherDependent,

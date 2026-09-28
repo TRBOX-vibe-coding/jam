@@ -160,6 +160,14 @@ export class OrdersController {
     }
 
     return db.$transaction(async (tx) => {
+      // 한 사람당 수량 — 기획전의 '1인 1장' 같은 조건 (2026-09-24 대표 확정 3-3). 취소한 건은 세지 않는다.
+      if (product.maxPerUser != null) {
+        const mine = await tx.voucher.count({ where: { userId, productId: id, status: { not: 'CANCELLED' } } });
+        if (mine >= product.maxPerUser) {
+          throw new BadRequestException(`이 상품은 한 사람당 ${product.maxPerUser}장까지 살 수 있습니다`);
+        }
+      }
+
       // 티켓형 총 수량 제한 — 조건부 증가로 초과 판매 방지, 소진되면 자동 품절
       if (!dto.slotId && product.totalQty != null) {
         const taken = await tx.$executeRaw`

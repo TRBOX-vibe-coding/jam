@@ -8,7 +8,7 @@ import { PlanPicker } from '@/components/plan-picker';
 const img = (u?: string | null, w = 160) => (u ? (u.startsWith('/') ? `${API_BASE}${u}?w=${w}` : u) : null);
 const TYPE_LABEL: Record<string, string> = { TICKET: '티켓', RESERVATION: '예약형', PASS: 'PASS' };
 
-const EMPTY = { type: 'RESERVATION', name: '', description: '', basePrice: '', memberPrice: '', verification: 'QR_ONLY', cancelPolicy: '', totalQty: '', slotCapacity: '', memberPricePlanIds: [] as string[] };
+const EMPTY = { type: 'RESERVATION', name: '', description: '', basePrice: '', memberPrice: '', verification: 'QR_ONLY', cancelPolicy: '', totalQty: '', slotCapacity: '', maxPerUser: '', memberPricePlanIds: [] as string[] };
 
 export default function MyProductsPage() {
   const [rows, setRows] = useState<any[] | null>(null);
@@ -54,6 +54,7 @@ export default function MyProductsPage() {
           cancelPolicy: f.cancelPolicy || undefined,
           totalQty: f.type === 'TICKET' && f.totalQty ? Number(f.totalQty) : undefined,
           slotCapacity: f.type === 'RESERVATION' && f.slotCapacity ? Number(f.slotCapacity) : undefined,
+          maxPerUser: f.maxPerUser ? Number(f.maxPerUser) : undefined,
           imageBase64: photo ?? undefined,
         },
       });
@@ -108,6 +109,7 @@ export default function MyProductsPage() {
             ) : (
               <input className={inputCls} placeholder="회차당 정원 (예: 6)" title="시간 회차 하나에 받을 수 있는 인원" value={f.slotCapacity} onChange={(e) => setF({ ...f, slotCapacity: e.target.value.replace(/\D/g, '') })} />
             )}
+            <input className={inputCls} placeholder="한 사람당 최대 (비우면 제한 없음)" title="예) 1인 1장" value={f.maxPerUser} onChange={(e) => setF({ ...f, maxPerUser: e.target.value.replace(/\D/g, '') })} />
             <input className={inputCls} placeholder="취소 정책 (예: 기상 악화 시 전액 환불)" value={f.cancelPolicy} onChange={(e) => setF({ ...f, cancelPolicy: e.target.value })} />
             <div className="col-span-2 flex items-center gap-2 lg:col-span-4">
               <label className="cursor-pointer whitespace-nowrap rounded-md border border-line bg-white px-3 py-2 text-sm font-semibold text-ink-2 hover:bg-ground">
@@ -160,6 +162,7 @@ export default function MyProductsPage() {
                     : p.totalQty != null
                       ? <>남은 {Math.max(0, p.totalQty - p.soldQty)}/{p.totalQty}<QtyEdit current={p.totalQty} onSave={(q) => changeQty(p.id, q)} /></>
                       : <><span className="text-ink-3">무제한</span><QtyEdit current={0} onSave={(q) => changeQty(p.id, q)} /></>}
+                  {p.maxPerUser != null && <div className="mt-0.5 font-semibold text-brand">1인 {p.maxPerUser}장</div>}
                 </Td>
               </tr>
             ))}

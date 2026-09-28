@@ -118,6 +118,14 @@ export default function ProductDetail() {
               </>
             )}
           </View>
+          {(p.remainingQty != null || p.maxPerUser != null) && (
+            <Text style={st.qtyLine}>
+              {[
+                p.remainingQty != null ? t('qtyLeft', { n: p.remainingQty }) : null,
+                p.maxPerUser != null ? t('perUserLimit', { n: p.maxPerUser }) : null,
+              ].filter(Boolean).join(' · ')}
+            </Text>
+          )}
           {p.cancelPolicy && <Text style={st.policy}>· {p.cancelPolicy}</Text>}
         </Card>
 
@@ -218,6 +226,7 @@ const st = StyleSheet.create({
   normal: { fontSize: 14, color: C.ink3, textDecorationLine: 'line-through' },
   memberHint: { fontSize: 12, color: C.gold, fontWeight: '700' },
   policy: { fontSize: 12, color: C.warn, marginTop: 8 },
+  qtyLine: { fontSize: 12.5, fontWeight: '700', color: C.brand, marginTop: 8 },
   section: { fontSize: 13, fontWeight: '700', color: C.ink3, marginTop: 12, marginBottom: 8 },
   noSlot: { fontSize: 13, color: C.ink3, textAlign: 'center' },
   slotLabel: { fontSize: 15, fontWeight: '700', color: C.ink },

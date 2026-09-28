@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { API_BASE, api, dt, won } from '@/lib/api';
 import { Badge, Button, Card, CardHeader, Empty, Modal, Table, TableSkeleton, Td } from '@/components/ui';
 import { ProductCouponsModal } from '@/components/product-coupons';
+import { ProductQtyModal } from '@/components/product-qty-modal';
 import { PlanPicker } from '@/components/plan-picker';
 import { ProductPlansModal } from '@/components/product-plans';
 
@@ -37,7 +38,7 @@ export default function ProductsPage() {
   const [merchants, setMerchants] = useState<any[]>([]);
   const [msg, setMsg] = useState('');
   const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState({ merchantId: '', name: '', type: 'RESERVATION', basePrice: '', memberPrice: '', verification: 'QR_ONLY' });
+  const [form, setForm] = useState({ merchantId: '', name: '', type: 'RESERVATION', basePrice: '', memberPrice: '', verification: 'QR_ONLY', totalQty: '', maxPerUser: '' });
   const [formPlanIds, setFormPlanIds] = useState<string[]>([]);
   const [image, setImage] = useState<string | null>(null); // data URL
   const fileRef = useRef<HTMLInputElement>(null);
@@ -49,6 +50,7 @@ export default function ProductsPage() {
   // 회차 모달
   const [slotFor, setSlotFor] = useState<any | null>(null);
   const [couponFor, setCouponFor] = useState<any | null>(null);
+  const [qtyFor, setQtyFor] = useState<any | null>(null); // 수량 제한 (2026-09-24 대표 확정 3-3)
   const [planFor, setPlanFor] = useState<any | null>(null);
   // 상품에 묶는 근처 할인 쿠폰 — 슈퍼 관리자 전용 (2026-09-12 대표 확정)
   const [slots, setSlots] = useState<any[] | null>(null);
@@ -91,12 +93,14 @@ export default function ProductsPage() {
           memberPrice: form.memberPrice ? Number(form.memberPrice) : undefined,
           memberPricePlanIds: formPlanIds,
           verification: form.verification,
+          totalQty: form.type !== 'RESERVATION' && form.totalQty ? Number(form.totalQty) : undefined,
+          maxPerUser: form.maxPerUser ? Number(form.maxPerUser) : undefined,
           imageBase64: image ?? undefined,
         },
       });
       setMsg('상품 등록 완료');
       setShowCreate(false);
-      setForm({ merchantId: '', name: '', type: 'RESERVATION', basePrice: '', memberPrice: '', verification: 'QR_ONLY' });
+      setForm({ merchantId: '', name: '', type: 'RESERVATION', basePrice: '', memberPrice: '', verification: 'QR_ONLY', totalQty: '', maxPerUser: '' });
       setImage(null);
       load();
     } catch (e: any) {
@@ -278,6 +282,10 @@ export default function ProductsPage() {
                 </select>
                 <input className={inputCls} placeholder="정상가" value={form.basePrice} onChange={(e) => setForm({ ...form, basePrice: e.target.value.replace(/\D/g, '') })} />
                 <input className={inputCls} placeholder="유료 회원 할인가(선택)" value={form.memberPrice} onChange={(e) => setForm({ ...form, memberPrice: e.target.value.replace(/\D/g, '') })} />
+                {form.type !== 'RESERVATION' && (
+                  <input className={inputCls} placeholder="총 판매 수량 (비우면 무제한)" title="다 팔리면 저절로 품절됩니다" value={form.totalQty} onChange={(e) => setForm({ ...form, totalQty: e.target.value.replace(/\D/g, '') })} />
+                )}
+                <input className={inputCls} placeholder="한 사람당 최대 (비우면 제한 없음)" title="예) 기획전 1인 1장" value={form.maxPerUser} onChange={(e) => setForm({ ...form, maxPerUser: e.target.value.replace(/\D/g, '') })} />
               </div>
               <div className="mt-3">
                 <PlanPicker value={formPlanIds} onChange={setFormPlanIds} />
@@ -304,7 +312,7 @@ export default function ProductsPage() {
             ) : rows.length === 0 ? (
               <Empty text="등록된 상품이 없습니다" />
             ) : (
-              <Table head={['상태', '가맹점', '상품명', '유형', '정상가', '유료 회원가', '검증', '회차', '관리']}>
+              <Table head={['상태', '가맹점', '상품명', '유형', '정상가', '유료 회원가', '수량', '검증', '회차', '관리']}>
                 {rows.map((p) => (
                   <tr key={p.id} className={p.approval === 'REJECTED' ? 'opacity-60' : ''}>
                     <Td>
@@ -323,6 +331,14 @@ export default function ProductsPage() {
                     <Td><Badge>{TYPE_LABEL[p.type] ?? p.type}</Badge></Td>
                     <Td className="tabular-nums">{won(p.basePrice)}</Td>
                     <Td className="tabular-nums">{p.memberPrice != null ? won(p.memberPrice) : <span className="text-ink-3">—</span>}</Td>
+                    <Td className="whitespace-nowrap text-xs tabular-nums">
+                      {p.type === 'RESERVATION'
+                        ? <span className="text-ink-3">회차 정원</span>
+                        : p.totalQty != null
+                          ? <>{p.soldQty} / {p.totalQty}장</>
+                          : <span className="text-ink-3">무제한</span>}
+                      {p.maxPerUser != null && <div className="font-semibold text-brand">1인 {p.maxPerUser}장</div>}
+                    </Td>
                     <Td className="text-xs">{VERIF_LABEL[p.verification]}</Td>
                     <Td className="tabular-nums text-xs">
                       {p.type === 'RESERVATION' ? `${p._count.slots}개` : <span className="text-ink-3">—</span>}
@@ -333,6 +349,7 @@ export default function ProductsPage() {
                           <Button small onClick={() => openSlots(p)}>회차 관리</Button>
                         )}
                         <Button small onClick={() => setCouponFor(p)}>쿠폰 묶기</Button>
+                        <Button small variant="ghost" onClick={() => setQtyFor(p)}>수량</Button>
                         <Button small variant="ghost" onClick={() => setPlanFor(p)}>할인 잼</Button>
                         <Button small onClick={() => duplicateProduct(p)}>복사</Button>
                         <label className="cursor-pointer">
@@ -494,6 +511,15 @@ export default function ProductsPage() {
       )}
       {couponFor && (
         <ProductCouponsModal product={couponFor} onClose={() => setCouponFor(null)} />
+      )}
+      {qtyFor && (
+        <ProductQtyModal
+          product={qtyFor}
+          onClose={(saved) => {
+            setQtyFor(null);
+            if (saved) { setMsg(`'${qtyFor.name}' 수량 제한을 저장했습니다`); load(); }
+          }}
+        />
       )}
       {planFor && (
         <ProductPlansModal

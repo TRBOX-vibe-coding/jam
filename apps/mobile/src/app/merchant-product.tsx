@@ -39,6 +39,7 @@ export default function MerchantProductCreate() {
   const [cancelPolicy, setCancelPolicy] = useState('');
   const [totalQty, setTotalQty] = useState('');       // 티켓형 총 판매 수량
   const [slotCapacity, setSlotCapacity] = useState(''); // 예약형 회차당 정원
+  const [maxPerUser, setMaxPerUser] = useState('');     // 한 사람당 살 수 있는 수량 (2026-09-24 대표 확정 3-3)
   const [image, setImage] = useState<{ uri: string; dataUrl: string } | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -92,6 +93,7 @@ export default function MerchantProductCreate() {
           cancelPolicy: cancelPolicy.trim() || undefined,
           totalQty: type === 'TICKET' && totalQty ? Number(totalQty) : undefined,
           slotCapacity: type === 'RESERVATION' && slotCapacity ? Number(slotCapacity) : undefined,
+          maxPerUser: maxPerUser ? Number(maxPerUser) : undefined,
           imageBase64: image?.dataUrl,
         },
       });
@@ -230,6 +232,13 @@ export default function MerchantProductCreate() {
             <Text style={st.fieldHint}>본사가 시간 회차를 만들 때 이 정원이 기본으로 들어가요.</Text>
           </>
         )}
+
+        <Text style={st.label}>한 사람당 최대 (선택)</Text>
+        <TextInput
+          style={st.input} value={maxPerUser} onChangeText={(t) => setMaxPerUser(t.replace(/\D/g, ''))}
+          placeholder="예) 1 — 비우면 제한 없음" placeholderTextColor={C.ink3} keyboardType="number-pad"
+        />
+        <Text style={st.fieldHint}>한 손님이 이 상품을 몇 장까지 살 수 있는지예요. 예) 기획전 1인 1장</Text>
 
         <Text style={st.label}>현장 사용 확인 방식</Text>
         <View style={st.presetRow}>

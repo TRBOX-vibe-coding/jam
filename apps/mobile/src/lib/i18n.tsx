@@ -35,6 +35,7 @@ const D: Record<string, [string, string, string, string]> = {
   closedNow: ['마감', 'Ended', '已结束', '終了'],
   people: ['{n}명', '{n} ppl', '{n}人', '{n}名'],
   qtyLeft: ['{n}개 남음', '{n} left', '剩{n}份', '残り{n}個'],
+  perUserLimit: ["한 사람당 {n}장까지","Max {n} per person","每人限购{n}张","お一人様{n}枚まで"],
   daysLeft: ['{d}일 남음', '{d}d left', '剩{d}天', '残り{d}日'],
   hoursLeft: ['{h}시간 남음', '{h}h left', '剩{h}小时', '残り{h}時間'],
   hoursMinLeft: ['{h}시간 {m}분 남음', '{h}h {m}m left', '剩{h}小时{m}分', '残り{h}時間{m}分'],

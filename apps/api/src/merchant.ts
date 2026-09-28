@@ -63,6 +63,8 @@ class CreateMerchantProductDto {
   @IsOptional() @IsString() imageBase64?: string;
   /// 티켓형: 총 판매 수량(비우면 무제한). 소진되면 자동 품절.
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100000) totalQty?: number;
+  /** 한 사람당 살 수 있는 수량. 비우면 제한 없음 (2026-09-24 대표 확정 3-3) */
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) maxPerUser?: number;
   /// 예약형: 회차당 기본 정원 — 본사가 회차를 만들 때 기본값으로 쓴다.
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(200) slotCapacity?: number;
 }
@@ -297,6 +299,7 @@ export class MerchantController {
         cancelPolicy: dto.cancelPolicy?.trim() || null,
         imageUrl,
         totalQty: dto.type === 'TICKET' ? dto.totalQty ?? null : null,
+        maxPerUser: dto.maxPerUser ?? null,
         defaultCapacity: dto.type === 'RESERVATION' ? dto.slotCapacity ?? null : null,
         approval: 'PENDING',
         isActive: false,
