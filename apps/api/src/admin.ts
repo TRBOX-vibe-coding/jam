@@ -9,13 +9,17 @@ import {
 } from '@nestjs/common';
 import { saveImageDataUrl } from './uploads';
 import {
-  IsIn, IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min, MinLength,
+  IsIn, IsInt, IsNumber, IsOptional, IsString, Matches, Max, MaxLength, Min, MinLength,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { randomBytes } from 'node:crypto';
 import { PrismaService } from './prisma.service';
 import { AdminGuard, AdminId, AuthModule } from './auth';
 import { MERCHANT_SCOPE_SELECT, PLAN_SCOPE_SELECT, planGivesMemberPrice, planProductRules, scopeCovers } from './plan-scope.util';
+import { parsePeriod, periodKeys, saleState } from './product-period.util';
+
+/** 'YYYY-MM-DD' 또는 빈 값(지우기) */
+const DAY_OR_EMPTY = /^(\d{4}-\d{2}-\d{2})?$/;
 
 class RejectDto {
   @IsString() @MinLength(2) reason!: string;
@@ -153,6 +157,11 @@ class CreateProductDto {
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100000) totalQty?: number;
   /** 한 사람당 살 수 있는 수량. 비우면 제한 없음 (2026-09-24 대표 확정 3-3) */
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) maxPerUser?: number;
+  /** 판매 기간·이용 기간 'YYYY-MM-DD' — 비우면 제한 없음 (2026-09-19 문서 4-6) */
+  @IsOptional() @Matches(DAY_OR_EMPTY) saleFrom?: string;
+  @IsOptional() @Matches(DAY_OR_EMPTY) saleTo?: string;
+  @IsOptional() @Matches(DAY_OR_EMPTY) useFrom?: string;
+  @IsOptional() @Matches(DAY_OR_EMPTY) useTo?: string;
 }
 class PatchProductDto {
   @IsOptional() isActive?: boolean;
@@ -164,6 +173,11 @@ class PatchProductDto {
   @IsOptional() @Type(() => Number) @IsInt() @Min(0) @Max(100000) totalQty?: number;
   /** 한 사람당 수량. 0이면 제한 없음으로 돌린다 */
   @IsOptional() @Type(() => Number) @IsInt() @Min(0) @Max(100) maxPerUser?: number;
+  /** 판매 기간·이용 기간 'YYYY-MM-DD' — 빈 값이면 지운다 (2026-09-19 문서 4-6) */
+  @IsOptional() @Matches(DAY_OR_EMPTY) saleFrom?: string;
+  @IsOptional() @Matches(DAY_OR_EMPTY) saleTo?: string;
+  @IsOptional() @Matches(DAY_OR_EMPTY) useFrom?: string;
+  @IsOptional() @Matches(DAY_OR_EMPTY) useTo?: string;
 }
 /** 이 상품에 회원가를 주는 잼 — 화면에서 체크한 결과 그대로. 잼 범위와 다른 것만 예외로 남는다 (3-5 A) */
 class SetProductMemberPlansDto {
@@ -646,6 +660,9 @@ export class AdminController {
       ...r,
       memberPlanNames: plans.filter((pl) => planGivesMemberPrice(pl, r, rules)).map((pl) => pl.name),
       memberPlanExceptions: plans.filter((pl) => rules.has(`${pl.id}:${r.id}`)).length,
+      /** 판매 기간·이용 기간 'YYYY-MM-DD' + 판매 상태 (2026-09-19 문서 4-6) */
+      period: periodKeys(r),
+      saleState: saleState(r),
     }));
   }
 
@@ -717,6 +734,8 @@ export class AdminController {
       select: { categoryId: true, name: true },
     });
     if (!merchant) throw new NotFoundException('가맹점을 찾을 수 없습니다');
+    const period = parsePeriod(dto, dto.type);
+    if (period.error) throw new BadRequestException(period.error);
     const imageUrl = dto.imageBase64 ? saveImageDataUrl(dto.imageBase64, 'product') : null;
     const p = await this.prisma.client.product.create({
       data: {
@@ -732,6 +751,7 @@ export class AdminController {
         // 예약 상품은 회차 정원으로 막히므로 총 수량은 티켓·PASS에만
         totalQty: dto.type !== 'RESERVATION' ? dto.totalQty ?? null : null,
         maxPerUser: dto.maxPerUser ?? null,
+        ...period.data,
         imageUrl,
       },
     });
@@ -743,9 +763,15 @@ export class AdminController {
   async patchProduct(@AdminId() adminId: string, @Param('id') id: string, @Body() dto: PatchProductDto) {
     const cur = await this.prisma.client.product.findUnique({
       where: { id },
-      select: { totalQty: true, soldQty: true, isActive: true, approval: true },
+      select: {
+        totalQty: true, soldQty: true, isActive: true, approval: true, type: true,
+        saleFrom: true, saleTo: true, useFrom: true, useTo: true,
+      },
     });
     if (!cur) throw new NotFoundException('상품을 찾을 수 없습니다');
+    // 판매 기간·이용 기간 — 보낸 칸만 바꾼다
+    const period = parsePeriod(dto, cur.type, cur);
+    if (period.error) throw new BadRequestException(period.error);
 
     // 총 판매 수량 — 0이면 무제한. 이미 판 것보다 줄일 수는 없다.
     const qty: { totalQty?: number | null; isActive?: boolean } = {};
@@ -764,6 +790,7 @@ export class AdminController {
       where: { id },
       data: {
         ...qty,
+        ...period.data,
         ...(dto.maxPerUser != null ? { maxPerUser: dto.maxPerUser === 0 ? null : dto.maxPerUser } : {}),
         ...(dto.isActive != null ? { isActive: dto.isActive } : {}),
         ...(dto.basePrice != null ? { basePrice: dto.basePrice } : {}),
@@ -800,6 +827,10 @@ export class AdminController {
           verification: src.verification,
           totalQty: src.totalQty,
           maxPerUser: src.maxPerUser,
+          saleFrom: src.saleFrom,
+          saleTo: src.saleTo,
+          useFrom: src.useFrom,
+          useTo: src.useTo,
           defaultCapacity: src.defaultCapacity,
           weatherDependent: src.weatherDependent,
           cancelPolicy: src.cancelPolicy,

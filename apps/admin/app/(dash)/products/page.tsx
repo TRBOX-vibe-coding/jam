@@ -4,9 +4,24 @@ import { API_BASE, api, dt, won } from '@/lib/api';
 import { Badge, Button, Card, CardHeader, Empty, Modal, Table, TableSkeleton, Td } from '@/components/ui';
 import { ProductCouponsModal } from '@/components/product-coupons';
 import { ProductQtyModal } from '@/components/product-qty-modal';
+import { ProductPeriodModal } from '@/components/product-period-modal';
 import { ProductPlansModal } from '@/components/product-plans';
 
 const TYPE_LABEL: Record<string, string> = { TICKET: '티켓', RESERVATION: '예약형', PASS: 'PASS' };
+
+/** 'YYYY-MM-DD' → '10.3' */
+const md = (s: string) => { const [, m, d] = s.split('-'); return `${Number(m)}.${Number(d)}`; };
+/** 판매·이용 기간 한 줄 — 예) '판매 10.1~10.31 · 이용 11.8 하루' (2026-09-19 문서 4-6) */
+function periodText(p: { type: string; period?: { saleFrom: string | null; saleTo: string | null; useFrom: string | null; useTo: string | null } | null }) {
+  const x = p.period;
+  if (!x) return '';
+  const range = (a: string | null, b: string | null) =>
+    a && a === b ? `${md(a)} 하루` : `${a ? md(a) : ''}~${b ? md(b) : ''}`;
+  const out: string[] = [];
+  if (x.saleFrom || x.saleTo) out.push(`판매 ${range(x.saleFrom, x.saleTo)}`);
+  if (p.type !== 'RESERVATION' && (x.useFrom || x.useTo)) out.push(`이용 ${range(x.useFrom, x.useTo)}`);
+  return out.join(' · ');
+}
 const VERIF_LABEL: Record<string, string> = { QR_ONLY: '사장님 확인', QR_PIN: '확인번호 대조', STAFF_CONFIRM: '직원확인' };
 const RESV_LABEL: Record<string, string> = { REQUESTED: '요청', CONFIRMED: '확정', CANCELLED: '취소', NO_SHOW: '노쇼', COMPLETED: '완료' };
 
@@ -37,7 +52,7 @@ export default function ProductsPage() {
   const [merchants, setMerchants] = useState<any[]>([]);
   const [msg, setMsg] = useState('');
   const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState({ merchantId: '', name: '', type: 'RESERVATION', basePrice: '', memberPrice: '', verification: 'QR_ONLY', totalQty: '', maxPerUser: '' });
+  const [form, setForm] = useState({ merchantId: '', name: '', type: 'RESERVATION', basePrice: '', memberPrice: '', verification: 'QR_ONLY', totalQty: '', maxPerUser: '', saleFrom: '', saleTo: '', useFrom: '', useTo: '' });
   const [image, setImage] = useState<string | null>(null); // data URL
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -49,6 +64,7 @@ export default function ProductsPage() {
   const [slotFor, setSlotFor] = useState<any | null>(null);
   const [couponFor, setCouponFor] = useState<any | null>(null);
   const [qtyFor, setQtyFor] = useState<any | null>(null); // 수량 제한 (2026-09-24 대표 확정 3-3)
+  const [periodFor, setPeriodFor] = useState<any | null>(null); // 판매·이용 기간 (2026-09-19 문서 4-6)
   const [planFor, setPlanFor] = useState<any | null>(null);
   // 상품에 묶는 근처 할인 쿠폰 — 슈퍼 관리자 전용 (2026-09-12 대표 확정)
   const [slots, setSlots] = useState<any[] | null>(null);
@@ -92,12 +108,16 @@ export default function ProductsPage() {
           verification: form.verification,
           totalQty: form.type !== 'RESERVATION' && form.totalQty ? Number(form.totalQty) : undefined,
           maxPerUser: form.maxPerUser ? Number(form.maxPerUser) : undefined,
+          saleFrom: form.saleFrom || undefined,
+          saleTo: form.saleTo || undefined,
+          useFrom: form.type !== 'RESERVATION' ? form.useFrom || undefined : undefined,
+          useTo: form.type !== 'RESERVATION' ? form.useTo || undefined : undefined,
           imageBase64: image ?? undefined,
         },
       });
       setMsg('상품 등록 완료');
       setShowCreate(false);
-      setForm({ merchantId: '', name: '', type: 'RESERVATION', basePrice: '', memberPrice: '', verification: 'QR_ONLY', totalQty: '', maxPerUser: '' });
+      setForm({ merchantId: '', name: '', type: 'RESERVATION', basePrice: '', memberPrice: '', verification: 'QR_ONLY', totalQty: '', maxPerUser: '', saleFrom: '', saleTo: '', useFrom: '', useTo: '' });
       setImage(null);
       load();
     } catch (e: any) {
@@ -203,6 +223,8 @@ export default function ProductsPage() {
   }
 
   const inputCls = 'h-9 rounded-md border border-line bg-white px-3 text-sm outline-none focus:border-brand';
+  /** 날짜 칸 — 한 줄에 '시작 ~ 끝'이 나란히 들어가게 너비를 내용만큼 */
+  const dateCls = 'h-10 rounded-md border border-line bg-white px-3 text-sm outline-none focus:border-brand';
 
   return (
     <div className="space-y-6">
@@ -284,6 +306,22 @@ export default function ProductsPage() {
                 )}
                 <input className={inputCls} placeholder="한 사람당 최대 (비우면 제한 없음)" title="예) 기획전 1인 1장" value={form.maxPerUser} onChange={(e) => setForm({ ...form, maxPerUser: e.target.value.replace(/\D/g, '') })} />
               </div>
+              {/* 판매 기간·이용 기간 — 비우면 제한 없음 (2026-09-19 문서 4-6) */}
+              <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+                <span className="text-xs font-semibold text-ink-3">판매 기간</span>
+                <input type="date" className={dateCls} value={form.saleFrom} onChange={(e) => setForm({ ...form, saleFrom: e.target.value })} aria-label="판매 시작일" />
+                <span className="text-ink-3">~</span>
+                <input type="date" className={dateCls} value={form.saleTo} onChange={(e) => setForm({ ...form, saleTo: e.target.value })} aria-label="판매 끝나는 날" />
+                {form.type !== 'RESERVATION' && (
+                  <>
+                    <span className="ml-3 text-xs font-semibold text-ink-3">이용 기간</span>
+                    <input type="date" className={dateCls} value={form.useFrom} onChange={(e) => setForm({ ...form, useFrom: e.target.value })} aria-label="이용 시작일" />
+                    <span className="text-ink-3">~</span>
+                    <input type="date" className={dateCls} value={form.useTo} onChange={(e) => setForm({ ...form, useTo: e.target.value })} aria-label="이용 끝나는 날" />
+                  </>
+                )}
+                <span className="text-[11px] text-ink-3">비우면 제한 없음 · 이용 기간이 없으면 산 날부터 30일</span>
+              </div>
               {/* 회원가는 잼 범위를 따른다 — 상품마다 잼을 고르지 않는다 (2026-09-24 대표 확정 3-5 A) */}
               <p className="mt-3 text-[12px] leading-5 text-ink-3">
                 유료 회원가는 잼마다 정해 둔 범위(지역·종류·가게 꼬리표)를 따라 저절로 적용됩니다.
@@ -324,7 +362,16 @@ export default function ProductsPage() {
                     <Td className="max-w-[240px]">
                       <div className="flex items-center gap-2.5">
                         <Thumb src={p.imageUrl} />
-                        <span className="truncate font-medium">{p.name}</span>
+                        <span className="min-w-0">
+                          <span className="block truncate font-medium">{p.name}</span>
+                          {(periodText(p) || p.saleState !== 'ON') && (
+                            <span className="block truncate text-[11px] text-ink-3">
+                              {p.saleState === 'UPCOMING' && <span className="mr-1 font-bold text-warn">판매 전</span>}
+                              {p.saleState === 'ENDED' && <span className="mr-1 font-bold text-bad">판매 끝</span>}
+                              {periodText(p)}
+                            </span>
+                          )}
+                        </span>
                       </div>
                     </Td>
                     <Td><Badge>{TYPE_LABEL[p.type] ?? p.type}</Badge></Td>
@@ -361,6 +408,7 @@ export default function ProductsPage() {
                         )}
                         <Button small onClick={() => setCouponFor(p)}>쿠폰 묶기</Button>
                         <Button small variant="ghost" onClick={() => setQtyFor(p)}>수량</Button>
+                        <Button small variant="ghost" onClick={() => setPeriodFor(p)}>기간</Button>
                         <Button small variant="ghost" onClick={() => setPlanFor(p)}>회원가 잼</Button>
                         <Button small onClick={() => duplicateProduct(p)}>복사</Button>
                         <label className="cursor-pointer">
@@ -522,6 +570,15 @@ export default function ProductsPage() {
       )}
       {couponFor && (
         <ProductCouponsModal product={couponFor} onClose={() => setCouponFor(null)} />
+      )}
+      {periodFor && (
+        <ProductPeriodModal
+          product={periodFor}
+          onClose={(saved) => {
+            setPeriodFor(null);
+            if (saved) { setMsg(`'${periodFor.name}' 판매·이용 기간을 저장했습니다`); load(); }
+          }}
+        />
       )}
       {qtyFor && (
         <ProductQtyModal

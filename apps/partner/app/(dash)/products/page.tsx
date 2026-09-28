@@ -7,7 +7,20 @@ import { QtyEdit } from '@/components/qty-edit';
 const img = (u?: string | null, w = 160) => (u ? (u.startsWith('/') ? `${API_BASE}${u}?w=${w}` : u) : null);
 const TYPE_LABEL: Record<string, string> = { TICKET: '티켓', RESERVATION: '예약형', PASS: 'PASS' };
 
-const EMPTY = { type: 'RESERVATION', name: '', description: '', basePrice: '', memberPrice: '', verification: 'QR_ONLY', cancelPolicy: '', totalQty: '', slotCapacity: '', maxPerUser: '' };
+const EMPTY = { type: 'RESERVATION', name: '', description: '', basePrice: '', memberPrice: '', verification: 'QR_ONLY', cancelPolicy: '', totalQty: '', slotCapacity: '', maxPerUser: '', saleFrom: '', saleTo: '', useFrom: '', useTo: '' };
+
+/** 'YYYY-MM-DD' → '10.3' */
+const md = (s: string) => { const [, m, d] = s.split('-'); return `${Number(m)}.${Number(d)}`; };
+/** 판매·이용 기간 한 줄 — 예) '판매 10.1~10.31 · 이용 11.8 하루' (2026-09-19 문서 4-6) */
+function periodText(p: any) {
+  const x = p.period;
+  if (!x) return '';
+  const range = (a: string | null, b: string | null) => (a && a === b ? `${md(a)} 하루` : `${a ? md(a) : ''}~${b ? md(b) : ''}`);
+  const out: string[] = [];
+  if (x.saleFrom || x.saleTo) out.push(`판매 ${range(x.saleFrom, x.saleTo)}`);
+  if (p.type !== 'RESERVATION' && (x.useFrom || x.useTo)) out.push(`이용 ${range(x.useFrom, x.useTo)}`);
+  return out.join(' · ');
+}
 
 export default function MyProductsPage() {
   const [rows, setRows] = useState<any[] | null>(null);
@@ -53,6 +66,10 @@ export default function MyProductsPage() {
           totalQty: f.type === 'TICKET' && f.totalQty ? Number(f.totalQty) : undefined,
           slotCapacity: f.type === 'RESERVATION' && f.slotCapacity ? Number(f.slotCapacity) : undefined,
           maxPerUser: f.maxPerUser ? Number(f.maxPerUser) : undefined,
+          saleFrom: f.saleFrom || undefined,
+          saleTo: f.saleTo || undefined,
+          useFrom: f.type === 'TICKET' ? f.useFrom || undefined : undefined,
+          useTo: f.type === 'TICKET' ? f.useTo || undefined : undefined,
           imageBase64: photo ?? undefined,
         },
       });
@@ -69,6 +86,8 @@ export default function MyProductsPage() {
   }
 
   const inputCls = 'w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none focus:border-brand';
+  /** 날짜 칸 — 한 줄에 '시작 ~ 끝'이 나란히 들어가게 너비를 내용만큼 */
+  const dateCls = 'h-10 rounded-md border border-line bg-white px-3 text-sm outline-none focus:border-brand';
   const valid = f.name.length >= 2 && Number(f.basePrice) >= 1000;
 
   return (
@@ -112,6 +131,22 @@ export default function MyProductsPage() {
             )}
             <input className={inputCls} placeholder="한 사람당 최대 (비우면 제한 없음)" title="예) 1인 1장" value={f.maxPerUser} onChange={(e) => setF({ ...f, maxPerUser: e.target.value.replace(/\D/g, '') })} />
             <input className={inputCls} placeholder="취소 정책 (예: 기상 악화 시 전액 환불)" value={f.cancelPolicy} onChange={(e) => setF({ ...f, cancelPolicy: e.target.value })} />
+            {/* 판매 기간·이용 기간 — 비우면 제한 없음 (2026-09-19 문서 4-6) */}
+            <div className="col-span-2 flex flex-wrap items-center gap-2 lg:col-span-4">
+              <span className="text-xs font-semibold text-ink-3">판매 기간</span>
+              <input type="date" className={dateCls} value={f.saleFrom} onChange={(e) => setF({ ...f, saleFrom: e.target.value })} aria-label="판매 시작일" />
+              <span className="text-ink-3">~</span>
+              <input type="date" className={dateCls} value={f.saleTo} onChange={(e) => setF({ ...f, saleTo: e.target.value })} aria-label="판매 끝나는 날" />
+              {f.type === 'TICKET' && (
+                <>
+                  <span className="ml-3 text-xs font-semibold text-ink-3">이용 기간</span>
+                  <input type="date" className={dateCls} value={f.useFrom} onChange={(e) => setF({ ...f, useFrom: e.target.value })} aria-label="이용 시작일" />
+                  <span className="text-ink-3">~</span>
+                  <input type="date" className={dateCls} value={f.useTo} onChange={(e) => setF({ ...f, useTo: e.target.value })} aria-label="이용 끝나는 날" />
+                </>
+              )}
+              <span className="text-[11px] text-ink-3">비우면 제한 없음{f.type === 'TICKET' ? ' · 이용 기간이 없으면 산 날부터 30일' : ''}</span>
+            </div>
             <div className="col-span-2 flex items-center gap-2 lg:col-span-4">
               <label className="cursor-pointer whitespace-nowrap rounded-md border border-line bg-white px-3 py-2 text-sm font-semibold text-ink-2 hover:bg-ground">
                 <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={pickPhoto} />
@@ -151,6 +186,13 @@ export default function MyProductsPage() {
                     <div className="min-w-0">
                       <div className="truncate font-medium">{p.name}</div>
                       <div className="truncate text-xs text-ink-3">{p.description}</div>
+                      {(periodText(p) || p.saleState !== 'ON') && (
+                        <div className="truncate text-[11px] text-ink-3">
+                          {p.saleState === 'UPCOMING' && <span className="mr-1 font-bold text-warn">판매 전</span>}
+                          {p.saleState === 'ENDED' && <span className="mr-1 font-bold text-bad">판매 끝</span>}
+                          {periodText(p)}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </Td>

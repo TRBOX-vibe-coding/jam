@@ -21,8 +21,7 @@ import {
   dayKey, dayLabel, parseDay, syncBundledCoupons, visitDateError, visitDateRange,
 } from './bundled-coupons.util';
 
-/** 티켓·PASS 이용권을 쓸 수 있는 기간(일) */
-const TICKET_VALID_DAYS = 30;
+import { fixedUseDay, onSaleWhere, periodKeys, saleState, voucherWindow } from './product-period.util';
 
 class PurchaseProductDto {
   @IsOptional() @IsString() slotId?: string;
@@ -53,6 +52,8 @@ export class OrdersController {
         isActive: true,
         ...(merchantId ? { merchantId } : {}),
         ...(type ? { type: type as never } : {}),
+        // 판매 기간 밖(판매 전·끝남)은 목록에 안 보인다 (2026-09-19 문서 4-6)
+        ...onSaleWhere(),
       },
       include: {
         merchant: {
@@ -134,10 +135,16 @@ export class OrdersController {
       memberPricePlans,
       /** 지금 보는 사람이 할인가를 받는지 */
       memberPriceApplies,
-      /** 가는 날로 고를 수 있는 범위 'YYYY-MM-DD' — 예약 상품은 예약한 날이 곧 가는 날이라 null */
-      visitRange: p.type === 'RESERVATION' ? null : (() => {
+      /** 판매 상태 — 'UPCOMING' 판매 전 · 'ON' 판매 중 · 'ENDED' 판매 끝 (판매 기간, 2026-09-19 문서 4-6) */
+      saleState: saleState(p),
+      /** 판매 기간·이용 기간 'YYYY-MM-DD' (비어 있으면 null) */
+      period: periodKeys(p),
+      /** 가는 날로 고를 수 있는 범위 'YYYY-MM-DD' — 이용 기간 안에서. 예약 상품은 예약한 날이 곧 가는 날이라 null */
+      // 이용일이 하루로 정해진 티켓은 그 날이 곧 가는 날이라 묻지 않는다
+      visitRange: p.type === 'RESERVATION' || fixedUseDay(p) ? null : (() => {
         const now = new Date();
-        const r = visitDateRange(now, addDays(now, TICKET_VALID_DAYS));
+        const w = voucherWindow(p, now);
+        const r = visitDateRange(w.validFrom, w.validTo);
         return { from: dayKey(r.from), to: dayKey(r.to) };
       })(),
       bundledCoupons: links.filter((l, i, a) => a.findIndex((x) => x.benefitId === l.benefitId) === i).map((l) => ({
@@ -172,13 +179,19 @@ export class OrdersController {
     if (product.type === 'RESERVATION' && !dto.slotId) {
       throw new BadRequestException('예약 시간을 선택해 주세요');
     }
+    // 판매 기간 밖이면 결제를 막는다 (2026-09-19 문서 4-6, 대표 '오픈 전 필수')
+    const sale = saleState(product, now);
+    if (sale === 'UPCOMING') throw new BadRequestException(`${dayLabel(product.saleFrom!)}부터 판매합니다`);
+    if (sale === 'ENDED') throw new BadRequestException('판매 기간이 끝난 상품입니다');
 
-    // 가는 날 — 티켓·PASS만. 예약 상품은 예약한 날이 곧 가는 날이다.
-    const ticketValidTo = addDays(now, TICKET_VALID_DAYS);
-    let visitDate: Date | null = null;
-    if (dto.visitDate && product.type !== 'RESERVATION') {
+    // 이용권을 쓸 수 있는 기간 — 상품의 이용 기간, 없으면 산 날부터 30일
+    const win = voucherWindow(product, now);
+    // 가는 날 — 티켓·PASS만, 이용 기간 안에서. 예약 상품은 예약한 날이 곧 가는 날이다.
+    // 이용일이 하루로 정해진 티켓(불꽃축제처럼)은 그 날이 곧 가는 날 — 쿠폰도 그 날 0시에 열린다
+    let visitDate: Date | null = fixedUseDay(product);
+    if (!visitDate && dto.visitDate && product.type !== 'RESERVATION') {
       visitDate = parseDay(dto.visitDate);
-      const err = visitDateError(visitDate, now, ticketValidTo);
+      const err = visitDateError(visitDate, win.validFrom, win.validTo);
       if (err) throw new BadRequestException(err);
     }
 
@@ -253,7 +266,8 @@ export class OrdersController {
           productId: id,
           code: makeVoucherCode(),
           headcount: dto.headcount,
-          validTo: slot ? slot.endAt : ticketValidTo,
+          validFrom: slot ? now : win.validFrom,
+          validTo: slot ? slot.endAt : win.validTo,
           status: slot ? 'RESERVED' : 'ISSUED',
           visitDate,
         },
@@ -371,7 +385,7 @@ export class OrdersController {
       include: {
         product: {
           select: {
-            name: true, type: true, verification: true, i18n: true,
+            name: true, type: true, verification: true, i18n: true, useFrom: true, useTo: true,
             merchant: { select: { id: true, name: true, address: true, i18n: true } },
           },
         },
@@ -382,13 +396,15 @@ export class OrdersController {
     return rows.map((v) => {
       // 가는 날은 안 쓴 티켓·PASS에서, 고른 날이 오기 전까지만 고르거나 바꾼다 (그날 0시에 쿠폰이 열리므로)
       const editable =
-        v.product.type !== 'RESERVATION' && v.status === 'ISSUED' && v.validTo > now &&
+        v.product.type !== 'RESERVATION' && !fixedUseDay(v.product) && v.status === 'ISSUED' && v.validTo > now &&
         !(v.visitDate && v.visitDate <= now);
-      const r = editable ? visitDateRange(now, v.validTo) : null;
+      const r = editable ? visitDateRange(v.validFrom > now ? v.validFrom : now, v.validTo) : null;
       return {
         ...v,
         /** 손님이 고른 가는 날 'YYYY-MM-DD' (없으면 null) */
         visitDay: v.visitDate ? dayKey(v.visitDate) : null,
+        /** 이용 기간이 아직 시작 전이면 시작일 'YYYY-MM-DD' — 그 전에는 가게에서 못 쓴다 */
+        usableFrom: v.validFrom > now ? dayKey(v.validFrom) : null,
         /** 가는 날을 고르거나 바꿀 수 있으면 고를 수 있는 범위 */
         visitRange: r ? { from: dayKey(r.from), to: dayKey(r.to) } : null,
       };
@@ -404,9 +420,12 @@ export class OrdersController {
   async setVisitDate(@UserId() userId: string, @Param('id') id: string, @Body() dto: VisitDateDto) {
     const db = this.prisma.client;
     const now = new Date();
-    const v = await db.voucher.findFirst({ where: { id, userId }, include: { product: { select: { type: true } } } });
+    const v = await db.voucher.findFirst({
+      where: { id, userId }, include: { product: { select: { type: true, useFrom: true, useTo: true } } },
+    });
     if (!v) throw new NotFoundException('이용권을 찾을 수 없습니다');
     if (v.product.type === 'RESERVATION') throw new BadRequestException('예약 상품은 예약한 날에 쿠폰이 열립니다');
+    if (fixedUseDay(v.product)) throw new BadRequestException('이용일이 정해진 상품이라 가는 날을 바꿀 수 없습니다');
     if (v.status !== 'ISSUED' || v.validTo <= now) {
       throw new BadRequestException('아직 쓰지 않은 이용권만 가는 날을 바꿀 수 있습니다');
     }
@@ -416,7 +435,7 @@ export class OrdersController {
     let day: Date | null = null;
     if (dto.visitDate) {
       day = parseDay(dto.visitDate);
-      const err = visitDateError(day, now, v.validTo);
+      const err = visitDateError(day, v.validFrom > now ? v.validFrom : now, v.validTo);
       if (err) throw new BadRequestException(err);
     }
     return db.$transaction(async (tx) => {

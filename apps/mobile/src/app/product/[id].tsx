@@ -86,6 +86,15 @@ export default function ProductDetail() {
     return <Screen>{failed ? <LoadError text={t('loadFailed')} retryLabel={t('retry')} onRetry={load} /> : <Loading />}</Screen>;
   }
 
+  /** 'YYYY-MM-DD' → '10월 3일 (금)' */
+  const dayText = (s: string) => {
+    const [y, m, d] = s.split('-').map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString(locale, { month: 'long', day: 'numeric', weekday: 'short' });
+  };
+  const rangeText = (a: string | null, b: string | null) =>
+    a && a === b ? `${dayText(a)} ${t('periodOneDay')}` : `${a ? dayText(a) : ''} ~ ${b ? dayText(b) : ''}`.trim();
+  // 판매 기간 밖이면 결제 버튼을 막는다
+  const saleBlocked = p.saleState === 'UPCOMING' || p.saleState === 'ENDED';
   const unit = p.memberPriceApplies ? p.memberPrice : p.basePrice;
   const total = p.type === 'RESERVATION' ? unit * headcount : unit;
   // 가는 날은 딸려 받는 쿠폰이 있는 티켓·PASS에서만 묻는다 — 쿠폰 여는 날을 정하는 게 쓰임새다
@@ -145,6 +154,13 @@ export default function ProductDetail() {
               ].filter(Boolean).join(' · ')}
             </Text>
           )}
+          {/* 판매 기간·이용 기간 (2026-09-19 문서 4-6) */}
+          {p.period && (p.period.saleFrom || p.period.saleTo) && (
+            <Text style={st.periodLine}>{t('periodSale', { range: rangeText(p.period.saleFrom, p.period.saleTo) })}</Text>
+          )}
+          {p.type !== 'RESERVATION' && p.period && (p.period.useFrom || p.period.useTo) && (
+            <Text style={st.periodLine}>{t('periodUse', { range: rangeText(p.period.useFrom, p.period.useTo) })}</Text>
+          )}
           {p.cancelPolicy && <Text style={st.policy}>· {p.cancelPolicy}</Text>}
         </Card>
 
@@ -196,6 +212,8 @@ export default function ProductDetail() {
               <Text style={st.bundledDays}>
                 {p.type === 'RESERVATION'
                   ? t('bundledFromResv', { n: couponDays })
+                  : p.period?.useFrom && p.period.useFrom === p.period.useTo
+                  ? t('bundledFromVisit', { date: visitDayText(p.period.useFrom, locale), n: couponDays })
                   : visitDay
                   ? t('bundledFromVisit', { date: visitDayText(visitDay, locale), n: couponDays })
                   : t('pendingGuide')}
@@ -228,7 +246,8 @@ export default function ProductDetail() {
         )}
 
         {/* 취소·환불 안내 — 결제 전에 보여준다. 숫자는 본사 설정에서 (2026-09-28) */}
-        <RefundNotice kind={p.type} hasBundled={p.bundledCoupons?.length > 0} />
+        {/* 날짜 있는 티켓(이용 시작일이 있는 티켓 — 불꽃축제 등)은 예약 상품처럼 이용일 기준 규정 */}
+        <RefundNotice kind={p.type === 'RESERVATION' || p.period?.useFrom ? 'RESERVATION' : p.type} hasBundled={p.bundledCoupons?.length > 0} />
       </ScrollView>
 
       {/* 하단 고정 결제바 — 스크롤과 무관하게 항상 보인다 */}
@@ -245,9 +264,13 @@ export default function ProductDetail() {
           </View>
         )}
         <Btn
-          title={p.type === 'RESERVATION' ? t('payTotalReserve', { price: won(total) }) : t('payTotal', { price: won(total) })}
+          title={
+            p.saleState === 'UPCOMING' ? t('saleUpcoming', { date: dayText(p.period.saleFrom) })
+            : p.saleState === 'ENDED' ? t('saleEnded')
+            : p.type === 'RESERVATION' ? t('payTotalReserve', { price: won(total) }) : t('payTotal', { price: won(total) })
+          }
           onPress={purchase}
-          disabled={busy}
+          disabled={busy || saleBlocked}
         />
         <Text style={st.note}>
           {p.type === 'RESERVATION' ? t('resvNote') : p.type === 'PASS' ? t('passNote') : t('ticketNote')}
@@ -279,6 +302,7 @@ const st = StyleSheet.create({
   memberHint: { fontSize: 12, color: C.gold, fontWeight: '700' },
   policy: { fontSize: 12, color: C.warn, marginTop: 8 },
   qtyLine: { fontSize: 12.5, fontWeight: '700', color: C.brand, marginTop: 8 },
+  periodLine: { fontSize: 12.5, fontWeight: '600', color: C.ink2, marginTop: 6 },
   section: { fontSize: 13, fontWeight: '700', color: C.ink3, marginTop: 12, marginBottom: 8 },
   noSlot: { fontSize: 13, color: C.ink3, textAlign: 'center' },
   slotLabel: { fontSize: 15, fontWeight: '700', color: C.ink },

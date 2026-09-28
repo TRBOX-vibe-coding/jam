@@ -136,7 +136,21 @@ export default function WalletScreen() {
                   </View>
                 </View>
               )}
-              <Text style={st.code}>{t('codeAndDate', { code: v.code, date: new Date(v.validTo).toLocaleDateString(locale) })}</Text>
+              {/* 이용 기간이 시작 전이면 시작일부터 (2026-09-19 문서 4-6). 끝나는 날은 그 날 23:59까지라 1분 빼서 보여준다 */}
+              <Text style={st.code}>
+                {v.usableFrom
+                  ? t('codeAndPeriod', {
+                      code: v.code,
+                      from: (() => { const [y, m, d] = v.usableFrom.split('-').map(Number); return new Date(y, m - 1, d).toLocaleDateString(locale); })(),
+                      to: new Date(new Date(v.validTo).getTime() - 60_000).toLocaleDateString(locale),
+                    })
+                  : t('codeAndDate', { code: v.code, date: new Date(new Date(v.validTo).getTime() - 60_000).toLocaleDateString(locale) })}
+              </Text>
+              {v.usableFrom && ['ISSUED', 'RESERVED'].includes(v.status) && (
+                <Text style={st.usableFrom}>
+                  {t('usableFromHint', { date: (() => { const [y, m, d] = v.usableFrom.split('-').map(Number); return new Date(y, m - 1, d).toLocaleDateString(locale, { month: 'long', day: 'numeric' }); })() })}
+                </Text>
+              )}
               {['ISSUED', 'RESERVED'].includes(v.status) && (
                 <View style={{ marginTop: 10 }}>
                   <Btn
@@ -300,6 +314,7 @@ const st = StyleSheet.create({
   sub: { fontSize: 13, color: C.ink2, marginTop: 4 },
   reserve: { fontSize: 13, color: C.brand, fontWeight: '700', marginTop: 6 },
   code: { fontSize: 11, color: C.ink3, marginTop: 6 },
+  usableFrom: { fontSize: 12, fontWeight: '700', color: C.warn, marginTop: 4 },
   modalBack: { flex: 1, backgroundColor: 'rgba(10,20,30,0.55)', alignItems: 'center', justifyContent: 'center', padding: 28 },
   modalCard: { backgroundColor: C.white, borderRadius: 18, padding: 24, width: '100%', maxWidth: 360 },
   modalTitle: { fontSize: 18, fontWeight: '700', color: C.ink, textAlign: 'center' },

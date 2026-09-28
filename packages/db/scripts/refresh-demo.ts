@@ -394,6 +394,59 @@ async function refreshMemberHome(now: Date) {
   return { skipped: false, tripMoved, booked };
 }
 
+/**
+ * '날짜 있는 티켓' 예시 — 판매 기간·이용 기간 (2026-09-19 문서 4-6) + 대표 취소 규정의 '불꽃축제 등'.
+ * 이용일이 하루로 정해진 선상 관람 크루즈를 하나 두고, 이용일이 사흘 안으로 다가오면 한 달 뒤로 다시 옮긴다.
+ * 판매는 오늘부터 이용 전날까지, 사면 근처 쿠폰 2장이 이용일 0시에 열린다.
+ */
+const DATED_NAME = '부산불꽃축제 선상 관람 크루즈';
+async function refreshDatedTicket(now: Date) {
+  const merchant = await db.merchant.findFirst({ where: { name: '해운대리버크루즈' }, select: { id: true, categoryId: true } });
+  if (!merchant) return { created: false, moved: false };
+  const day = (n: number) => { const d = new Date(now); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + n); return d; };
+  const dates = { saleFrom: day(0), saleTo: day(29), useFrom: day(30), useTo: day(30) };
+
+  let p = await db.product.findFirst({ where: { name: DATED_NAME, merchantId: merchant.id } });
+  let created = false;
+  if (!p) {
+    p = await db.product.create({
+      data: {
+        merchantId: merchant.id,
+        categoryId: merchant.categoryId,
+        type: 'TICKET',
+        name: DATED_NAME,
+        description: '불꽃축제 날 해운대 앞바다에서 배 위로 보는 좌석. 선상 음료 1잔 포함, 저녁 6시 30분 승선.',
+        imageUrl: 'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=1200&q=60&auto=format&fit=crop',
+        basePrice: 59000,
+        memberPrice: 49000,
+        totalQty: 40,
+        maxPerUser: 4,
+        verification: 'QR_ONLY',
+        cancelPolicy: '기상 악화로 운항하지 않으면 전액 환불',
+        weatherDependent: true,
+        approval: 'ACTIVE',
+        isActive: true,
+        ...dates,
+      },
+    });
+    created = true;
+    // 사면 같이 받는 근처 쿠폰 2장 — 해운대 가게에서
+    const coupons = await db.benefit.findMany({
+      where: { isActive: true, approval: 'ACTIVE', merchant: { name: { in: ['부산엑스더스카이', '스크러피'] } } },
+      take: 2,
+      select: { id: true },
+    });
+    for (let i = 0; i < coupons.length; i++) {
+      await db.benefitGrantRule.create({
+        data: { benefitId: coupons[i].id, trigger: 'PRODUCT', productId: p.id, validDays: 3, sortOrder: i, isActive: true },
+      });
+    }
+  }
+  const soon = !p.useFrom || p.useFrom.getTime() < day(3).getTime();
+  if (soon && !created) await db.product.update({ where: { id: p.id }, data: dates });
+  return { created, moved: soon && !created };
+}
+
 async function main() {
   const now = new Date();
   const drops = await refreshDrops(now);
@@ -405,12 +458,14 @@ async function main() {
   const tickets = await refreshTicketSales(now);
   const visit = await refreshVisitDemo(now);
   const home = await refreshMemberHome(now);
+  const dated = await refreshDatedTicket(now);
   console.log(`DROP ${drops}개 다시 열림 · 승인 대기 ${pending}개 기간 연장 · 기획전 ${campaigns}개 연장 · 예약 상품 ${slots.products}개에 시간대 ${slots.created}개 추가`);
   console.log(
     resv.skipped
       ? 'API가 꺼져 있어 예약·판매는 건너뜀 (API를 켜고 다시 돌리면 채워짐)'
       : `앞으로의 예약 ${resv.created}건 · 오늘 티켓 판매 ${tickets.created}건 추가 · 시연 손님 가는 날 예시 ${visit.changed ? '나흘 뒤로 맞춤' : '그대로 둠'}`
-        + ` · 시연 손님 여행 ${home.tripMoved ? '오늘부터로 옮김' : '그대로'} · 예약 ${home.booked ? '1건 추가' : '그대로'}`,
+        + ` · 시연 손님 여행 ${home.tripMoved ? '오늘부터로 옮김' : '그대로'} · 예약 ${home.booked ? '1건 추가' : '그대로'}`
+        + ` · 날짜 있는 티켓 예시 ${dated.created ? '만듦' : dated.moved ? '한 달 뒤로 옮김' : '그대로'}`,
   );
 }
 

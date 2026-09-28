@@ -27,6 +27,7 @@ import {
   type RefundPolicy, type RefundRule,
 } from './refund-policy.util';
 import { syncBundledCoupons } from './bundled-coupons.util';
+import { isDatedTicket } from './product-period.util';
 
 class RefundPolicyDto {
   @Type(() => Number) @IsInt() @Min(0) @Max(1440) graceMinutes!: number;
@@ -52,7 +53,7 @@ const ORDER_INCLUDE = {
   vouchers: {
     include: {
       product: {
-        select: { id: true, name: true, type: true, totalQty: true, isActive: true, merchant: { select: { name: true } } },
+        select: { id: true, name: true, type: true, totalQty: true, isActive: true, useFrom: true, merchant: { select: { name: true } } },
       },
       reservation: { include: { slot: { select: { id: true, startAt: true } } } },
     },
@@ -72,7 +73,9 @@ function summarize(o: any) {
     : o.memberships.length ? '잼' : o.claims.length ? '딜' : '기타';
   const merchant =
     o.vouchers[0]?.product.merchant.name ?? o.claims[0]?.drop.merchant.name ?? (o.memberships.length ? '홀릭잼' : '');
-  const useAt = resv?.slot.startAt ?? o.memberships[0]?.startAt ?? null;
+  // 날짜 있는 티켓(이용 시작일이 있는 티켓)은 그 날이 이용일이다
+  const dated = o.vouchers.find((v: any) => !v.reservation && v.product.useFrom);
+  const useAt = resv?.slot.startAt ?? dated?.product.useFrom ?? o.memberships[0]?.startAt ?? null;
   return {
     id: o.id,
     orderNo: o.orderNo,
@@ -125,6 +128,16 @@ async function analyze(db: PrismaService['client'], o: any, policy: RefundPolicy
       }
       parts.push({
         label: `${v.product.name} · ${fmt(useAt)} · ${v.reservation.headcount}명`,
+        amount,
+        rule: reservationRule(policy, useAt, o.paidAt ? new Date(o.paidAt) : null, now),
+      });
+    } else if (isDatedTicket(v.product)) {
+      // 날짜 있는 티켓(불꽃축제 등) — 예약 상품처럼 이용일 기준 (2026-09-24 대표 확정 취소 규정)
+      const useAt = new Date(v.product.useFrom);
+      const day = useAt.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' });
+      if (useAt <= now) warnings.push(`이용 시작일(${day})이 이미 지났습니다.`);
+      parts.push({
+        label: `${v.product.name} · 이용 ${day}부터`,
         amount,
         rule: reservationRule(policy, useAt, o.paidAt ? new Date(o.paidAt) : null, now),
       });

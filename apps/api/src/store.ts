@@ -6,6 +6,7 @@ import { Controller, Get, Module, NotFoundException, Param, Query, UseGuards } f
 import { PrismaService } from './prisma.service';
 import { AuthModule, OptionalUserGuard, UserId } from './auth';
 import { memberPriceProductIds, usableBenefitIds } from './plan-scope.util';
+import { onSaleWhere } from './product-period.util';
 
 @Controller('merchants')
 export class StoreController {
@@ -68,7 +69,7 @@ export class StoreController {
           },
         },
         products: {
-          where: { isActive: true },
+          where: { isActive: true, ...onSaleWhere() },
           select: {
             id: true, name: true, type: true, imageUrl: true,
             basePrice: true, memberPrice: true, i18n: true,

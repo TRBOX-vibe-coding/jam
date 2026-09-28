@@ -37,6 +37,11 @@ export default function MerchantProductCreate() {
   const [totalQty, setTotalQty] = useState('');       // 티켓형 총 판매 수량
   const [slotCapacity, setSlotCapacity] = useState(''); // 예약형 회차당 정원
   const [maxPerUser, setMaxPerUser] = useState('');     // 한 사람당 살 수 있는 수량 (2026-09-24 대표 확정 3-3)
+  // 판매 기간·이용 기간 'YYYY-MM-DD' — 비우면 제한 없음 (2026-09-19 문서 4-6)
+  const [saleFrom, setSaleFrom] = useState('');
+  const [saleTo, setSaleTo] = useState('');
+  const [useFrom, setUseFrom] = useState('');
+  const [useTo, setUseTo] = useState('');
   const [image, setImage] = useState<{ uri: string; dataUrl: string } | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -65,7 +70,14 @@ export default function MerchantProductCreate() {
   const base = Number(basePrice.replace(/\D/g, '')) || 0;
   const member = Number(memberPrice.replace(/\D/g, '')) || 0;
   const saveRate = base > 0 && member > 0 && member < base ? Math.round((1 - member / base) * 100) : null;
-  const valid = name.trim().length >= 2 && base >= 1000 && (member === 0 || member < base);
+  const DATE = /^\d{4}-\d{2}-\d{2}$/;
+  const datesOk = [saleFrom, saleTo, useFrom, useTo].every((d) => !d || DATE.test(d));
+  const valid = name.trim().length >= 2 && base >= 1000 && (member === 0 || member < base) && datesOk;
+  /** 숫자만 받아 'YYYY-MM-DD' 모양으로 */
+  const asDate = (t: string) => {
+    const n = t.replace(/\D/g, '').slice(0, 8);
+    return n.length > 6 ? `${n.slice(0, 4)}-${n.slice(4, 6)}-${n.slice(6)}` : n.length > 4 ? `${n.slice(0, 4)}-${n.slice(4)}` : n;
+  };
 
   async function submit() {
     if (!valid) return;
@@ -84,6 +96,10 @@ export default function MerchantProductCreate() {
           totalQty: type === 'TICKET' && totalQty ? Number(totalQty) : undefined,
           slotCapacity: type === 'RESERVATION' && slotCapacity ? Number(slotCapacity) : undefined,
           maxPerUser: maxPerUser ? Number(maxPerUser) : undefined,
+          saleFrom: saleFrom || undefined,
+          saleTo: saleTo || undefined,
+          useFrom: type === 'TICKET' ? useFrom || undefined : undefined,
+          useTo: type === 'TICKET' ? useTo || undefined : undefined,
           imageBase64: image?.dataUrl,
         },
       });
@@ -213,6 +229,26 @@ export default function MerchantProductCreate() {
           placeholder="예) 1 — 비우면 제한 없음" placeholderTextColor={C.ink3} keyboardType="number-pad"
         />
         <Text style={st.fieldHint}>한 손님이 이 상품을 몇 장까지 살 수 있는지예요. 예) 기획전 1인 1장</Text>
+
+        <Text style={st.label}>판매 기간 (선택)</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <TextInput style={[st.input, { flex: 1 }]} value={saleFrom} onChangeText={(t) => setSaleFrom(asDate(t))} placeholder="2026-10-01" placeholderTextColor={C.ink3} keyboardType="number-pad" />
+          <Text style={{ color: C.ink3 }}>~</Text>
+          <TextInput style={[st.input, { flex: 1 }]} value={saleTo} onChangeText={(t) => setSaleTo(asDate(t))} placeholder="2026-10-31" placeholderTextColor={C.ink3} keyboardType="number-pad" />
+        </View>
+        <Text style={st.fieldHint}>이 기간에만 손님이 살 수 있어요. 끝나는 날은 그 날 밤 23:59까지. 비우면 제한 없음.</Text>
+        {type === 'TICKET' && (
+          <>
+            <Text style={st.label}>이용 기간 (선택)</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <TextInput style={[st.input, { flex: 1 }]} value={useFrom} onChangeText={(t) => setUseFrom(asDate(t))} placeholder="2026-11-08" placeholderTextColor={C.ink3} keyboardType="number-pad" />
+              <Text style={{ color: C.ink3 }}>~</Text>
+              <TextInput style={[st.input, { flex: 1 }]} value={useTo} onChangeText={(t) => setUseTo(asDate(t))} placeholder="2026-11-08" placeholderTextColor={C.ink3} keyboardType="number-pad" />
+            </View>
+            <Text style={st.fieldHint}>이용권을 이 기간에만 쓸 수 있어요. 비우면 산 날부터 30일. 예) 불꽃축제 11월 8일 하루</Text>
+          </>
+        )}
+        {!datesOk && <Text style={[st.fieldHint, { color: C.bad }]}>날짜는 2026-10-01처럼 넣어 주세요</Text>}
 
         <Text style={st.label}>현장 사용 확인 방식</Text>
         <View style={st.presetRow}>

@@ -52,7 +52,10 @@ export function visitDateRange(now: Date, voucherValidTo: Date) {
 export function visitDateError(day: Date | null, now: Date, voucherValidTo: Date): string | null {
   if (!day) return '가는 날을 다시 골라 주세요';
   const r = visitDateRange(now, voucherValidTo);
-  if (day < r.from || day > r.to) return `가는 날은 오늘부터 ${dayLabel(r.to)}까지 고를 수 있습니다`;
+  if (day < r.from || day > r.to) {
+    const from = r.from.getTime() === dayStart(new Date()).getTime() ? '오늘' : dayLabel(r.from);
+    return `가는 날은 ${from}부터 ${dayLabel(r.to)}까지 고를 수 있습니다`;
+  }
   return null;
 }
 

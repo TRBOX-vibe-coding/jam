@@ -13,6 +13,7 @@ import * as XLSX from 'xlsx';
 import { PrismaService } from './prisma.service';
 import { saveImageDataUrl } from './uploads';
 import { AuthModule, UserGuard, UserId } from './auth';
+import { parsePeriod, periodKeys, saleState } from './product-period.util';
 
 function fmtDateTime(d: Date): string {
   const p = (n: number) => String(n).padStart(2, '0');
@@ -55,8 +56,8 @@ class CreateMerchantProductDto {
   @IsString() @MinLength(2) name!: string;
   @IsOptional() @IsString() description?: string;
   @Type(() => Number) @IsInt() @Min(1000) basePrice!: number;
+  /** 유료 회원 할인가 — 어느 잼이 받는지는 본사가 정한 잼 범위를 따른다 (2026-09-24 대표 확정 3-5 A) */
   @IsOptional() @Type(() => Number) @IsInt() @Min(100) memberPrice?: number;
-  /** 할인가를 받는 잼. 비우면 유료 잼이면 모두 (2026-09-18 대표 확정) */
   @IsOptional() @IsIn(['QR_ONLY', 'QR_PIN']) verification?: string;
   @IsOptional() @IsString() cancelPolicy?: string;
   @IsOptional() @IsString() imageBase64?: string;
@@ -66,6 +67,11 @@ class CreateMerchantProductDto {
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) maxPerUser?: number;
   /// 예약형: 회차당 기본 정원 — 본사가 회차를 만들 때 기본값으로 쓴다.
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(200) slotCapacity?: number;
+  /** 판매 기간·이용 기간 'YYYY-MM-DD' — 비우면 제한 없음 (2026-09-19 문서 4-6) */
+  @IsOptional() @Matches(/^(\d{4}-\d{2}-\d{2})?$/) saleFrom?: string;
+  @IsOptional() @Matches(/^(\d{4}-\d{2}-\d{2})?$/) saleTo?: string;
+  @IsOptional() @Matches(/^(\d{4}-\d{2}-\d{2})?$/) useFrom?: string;
+  @IsOptional() @Matches(/^(\d{4}-\d{2}-\d{2})?$/) useTo?: string;
 }
 
 class CreateMerchantBenefitDto {
@@ -283,9 +289,12 @@ export class MerchantController {
     if (dto.memberPrice != null && dto.memberPrice >= dto.basePrice) {
       throw new BadRequestException('멤버십가는 정상가보다 낮아야 합니다');
     }
+    const period = parsePeriod(dto, dto.type);
+    if (period.error) throw new BadRequestException(period.error);
     const imageUrl = dto.imageBase64 ? saveImageDataUrl(dto.imageBase64, 'product') : null;
     const p = await this.prisma.client.product.create({
       data: {
+        ...period.data,
         merchantId: m.id,
         categoryId: m.categoryId,
         type: dto.type,
@@ -310,12 +319,14 @@ export class MerchantController {
   @Get('my/products')
   async myProducts(@UserId() userId: string) {
     const m = await this.myMerchant(userId);
-    return this.prisma.client.product.findMany({
+    const rows = await this.prisma.client.product.findMany({
       where: { merchantId: m.id },
       orderBy: { createdAt: 'desc' },
       take: 50,
       include: { _count: { select: { slots: true } } },
     });
+    // 판매 기간·이용 기간 'YYYY-MM-DD' + 판매 상태 (2026-09-19 문서 4-6)
+    return rows.map((p) => ({ ...p, period: periodKeys(p), saleState: saleState(p) }));
   }
 
   /** 혜택(할인쿠폰) 등록 요청 → 본사 승인 후 멤버십 회원에게 열린다 */

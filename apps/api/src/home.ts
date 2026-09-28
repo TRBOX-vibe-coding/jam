@@ -11,6 +11,7 @@ import { PrismaService } from './prisma.service';
 import { AuthModule, OptionalUserGuard, UserId } from './auth';
 import { benefitSaving } from './savings.util';
 import { dayStart } from './bundled-coupons.util';
+import { onSaleWhere } from './product-period.util';
 import {
   MERCHANT_SCOPE_SELECT, benefitIdsForPlan, memberPriceProductIds, usableBenefitIds,
 } from './plan-scope.util';
@@ -100,7 +101,7 @@ export class HomeController {
     const rules = await db.benefitGrantRule.findMany({
       where: {
         trigger: 'PRODUCT', isActive: true,
-        product: { isActive: true },
+        product: { isActive: true, ...onSaleWhere() },
         benefit: { isActive: true, approval: 'ACTIVE', merchant: { status: 'ACTIVE' } },
       },
       orderBy: { sortOrder: 'asc' },
@@ -115,7 +116,7 @@ export class HomeController {
     }
     if (byProduct.size === 0) return [];
     const products = await db.product.findMany({
-      where: { id: { in: [...byProduct.keys()] }, isActive: true },
+      where: { id: { in: [...byProduct.keys()] }, isActive: true, ...onSaleWhere() },
       include: {
         merchant: { select: { name: true, i18n: true, region: { select: { name: true, i18n: true } }, ...MERCHANT_SCOPE_SELECT } },
       },

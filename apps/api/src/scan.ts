@@ -369,6 +369,11 @@ export class ScanController {
         },
       });
       if (!voucher) throw new BadRequestException('사용할 수 없는 이용권입니다');
+      // 이용 기간이 정해진 상품은 시작일 전에 못 쓴다 (2026-09-19 문서 4-6)
+      if (voucher.validFrom > now) {
+        const d = voucher.validFrom;
+        throw new BadRequestException(`이 이용권은 ${d.getMonth() + 1}월 ${d.getDate()}일부터 쓸 수 있어요`);
+      }
 
       const paidUnit =
         voucher.order.items.find((i) => i.productId === voucher.productId)?.unitPrice ??
