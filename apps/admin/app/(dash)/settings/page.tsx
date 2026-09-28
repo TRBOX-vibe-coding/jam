@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { Badge, Button, Card, CardHeader, Empty, Table, TableSkeleton, Td } from '@/components/ui';
+import { RefundPolicyCard } from '@/components/refund-policy-card';
 
 export default function SettingsPage() {
   const [regions, setRegions] = useState<any[] | null>(null);
@@ -71,12 +72,15 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-xl font-bold">지역 · 카테고리</h1>
+        <h1 className="text-xl font-bold">설정</h1>
         {msg && <span className="rounded bg-ok-soft px-3 py-1 text-xs font-semibold text-ok">{msg}</span>}
       </div>
 
+      {/* 취소·환불 규정 — 대표가 운영하면서 직접 바꾸는 숫자 (2026-09-28) */}
+      <RefundPolicyCard />
+
       <p className="text-xs text-ink-3">
-        앱의 지역 필터와 카테고리 타일을 관리합니다. 국가 → 도시 → 지역 구조라
+        아래에서는 앱의 지역 필터와 카테고리 타일을 관리합니다. 국가 → 도시 → 지역 구조라
         나중에 <b>다낭·호이안</b> 같은 해외 확장도 여기서 국가만 바꿔 추가하면 됩니다.
       </p>
 

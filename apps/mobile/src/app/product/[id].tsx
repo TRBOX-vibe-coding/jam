@@ -12,6 +12,7 @@ import { useI18n } from '../../lib/i18n';
 import { C } from '../../lib/theme';
 import { Btn, Card, LoadError, Loading, Screen, Tag } from '../../lib/ui';
 import { couponValue } from '../../lib/coupons';
+import { RefundNotice } from '../../lib/refund-notice';
 
 function notify(title: string, msg: string) {
   if (Platform.OS === 'web') window.alert(`${title}\n${msg}`);
@@ -84,7 +85,7 @@ export default function ProductDetail() {
   return (
     <Screen>
       {/* 하단 고정 결제바에 가리지 않도록 여백을 넉넉히 둔다 */}
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 130 }}>
+      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 210 }}>
         {p.imageUrl && <Image source={{ uri: img(p.imageUrl, 960) }} style={st.hero} />}
         <Card>
           <View style={{ flexDirection: 'row', gap: 5, marginBottom: 8 }}>
@@ -175,6 +176,9 @@ export default function ProductDetail() {
             </Card>
           </>
         )}
+
+        {/* 취소·환불 안내 — 결제 전에 보여준다. 숫자는 본사 설정에서 (2026-09-28) */}
+        <RefundNotice kind={p.type} hasBundled={p.bundledCoupons?.length > 0} />
       </ScrollView>
 
       {/* 하단 고정 결제바 — 스크롤과 무관하게 항상 보인다 */}

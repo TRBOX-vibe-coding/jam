@@ -92,10 +92,13 @@ export default function Dashboard() {
         ) : (
           <Table head={['시각', '유형', '항목', '구매자', '내용']}>
             {sales.rows.slice(0, 8).map((s: any, i: number) => (
-              <tr key={i}>
+              <tr key={i} className={s.cancelled ? 'opacity-60' : ''}>
                 <Td className="whitespace-nowrap text-ink-3">{dt(s.at)}</Td>
-                <Td><Badge>{{ TICKET: '티켓', RESERVATION: '예약', DROP: '딜 수령', DROP_TICKET: '딜 결제' }[s.kind as string] ?? s.kind}</Badge></Td>
-                <Td className="max-w-[260px] truncate font-medium">{s.title}</Td>
+                <Td>
+                  <Badge>{{ TICKET: '티켓', RESERVATION: '예약', DROP: '딜 수령', DROP_TICKET: '딜 결제' }[s.kind as string] ?? s.kind}</Badge>
+                  {s.cancelled && <span className="ml-1"><Badge>취소됨</Badge></span>}
+                </Td>
+                <Td className={`max-w-[260px] truncate font-medium ${s.cancelled ? 'line-through' : ''}`}>{s.title}</Td>
                 <Td>{s.buyer}</Td>
                 <Td className="text-xs text-ink-3">{s.extra}</Td>
               </tr>

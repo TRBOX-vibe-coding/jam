@@ -10,13 +10,14 @@ const DEFAULT_MENU = [
   { href: '/drops', label: 'DROP 관리', icon: '⚡' },
   { href: '/merchants', label: '가맹점', icon: '🏪' },
   { href: '/products', label: '상품·예약', icon: '🎟️' },
+  { href: '/orders', label: '주문·취소', icon: '↩️' },
   { href: '/benefits', label: '혜택', icon: '🎁' },
   { href: '/membership', label: '멤버십', icon: '💎' },
   { href: '/users', label: '회원', icon: '👥' },
   { href: '/settlements', label: '정산', icon: '💰' },
   { href: '/ads', label: '광고', icon: '📣' },
   { href: '/translations', label: '번역', icon: '🌐' },
-  { href: '/settings', label: '지역·카테고리', icon: '⚙️' },
+  { href: '/settings', label: '설정', icon: '⚙️' },
   { href: '/audit', label: '감사 로그', icon: '🧾' },
 ];
 

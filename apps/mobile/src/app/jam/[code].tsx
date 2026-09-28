@@ -16,6 +16,7 @@ import { useAuth } from '../../lib/auth';
 import { useI18n } from '../../lib/i18n';
 import { C } from '../../lib/theme';
 import { Btn, Card, Loading, LoadError, Screen, Tag } from '../../lib/ui';
+import { RefundNotice } from '../../lib/refund-notice';
 
 type Sample = {
   id: string; title: string; type: string; value: number;
@@ -233,6 +234,9 @@ export default function JamBuyScreen() {
         </Card>
 
         <Text style={st.foot}>{t('jamBuyFoot')}</Text>
+
+        {/* 취소·환불 안내 — 시작일 전 전액, 시작일부터 환불 없음 (2026-09-28 대표 확정) */}
+        <RefundNotice kind="JAM" />
       </ScrollView>
 
       {/* 하단 고정 결제바 — 상품 결제와 같은 자리 */}

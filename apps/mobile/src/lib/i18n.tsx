@@ -394,6 +394,19 @@ const D: Record<string, [string, string, string, string]> = {
   doneTitle: ['완료', 'Done', '完成', '完了'],
   resvNote: ['결제와 동시에 예약이 확정됩니다. 전화 예약이 필요 없어요.', 'Booking is confirmed the moment you pay. No phone call needed.', '付款即确认预订，无需电话。', '決済と同時に予約確定。電話不要です。'],
   passNote: ['결제하면 이용권과 함께 지역 로컬 혜택이 자동으로 열립니다.', 'Payment unlocks your pass plus local area perks.', '付款后票券与当地优惠自动开通。', '決済でパスと地域特典が自動オープン。'],
+  // ── 취소·환불 안내 (2026-09-28 대표 확정 — 숫자는 본사 설정에서) ──
+  rfTitle: ["취소·환불 안내","Cancellation & refunds","取消与退款","キャンセル・返金"],
+  rfFull: ["전액 환불","full refund","全额退款","全額返金"],
+  rfNone: ["환불 불가","no refund","不可退款","返金不可"],
+  rfPct: ["{n}% 환불","{n}% refund","退款{n}%","{n}%返金"],
+  rfResv: ["이용 이틀 전까지 {a} · 하루 전 {b} · 당일 {c}","Up to 2 days before: {a} · 1 day before: {b} · Same day: {c}","使用前2天及以上：{a} · 前1天：{b} · 当天：{c}","利用2日前まで：{a} · 前日：{b} · 当日：{c}"],
+  rfUndated: ["구매 후 {n}개월 안, 가게에서 쓰기 전이면 전액 환불","Full refund within {n} months of purchase if not yet used","购买后{n}个月内且未使用可全额退款","購入後{n}か月以内・未使用なら全額返金"],
+  rfJam: ["시작일 전에 취소하면 전액 환불 · 시작일부터는 환불되지 않아요","Full refund if cancelled before the start date · No refund once it starts","开始日前取消全额退款 · 开始后不予退款","開始日前のキャンセルは全額返金・開始後は返金不可"],
+  rfGrace: ["결제 후 {n}분 안에 취소하면 무엇이든 전액 환불","Anything cancelled within {n} min of payment is fully refunded","付款后{n}分钟内取消均全额退款","決済後{n}分以内のキャンセルは全額返金"],
+  rfUsed: ["가게에서 사용 처리된 뒤에는 환불되지 않아요","No refund once it has been used at the shop","在店内核销后不予退款","店舗で使用処理後は返金不可"],
+  rfBundled: ["함께 받은 쿠폰을 하나라도 쓰면 취소할 수 없어요","Can't be cancelled once any bundled coupon is used","附赠优惠券一旦使用则无法取消","付属クーポンを1枚でも使うとキャンセル不可"],
+  rfHow: ["취소 요청 · {cs}","Cancellation requests · {cs}","取消申请 · {cs}","キャンセル受付 · {cs}"],
+  rfCsDefault: ["홀릭잼 고객센터","HOLIC GEM support","HOLIC GEM客服","HOLIC GEMサポート"],
 
   // ── 스캔 결과(use) ──
   rescan: ['다시 스캔', 'Scan again', '重新扫码', '再スキャン'],

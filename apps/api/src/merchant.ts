@@ -429,22 +429,26 @@ export class MerchantController {
         orderBy: { claimedAt: 'desc' }, take: 50,
         include: { user: { select: { nickname: true } }, drop: { select: { title: true, kind: true } } },
       }),
-      db.dropClaim.count({ where: { drop: { merchantId: m.id }, claimedAt: { gte: todayStart } } })
-        .then(async (c) => c + await db.voucher.count({ where: { product: { merchantId: m.id }, createdAt: { gte: todayStart }, reservation: null } })
-          + await db.reservation.count({ where: { product: { merchantId: m.id }, createdAt: { gte: todayStart } } })),
+      // 취소된 건은 '오늘 판매'에서 뺀다 (2026-09-28 C 방식 — 본사가 관리자 화면에서 취소 처리)
+      db.dropClaim.count({ where: { drop: { merchantId: m.id }, claimedAt: { gte: todayStart }, status: { not: 'CANCELLED' } } })
+        .then(async (c) => c + await db.voucher.count({ where: { product: { merchantId: m.id }, createdAt: { gte: todayStart }, reservation: null, status: { not: 'CANCELLED' } } })
+          + await db.reservation.count({ where: { product: { merchantId: m.id }, createdAt: { gte: todayStart }, status: { not: 'CANCELLED' } } })),
     ]);
 
     const rows = [
       // 예약이 붙은 이용권은 예약 쪽으로만 집계 (중복 방지)
       ...vouchers.filter((v) => !v.reservation).map((v) => ({
         kind: 'TICKET' as const, at: v.createdAt, title: v.product.name, buyer: v.user.nickname, extra: `${v.headcount}명`,
+        cancelled: v.status === 'CANCELLED',
       })),
       ...reservations.map((r) => ({
         kind: 'RESERVATION' as const, at: r.createdAt, title: r.product.name, buyer: r.user.nickname,
+        cancelled: r.status === 'CANCELLED',
         extra: `${r.headcount}명 · ${new Date(r.slot.startAt).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`,
       })),
       ...claims.map((c) => ({
         kind: c.drop.kind === 'TICKET' ? ('DROP_TICKET' as const) : ('DROP' as const),
+        cancelled: c.status === 'CANCELLED',
         at: c.claimedAt, title: c.drop.title, buyer: c.user.nickname, extra: `${c.qty}개`,
       })),
     ].sort((a, b) => b.at.getTime() - a.at.getTime()).slice(0, 50);
