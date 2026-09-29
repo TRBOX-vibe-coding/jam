@@ -5,9 +5,9 @@
  *  그 아래 기획전 · (비회원) 오늘의 무료 쿠폰 · DROP · 상품은 둘 다 지금처럼.
  *  맨 위 블록에 필요한 것은 /home 한 번으로 받는다 (api/src/home.ts).
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
-  Alert, Image, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View,
+  Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -68,28 +68,6 @@ function couponLabel(t: Tr, b: { type: string; value: number }) {
 const DAY_MS = 86_400_000;
 const dayStartMs = (d: Date) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x.getTime(); };
 type Campaign = { id: string; title: string; subtitle: string | null; bannerImageUrl: string | null; subsidyLabel: string | null; endAt: string | null };
-type CouponSlot = { time: string; opensAt: string; closesAt: string; state: 'upcoming' | 'open' | 'soldout' | 'ended'; remaining: number; total: number };
-type CouponDrop = {
-  id: string; validHours: number;
-  benefit: { title: string; type: string; value: number; freebieName: string | null; merchantName: string; regionName: string };
-  slots: CouponSlot[];
-};
-
-function notifyHome(title: string, msg: string) {
-  if (Platform.OS === 'web') window.alert(`${title}\n${msg}`);
-  else Alert.alert(title, msg);
-}
-
-/** 다음 오픈까지 남은 시간 문구 */
-function untilText(t: Tr, opensAt: string, now: number) {
-  const ms = new Date(opensAt).getTime() - now;
-  if (ms <= 0) return '';
-  const h = Math.floor(ms / 3600_000);
-  const m = Math.floor((ms % 3600_000) / 60_000);
-  const s = Math.floor((ms % 60_000) / 1000);
-  return h > 0 ? t('opensInHM', { h, m }) : t('opensInMS', { m, s: String(s).padStart(2, '0') });
-}
-
 // 카테고리 타일 그라데이션 팔레트 — 관리자에서 카테고리를 추가/숨김하면 홈에도 그대로 반영된다
 const CAT_COLORS: [string, string][] = [
   ['#38BDF8', '#2563EB'], ['#FB7185', '#E11D48'], ['#FBBF24', '#D97706'],
@@ -117,17 +95,7 @@ export default function HomeScreen() {
     days: number; headcount: number; totalSaving: number; grade: string | null; items: any[];
     recommendedPlan: { code: string; name: string; price: number } | null;
   } | null>(null);
-  const [coupons, setCoupons] = useState<CouponDrop[]>([]);
-  const [couponBusy, setCouponBusy] = useState(false);
-  const [nowTick, setNowTick] = useState(Date.now());
   const [refreshing, setRefreshing] = useState(false);
-
-  // 쿠폰 카운트다운용 1초 시계 — 쿠폰 섹션이 있을 때만 돈다
-  useEffect(() => {
-    if (coupons.length === 0) return;
-    const t = setInterval(() => setNowTick(Date.now()), 1000);
-    return () => clearInterval(t);
-  }, [coupons.length]);
 
   const sortProducts = (p: Product[]) =>
     p.filter((x) => x.type !== 'PASS').concat(p.filter((x) => x.type === 'PASS'));
@@ -149,12 +117,6 @@ export default function HomeScreen() {
     if (me) {
       api<{ trip: any }>('/me/trip').then((r) => setTrip(r.trip)).catch(() => setTrip(null));
     } else setTrip(null);
-    // 타임 쿠폰 — 멤버십 회원에겐 안 보여주므로 비멤버/비로그인일 때만 조회
-    if (!me?.membership) {
-      api<{ drops: CouponDrop[] }>('/coupon-drops/today')
-        .then((r) => setCoupons(r.drops))
-        .catch(() => setCoupons([]));
-    } else setCoupons([]);
   }, [me, lang]);
 
   useFocusEffect(useCallback(() => { load().catch(() => {}); }, [load]));
@@ -523,69 +485,6 @@ export default function HomeScreen() {
           </HScroll>
         )}
 
-        {/* ①-b 오늘의 무료 쿠폰 — 비멤버 전용. 시간 한정·선착순으로 멤버십 전환을 유도한다 */}
-        {!me?.membership && coupons.length > 0 && (
-          <View style={st.couponWrap}>
-            <View style={st.sectionHead}>
-              <View>
-                <Text style={st.sectionTitle}>{t('couponSection')}</Text>
-                <Text style={st.sectionSub}>{t('couponSectionSub')}</Text>
-              </View>
-            </View>
-            {coupons.map((cd) => {
-              const open = cd.slots.find((s) => s.state === 'open');
-              const upcoming = cd.slots.find((s) => s.state === 'upcoming');
-              const soldout = !open && cd.slots.find((s) => s.state === 'soldout');
-              const timesLabel = cd.slots.map((s) => s.time).join(' · ');
-              return (
-                <View key={cd.id} style={st.couponCard}>
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={st.couponTitle} numberOfLines={1}>{cd.benefit.title}</Text>
-                    <Text style={st.couponSub} numberOfLines={1}>
-                      {t('couponMeta', { name: cd.benefit.merchantName, times: timesLabel, h: cd.validHours })}
-                    </Text>
-                  </View>
-                  {open ? (
-                    <Pressable
-                      style={st.couponBtn}
-                      onPress={async () => {
-                        if (!me) { router.push('/(tabs)/my'); return; }
-                        if (couponBusy) return;
-                        setCouponBusy(true);
-                        try {
-                          const r = await api<any>(`/coupon-drops/${cd.id}/claim`, { method: 'POST', body: {} });
-                          notifyHome(t('couponGot'), r.message);
-                          load().catch(() => {});
-                        } catch (e: any) {
-                          notifyHome(t('couponFail'), e.message);
-                        } finally {
-                          setCouponBusy(false);
-                        }
-                      }}
-                    >
-                      <Text style={st.couponBtnText}>{t('claim')}</Text>
-                      <Text style={st.couponBtnSub}>{t('couponLeft', { n: open.remaining })}</Text>
-                    </Pressable>
-                  ) : upcoming ? (
-                    <View style={st.couponWait}>
-                      <Text style={st.couponWaitTime}>{t('opensAt', { time: upcoming.time })}</Text>
-                      <Text style={st.couponWaitSub}>{untilText(t, upcoming.opensAt, nowTick)}</Text>
-                    </View>
-                  ) : (
-                    <View style={st.couponWait}>
-                      <Text style={st.couponWaitTime}>{soldout ? t('couponSoldout') : t('couponEnded')}</Text>
-                      <Text style={st.couponWaitSub}>{t('couponTomorrow', { time: cd.slots[0]?.time ?? '' })}</Text>
-                    </View>
-                  )}
-                </View>
-              );
-            })}
-            <Pressable onPress={() => router.push('/(tabs)/jam' as never)}>
-              <Text style={st.couponUpsell}>{t('couponUpsell')}</Text>
-            </Pressable>
-          </View>
-        )}
-
         {/* ③ 오늘 도착한 DROP */}
         <View style={st.sectionHead}>
           <View>
@@ -720,27 +619,6 @@ const st = StyleSheet.create({
   campBody: { flex: 1, justifyContent: 'flex-end', padding: 13 },
   campTitle: { color: '#fff', fontSize: 18, fontWeight: '700', letterSpacing: -0.3 },
   campSub: { color: 'rgba(255,255,255,0.88)', fontSize: 11.5, marginTop: 2 },
-  couponWrap: { marginTop: 2 },
-  couponCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: C.white, borderWidth: 1.5, borderColor: C.brandSoft, borderRadius: 14,
-    paddingHorizontal: 14, paddingVertical: 12, marginHorizontal: 16, marginBottom: 8,
-  },
-  couponTitle: { fontSize: 14.5, fontWeight: '700', color: C.ink },
-  couponSub: { fontSize: 11.5, color: C.ink3, marginTop: 3 },
-  couponBtn: {
-    backgroundColor: C.brand, borderRadius: 11, paddingHorizontal: 16, paddingVertical: 8,
-    alignItems: 'center', minWidth: 76,
-  },
-  couponBtnText: { color: '#fff', fontSize: 14.5, fontWeight: '700' },
-  couponBtnSub: { color: '#CFE8F8', fontSize: 10.5, fontWeight: '700', marginTop: 1 },
-  couponWait: { alignItems: 'flex-end', minWidth: 96 },
-  couponWaitTime: { fontSize: 13.5, fontWeight: '700', color: C.brand },
-  couponWaitSub: { fontSize: 10.5, color: C.ink3, marginTop: 2, fontVariant: ['tabular-nums'] },
-  couponUpsell: {
-    fontSize: 12, fontWeight: '700', color: C.brand, textAlign: 'center',
-    marginTop: 2, marginBottom: 2, textDecorationLine: 'underline',
-  },
   sectionTitle: { fontSize: 17, fontWeight: '700', color: C.ink, letterSpacing: -0.3 },
   sectionSub: { fontSize: 12, color: C.ink3, marginTop: 2 },
   more: { fontSize: 12.5, fontWeight: '700', color: C.brand },
