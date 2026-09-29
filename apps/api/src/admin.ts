@@ -246,8 +246,8 @@ export class AdminController {
       db.user.count({ where: { status: 'ACTIVE' } }),
       db.userMembership.count({ where: { status: 'ACTIVE', endAt: { gt: now } } }),
       db.merchant.count({ where: { status: 'ACTIVE' } }),
-      db.drop.count({ where: { status: 'OPEN' } }),
-      db.drop.count({ where: { status: 'PENDING' } }),
+      db.drop.count({ where: { status: 'OPEN', kind: 'DEAL' } }),
+      db.drop.count({ where: { status: 'PENDING', kind: 'DEAL' } }),
       db.redemption.count({ where: { status: 'DONE', createdAt: { gte: todayStart } } }),
       db.redemption.count({ where: { status: 'DONE', createdAt: { gte: monthStart } } }),
       db.order.aggregate({
@@ -278,8 +278,9 @@ export class AdminController {
 
   @Get('drops')
   drops(@Query('status') status?: string) {
+    // DROP 관리에는 할인 딜만 (결제하는 기획전 상품은 '기획전'에서 관리한다)
     return this.prisma.client.drop.findMany({
-      where: status ? { status: status as never } : {},
+      where: { kind: 'DEAL', ...(status ? { status: status as never } : {}) },
       orderBy: { createdAt: 'desc' },
       take: 100,
       include: {

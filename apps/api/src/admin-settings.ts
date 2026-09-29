@@ -144,28 +144,15 @@ export class AdminSettingsController {
     const closeAt = new Date(dto.closeAt);
     if (closeAt <= new Date()) throw new BadRequestException('마감 시각이 이미 지났습니다');
 
-    const kind = dto.kind === 'TICKET' ? 'TICKET' : 'DEAL';
+    // DROP은 할인 딜만, 가입한 손님이면 누구나 (2026-09-29)
+    if (dto.kind && dto.kind !== 'DEAL') {
+      throw new BadRequestException('DROP은 할인 딜만 올릴 수 있어요. 결제하는 상품은 상품이나 기획전으로 올려 주세요');
+    }
+    const kind = 'DEAL' as const;
     const imageUrl = dto.imageBase64 ? saveImageDataUrl(dto.imageBase64, 'drop') : dto.imageUrl ?? null;
 
     return this.prisma.client.$transaction(async (tx) => {
-      // TICKET은 이용권 발급을 위해 사용처리용 상품이 필요하다 (기획전과 같은 방식)
-      let productId: string | null = null;
-      if (kind === 'TICKET') {
-        const product = await tx.product.create({
-          data: {
-            merchantId: merchant.id,
-            categoryId: merchant.categoryId,
-            type: 'TICKET',
-            name: dto.title,
-            description: dto.description,
-            imageUrl,
-            basePrice: dto.normalPrice,
-            approval: 'ACTIVE',
-            isActive: false,
-          },
-        });
-        productId = product.id;
-      }
+      const productId: string | null = null;
       const drop = await tx.drop.create({
         data: {
           merchantId: merchant.id,
@@ -174,7 +161,7 @@ export class AdminSettingsController {
           productId,
           kind,
           status: 'OPEN',
-          audience: dto.memberOnly ? 'MEMBER_ONLY' : 'ALL',
+          audience: 'ALL',
           title: dto.title,
           description: dto.description,
           imageUrl,

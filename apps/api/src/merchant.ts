@@ -200,7 +200,7 @@ export class MerchantController {
       db.redemption.count({ where: { merchantId: m.id, status: 'DONE', createdAt: { gte: todayStart } } }),
       db.redemption.count({ where: { merchantId: m.id, status: 'DONE', createdAt: { gte: monthStart } } }),
       db.drop.findMany({
-        where: { merchantId: m.id, status: { in: ['OPEN', 'SOLD_OUT', 'PENDING', 'SCHEDULED'] } },
+        where: { merchantId: m.id, kind: 'DEAL', status: { in: ['OPEN', 'SOLD_OUT', 'PENDING', 'SCHEDULED'] } },
         select: { id: true, title: true, status: true, remainingQty: true, totalQty: true, openAt: true, closeAt: true },
         orderBy: { closeAt: 'asc' },
       }),
@@ -232,6 +232,10 @@ export class MerchantController {
   @Post('my/drops')
   async createDrop(@UserId() userId: string, @Body() dto: CreateDropDto) {
     const m = await this.myMerchant(userId);
+    // DROP은 할인 딜만 올린다 (2026-09-29). 결제하는 상품은 상품 등록으로
+    if (dto.kind !== 'DEAL') {
+      throw new BadRequestException('DROP은 할인 딜만 올릴 수 있어요. 결제하는 상품은 [상품 등록]으로 올려 주세요');
+    }
     if (dto.dropPrice >= dto.normalPrice) {
       throw new BadRequestException('할인가는 정상가보다 낮아야 합니다');
     }
@@ -273,7 +277,7 @@ export class MerchantController {
   async myDrops(@UserId() userId: string) {
     const m = await this.myMerchant(userId);
     return this.prisma.client.drop.findMany({
-      where: { merchantId: m.id },
+      where: { merchantId: m.id, kind: 'DEAL' },
       orderBy: { createdAt: 'desc' },
       take: 50,
     });

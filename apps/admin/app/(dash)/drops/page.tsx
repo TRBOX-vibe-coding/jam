@@ -172,10 +172,6 @@ export default function DropsPage() {
               {merchants.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
             </select>
             <input className={`${inputCls} lg:col-span-2`} placeholder="딜 제목 *" value={cf.title} onChange={(e) => setCf({ ...cf, title: e.target.value })} />
-            <select className={inputCls} value={cf.kind} onChange={(e) => setCf({ ...cf, kind: e.target.value })}>
-              <option value="DEAL">현장 결제 딜 (무료 받기)</option>
-              <option value="TICKET">앱에서 결제 (티켓)</option>
-            </select>
             <input className={`${inputCls} col-span-2 lg:col-span-4`} placeholder="설명" value={cf.description} onChange={(e) => setCf({ ...cf, description: e.target.value })} />
             <input className={inputCls} placeholder="정상가 *" value={cf.normalPrice} onChange={(e) => setCf({ ...cf, normalPrice: e.target.value.replace(/\D/g, '') })} />
             <input className={inputCls} placeholder="딜 가격 *" value={cf.dropPrice} onChange={(e) => setCf({ ...cf, dropPrice: e.target.value.replace(/\D/g, '') })} />
@@ -194,10 +190,6 @@ export default function DropsPage() {
               )}
             </div>
             <div className="flex items-center gap-3">
-              <label className="flex items-center gap-2 text-sm font-semibold">
-                <input type="checkbox" checked={cf.memberOnly} onChange={(e) => setCf({ ...cf, memberOnly: e.target.checked })} />
-                멤버 전용
-              </label>
               <Button onClick={createDrop} disabled={!cf.merchantId || cf.title.length < 2 || !cf.normalPrice || !cf.dropPrice || !cf.totalQty || !cf.closeAt}>
                 등록 + 즉시 오픈
               </Button>

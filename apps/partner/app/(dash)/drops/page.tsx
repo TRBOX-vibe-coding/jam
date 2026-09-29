@@ -90,10 +90,6 @@ export default function MyDropsPage() {
         <Card className="p-5">
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <input className={`${inputCls} col-span-2`} placeholder="딜 제목 * (예: 오늘 저녁 보드 렌탈 반값)" value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} />
-            <select className={inputCls} value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value })}>
-              <option value="DEAL">현장 결제 딜 (무료 받기)</option>
-              <option value="TICKET">앱에서 결제 (티켓)</option>
-            </select>
             <input className={inputCls} placeholder="1개당 인원" value={f.personsPerUnit} onChange={(e) => setF({ ...f, personsPerUnit: e.target.value.replace(/\D/g, '') })} />
             <input className={`${inputCls} col-span-2 lg:col-span-4`} placeholder="설명" value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} />
             <input className={inputCls} placeholder="정상가 *" value={f.normalPrice} onChange={(e) => setF({ ...f, normalPrice: e.target.value.replace(/\D/g, '') })} />

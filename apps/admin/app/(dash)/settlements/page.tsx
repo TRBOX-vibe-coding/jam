@@ -6,11 +6,25 @@ import { Badge, Button, Card, CardHeader, Empty, Modal, Table, TableSkeleton, Td
 /** 보류 이유 보기 — 눌러서 넣고 고쳐 쓴다 */
 const HOLD_PRESETS = ['환불·분쟁 확인 중', '사업자·통장 서류 확인 중', '사용 처리 기록 확인 중'];
 
-function monthRange(offset = 0) {
+const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+/** 정산 기간 바로 고르기 — 끝나는 날은 그 날 23:59까지 (화면에는 끝나는 날 그대로) */
+function quickRange(kind: 'first' | 'second' | 'month' | 'prev') {
   const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth() + offset, 1);
-  const end = new Date(now.getFullYear(), now.getMonth() + offset + 1, 1);
-  return { start, end };
+  const y = now.getFullYear();
+  const m = now.getMonth();
+  if (kind === 'first') return { from: ymd(new Date(y, m, 1)), to: ymd(new Date(y, m, 15)) };
+  if (kind === 'second') return { from: ymd(new Date(y, m, 16)), to: ymd(new Date(y, m + 1, 0)) };
+  if (kind === 'month') return { from: ymd(new Date(y, m, 1)), to: ymd(new Date(y, m + 1, 0)) };
+  return { from: ymd(new Date(y, m - 1, 1)), to: ymd(new Date(y, m, 0)) };
+}
+/** 처음 열었을 때 — 가장 최근에 끝난 보름 */
+function lastHalf() {
+  const now = new Date();
+  if (now.getDate() > 15) return quickRange('first');
+  const y = now.getFullYear();
+  const m = now.getMonth();
+  return { from: ymd(new Date(y, m - 1, 16)), to: ymd(new Date(y, m, 0)) };
 }
 
 export default function SettlementsPage() {
@@ -20,6 +34,8 @@ export default function SettlementsPage() {
   const [holdFor, setHoldFor] = useState<any | null>(null);
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
+  // 정산 기간 — 본사가 고른다 (9/18 정의서: 기간을 잡아 가맹점별로 정산서를 만든다)
+  const [range, setRange] = useState(lastHalf);
 
   const load = useCallback(() => {
     api<any[]>('/admin/settlements').then(setRows).catch(() => setRows([]));
@@ -27,12 +43,19 @@ export default function SettlementsPage() {
   useEffect(load, [load]);
 
   async function generate() {
-    const { start, end } = monthRange(0);
+    const [ys, ms, ds] = range.from.split('-').map(Number);
+    const [ye, me, de] = range.to.split('-').map(Number);
+    const start = new Date(ys, ms - 1, ds);
+    const end = new Date(ye, me - 1, de + 1); // 끝나는 날 다음 날 0시 전까지
+    if (!ys || !ye || !(start < end)) {
+      setMsg('정산 기간을 다시 골라 주세요');
+      return;
+    }
     const r = await api<{ count: number }>('/admin/settlements/generate', {
       method: 'POST',
       body: { periodStart: start.toISOString(), periodEnd: end.toISOString() },
     });
-    setMsg(`이번 달 정산 ${r.count}건 생성/갱신`);
+    setMsg(`${range.from} ~ ${range.to} 정산 ${r.count}건을 만들었습니다`);
     load();
   }
 
@@ -72,9 +95,25 @@ export default function SettlementsPage() {
         <h1 className="text-xl font-bold">정산</h1>
         <div className="flex items-center gap-3">
           {msg && <span className="rounded bg-ok-soft px-3 py-1 text-xs font-semibold text-ok">{msg}</span>}
-          <Button onClick={generate}>이번 달 정산 생성</Button>
+          <Button onClick={generate}>정산 만들기</Button>
         </div>
       </div>
+
+      <Card className="p-4">
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="font-semibold">정산 기간</span>
+          <input type="date" value={range.from} onChange={(e) => setRange({ ...range, from: e.target.value })}
+            className="rounded-md border border-line px-2.5 py-1.5 text-sm" />
+          <span className="text-ink-3">~</span>
+          <input type="date" value={range.to} onChange={(e) => setRange({ ...range, to: e.target.value })}
+            className="rounded-md border border-line px-2.5 py-1.5 text-sm" />
+          {([['first', '이번 달 1~15일'], ['second', '이번 달 16일~말일'], ['month', '이번 달 전체'], ['prev', '지난달 전체']] as const).map(([k, label]) => (
+            <button key={k} onClick={() => setRange(quickRange(k))}
+              className="rounded-md border border-line px-2.5 py-1 text-xs font-semibold text-ink-2 hover:bg-ground">{label}</button>
+          ))}
+        </div>
+        <p className="mt-2 text-xs text-ink-3">기간을 고르고 [정산 만들기]를 누르면 가게마다 그 기간의 정산이 만들어집니다. 같은 기간을 다시 누르면 새 숫자로 고쳐집니다.</p>
+      </Card>
 
       <p className="text-xs text-ink-3">
         정산 기준: 기간 안에 ① <b>가게에서 사용 처리된 이용권</b>의 판매액 ② <b>취소하고 돌려주지 않은 돈</b>(예: 하루 전 취소로 남은 50%) —

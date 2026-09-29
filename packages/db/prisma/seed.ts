@@ -363,11 +363,11 @@ async function main() {
     {
       merchant: 'basement', region: 'busan-seomyeon', cat: 'bar',
       kind: 'DEAL' as DropKind,
-      title: '[멤버 전용] 시그니처 칵테일 1+1',
-      description: '잼마스터/기간권 회원만. 오늘 밤 한정.',
+      title: '시그니처 칵테일 1+1',
+      description: '오늘 밤 한정.',
       normalPrice: 18000, dropPrice: 9000, totalQty: 30,
       openAt: hoursFromNow(-1), closeAt: hoursFromNow(9),
-      audience: 'MEMBER_ONLY' as DropAudience,
+      audience: 'ALL' as DropAudience,
     },
     {
       merchant: 'museum1', region: 'busan-haeundae', cat: 'exhibit',
@@ -499,7 +499,7 @@ async function main() {
     '평일 브런치 2인 세트 34% 할인': U('1533089860892-a7c6f0a88666', 1200),
     '내일 오전 서핑 체험 특가': U('1502680390469-be75c86b636f', 1200),
     '키즈 베이킹 클래스 오늘 15팀': U('1556909114-f6e7ad7d3136', 1200),
-    '[멤버 전용] 시그니처 칵테일 1+1': U('1514362545857-3bc16c4c7d1b', 1200),
+    '시그니처 칵테일 1+1': U('1514362545857-3bc16c4c7d1b', 1200),
     '뮤지엄원 야간권 반값': U('1550684848-fac1c5b4e853', 1200),
     '주말 와인 테이스팅 세트': U('1510812431401-41d2bd2722f3', 1200),
     '오후 서핑 보드 렌탈 40% 할인': U('1502680390469-be75c86b636f', 1200),

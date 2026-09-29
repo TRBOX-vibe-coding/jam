@@ -1,7 +1,7 @@
 /** DROP 상세 — 받기(DEAL) 또는 바로 결제(TICKET) */
 import { useCallback, useState } from 'react';
 import { Alert, Image, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { track } from '../../lib/analytics';
 import { api, img } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
@@ -61,6 +61,8 @@ export default function DropDetail() {
 
   return (
     <Screen>
+      {/* DROP은 할인 딜만. 결제하고 받는 것은 기획전 상품이라 제목을 '기획전'으로 (2026-09-29) */}
+      <Stack.Screen options={{ title: d.kind === 'TICKET' ? t('titleCampaign') : 'DROP' }} />
       <ScrollView contentContainerStyle={{ padding: 16 }}>
         {d.imageUrl && <Image source={{ uri: img(d.imageUrl, 960) }} style={st.hero} />}
         <Card>

@@ -1,6 +1,6 @@
 'use client';
 /**
- * 광고 — 카테고리별 쿠폰/상품 1~10순위 지정 + 기간 설정 (2026-09-10 픽스).
+ * 광고 — 카테고리별 쿠폰/상품 1~5순위 지정 + 기간 설정 (2026-09-10 픽스, 9/12 대표 요청으로 10→5자리).
  * 기간 안에만 앱 목록 상단에 고정되고, 지나면 자동으로 내려간다. 수금은 월 정액(오프라인).
  */
 import { useCallback, useEffect, useState } from 'react';
@@ -66,7 +66,7 @@ export default function AdsPage() {
             <th className="px-3 py-2">상태</th><th className="px-3 py-2">관리</th>
           </tr></thead>
           <tbody>
-            {Array.from({ length: 10 }).map((_, i) => {
+            {Array.from({ length: 5 }).map((_, i) => {
               const rank = i + 1;
               const slot = slots.find((s) => s.rank === rank);
               const dr = draft[rank] ?? { refId: slot?.refId ?? '', startAt: slot ? d10(slot.startAt) : '', endAt: slot ? d10(slot.endAt) : '' };
@@ -107,7 +107,7 @@ export default function AdsPage() {
         {msg && <span className="rounded bg-ok-soft px-3 py-1 text-xs font-semibold text-ok">{msg}</span>}
       </div>
       <p className="max-w-2xl text-xs leading-5 text-ink-3">
-        카테고리별로 쿠폰·상품에 <b>1~10순위</b>를 기간과 함께 지정합니다. 기간 안에만 앱 목록 상단에 고정되고
+        카테고리별로 쿠폰·상품에 <b>1~5순위</b>를 기간과 함께 지정합니다. 기간 안에만 앱 목록 상단에 고정되고
         기간이 지나면 자동으로 내려갑니다. 광고비는 월 정액으로 별도 수금합니다 (PG 정산과 무관).
       </p>
 

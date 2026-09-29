@@ -46,6 +46,8 @@ export class DropsController {
       where: {
         status: 'OPEN',
         closeAt: { gt: now },
+        // DROP 목록은 할인 딜만 (2026-09-29). 결제하는 기획전 상품은 기획전 화면에서 판다
+        kind: 'DEAL',
         // 선오픈: 일반 공개 전이라도 멤버에게는 보인다
         OR: [
           { openAt: { lte: now } },

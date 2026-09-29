@@ -262,7 +262,7 @@ export class AdminDashboardController {
       db.merchant.count({ where: { status: 'PENDING' } }),
       db.benefit.count({ where: { approval: 'PENDING' } }),
       db.product.count({ where: { approval: 'PENDING' } }),
-      db.drop.count({ where: { status: 'PENDING' } }),
+      db.drop.count({ where: { status: 'PENDING', kind: 'DEAL' } }),
     ]);
     return { merchants, benefits, products, drops, total: merchants + benefits + products + drops };
   }
