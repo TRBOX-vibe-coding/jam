@@ -90,7 +90,10 @@ export default function MyDropsPage() {
         <Card className="p-5">
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <input className={`${inputCls} col-span-2`} placeholder="딜 제목 * (예: 오늘 저녁 보드 렌탈 반값)" value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} />
-            <input className={inputCls} placeholder="1개당 인원" value={f.personsPerUnit} onChange={(e) => setF({ ...f, personsPerUnit: e.target.value.replace(/\D/g, '') })} />
+            <label className="flex items-center gap-2 text-xs font-semibold text-ink-3">
+              <span className="whitespace-nowrap">1개당 인원</span>
+              <input className={inputCls} placeholder="예: 1" value={f.personsPerUnit} onChange={(e) => setF({ ...f, personsPerUnit: e.target.value.replace(/\D/g, '') })} />
+            </label>
             <input className={`${inputCls} col-span-2 lg:col-span-4`} placeholder="설명" value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} />
             <input className={inputCls} placeholder="정상가 *" value={f.normalPrice} onChange={(e) => setF({ ...f, normalPrice: e.target.value.replace(/\D/g, '') })} />
             <input className={inputCls} placeholder="딜 가격 *" value={f.dropPrice} onChange={(e) => setF({ ...f, dropPrice: e.target.value.replace(/\D/g, '') })} />
