@@ -64,9 +64,13 @@ export function endedPeriods(cycle: SettlementCycle, now: Date, count: number): 
   return out;
 }
 
-/** 지급 예정일 — 기간 마지막 날에서 payDelayDays일 뒤 (예: 9월 1~15일, 5일 뒤 → 9월 20일) */
+/**
+ * 지급 예정일 — 기간 마지막 날에서 payDelayDays일 뒤 (예: 9월 1~15일, 5일 뒤 → 9월 20일).
+ * 끝은 '다음 날 0시'로 저장된 정산도, '마지막 날 23:59'로 저장된 옛 정산도 있어 1밀리초 앞 날짜를 마지막 날로 본다.
+ */
 export function payDueOf(periodEnd: Date, policy: SettlementPolicy): Date {
-  return new Date(periodEnd.getFullYear(), periodEnd.getMonth(), periodEnd.getDate() - 1 + policy.payDelayDays);
+  const last = new Date(periodEnd.getTime() - 1);
+  return new Date(last.getFullYear(), last.getMonth(), last.getDate() + policy.payDelayDays);
 }
 
 export type SettlementAmounts = { grossAmount: number; feeAmount: number; netAmount: number; cancelKeptAmount: number };
