@@ -257,16 +257,16 @@ export default function JamBuyScreen() {
         {/* 결제 정보 — 이름·휴대폰·이메일과 필수 동의 (2026-09-29). 잼은 가게 상품이 아니라 가게 동의는 없다 */}
         {me && !d.owned && <BuyerCard buyer={buyer} onBuyer={setBuyer} agree={agree} onAgree={setAgree} />}
 
-        {/* 결제 — PG 붙기 전까지 모의결제. 숨기지 않고 화면에 적는다 */}
+        {/* 결제 금액 — 결제 수단(카드·간편 결제)은 위 결제 정보 칸에 적혀 있다.
+            PG 붙기 전까지 모의결제라는 것은 숨기지 않고 금액 아래에 적는다 */}
         <Card>
-          <Text style={st.sectionInCard}>{t('payMethod')}</Text>
-          <View style={st.payRow}>
-            <Ionicons name="card-outline" size={18} color={C.brand} />
-            <Text style={st.payText}>{t('payMock')}</Text>
-          </View>
           <View style={st.sumRow}>
             <Text style={st.sumLabel}>{t('payAmount')}</Text>
             <Text style={st.sumValue}>{won(d.price)}</Text>
+          </View>
+          <View style={st.payRow}>
+            <Ionicons name="information-circle-outline" size={16} color={C.ink3} />
+            <Text style={st.payText}>{t('payMock')}</Text>
           </View>
         </Card>
 
@@ -334,10 +334,7 @@ const st = StyleSheet.create({
 
   payRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
   payText: { fontSize: 13, color: C.ink2, flex: 1, lineHeight: 19 },
-  sumRow: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: C.line,
-  },
+  sumRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   sumLabel: { fontSize: 13.5, fontWeight: '700', color: C.ink2 },
   sumValue: { fontSize: 20, fontWeight: '800', color: C.brand },
 
