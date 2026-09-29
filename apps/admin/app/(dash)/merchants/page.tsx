@@ -1,6 +1,5 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
-import QRCode from 'qrcode';
 import { API_BASE, api } from '@/lib/api';
 import { Badge, Button, Card, CardHeader, Empty, Modal, Table, TableSkeleton, Td } from '@/components/ui';
 
@@ -24,7 +23,6 @@ export default function MerchantsPage() {
   const [rows, setRows] = useState<any[] | null>(null);
   const [regions, setRegions] = useState<Opt[]>([]);
   const [categories, setCategories] = useState<Opt[]>([]);
-  const [qrPreview, setQrPreview] = useState<{ name: string; code: string; dataUrl: string } | null>(null);
   const [msg, setMsg] = useState('');
   const [editing, setEditing] = useState<any | 'new' | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -41,18 +39,6 @@ export default function MerchantsPage() {
     api<Opt[]>('/regions').then(setRegions).catch(() => {});
     api<Opt[]>('/categories').then(setCategories).catch(() => {});
   }, [load]);
-
-  async function issueQr(id: string, name: string) {
-    const qr = await api<{ code: string }>(`/admin/merchants/${id}/qr`, { method: 'POST', body: { label: '카운터' } });
-    setMsg(`${name} QR 발급 완료`);
-    await showQr(name, qr.code);
-    load();
-  }
-
-  async function showQr(name: string, code: string) {
-    const dataUrl = await QRCode.toDataURL(code, { width: 480, margin: 2 });
-    setQrPreview({ name, code, dataUrl });
-  }
 
   async function approve(m: any) {
     await api(`/admin/merchants/${m.id}`, { method: 'PATCH', body: { status: 'ACTIVE' } });
@@ -157,7 +143,7 @@ export default function MerchantsPage() {
         ) : rows.length === 0 ? (
           <Empty text="가맹점이 없습니다" />
         ) : (
-          <Table head={['상태', '가맹점', '지역/카테고리', '수수료율', '사용/DROP', '매장 QR', '관리']}>
+          <Table head={['상태', '가맹점', '지역/카테고리', '수수료율', '사용/DROP', '관리']}>
             {rows.map((m) => (
               <tr key={m.id}>
                 <Td><Badge>{m.status}</Badge></Td>
@@ -195,24 +181,11 @@ export default function MerchantsPage() {
                   사용 {m._count.redemptions} · DROP {m._count.drops}
                 </Td>
                 <Td>
-                  {m.qrCodes.length > 0 ? (
-                    <button
-                      onClick={() => showQr(m.name, m.qrCodes[0].code)}
-                      className="text-xs font-semibold text-brand underline underline-offset-2"
-                    >
-                      QR 보기
-                    </button>
-                  ) : (
-                    <span className="text-xs text-ink-3">미발급</span>
-                  )}
-                </Td>
-                <Td>
                   <div className="flex flex-wrap gap-1.5">
                     {m.status === 'PENDING' ? (
                       <Button small onClick={() => approve(m)}>입점 승인</Button>
                     ) : (
                       <>
-                        <Button small variant="ghost" onClick={() => issueQr(m.id, m.name)}>QR 발급</Button>
                         <Button small variant={m.status === 'ACTIVE' ? 'danger' : 'primary'} onClick={() => toggleStatus(m)}>
                           {m.status === 'ACTIVE' ? '중지' : '재개'}
                         </Button>
@@ -331,23 +304,6 @@ export default function MerchantsPage() {
         </Modal>
       )}
 
-      {qrPreview && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-6"
-          onClick={() => setQrPreview(null)}
-        >
-          <div className="w-full max-w-xs rounded-xl bg-white p-6 text-center" onClick={(e) => e.stopPropagation()}>
-            <div className="text-sm font-bold">{qrPreview.name}</div>
-            <div className="mb-3 text-[11px] text-ink-3">매장 카운터 비치용 고정 QR</div>
-            <img src={qrPreview.dataUrl} alt="매장 QR" className="mx-auto w-56" />
-            <div className="mt-2 break-all font-mono text-[10px] text-ink-3">{qrPreview.code}</div>
-            <div className="mt-4 flex justify-center gap-2">
-              <Button small variant="ghost" onClick={() => window.print()}>인쇄</Button>
-              <Button small onClick={() => setQrPreview(null)}>닫기</Button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

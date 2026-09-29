@@ -364,9 +364,9 @@ const D: Record<string, [string, string, string, string]> = {
   doneExpired: ['표시 만료', 'Display expired', '显示已过期', '表示期限切れ'],
   doneNick: ['{nick} 님', '{nick}', '{nick}', '{nick} 様'],
   liveSec: ['실시간 화면 · {n}초', 'Live screen · {n}s', '实时画面 · {n}秒', 'リアルタイム画面 · {n}秒'],
-  staffCode: ['직원 확인 코드', 'Staff code', '店员确认码', 'スタッフ確認コード'],
+  staffCode: ['확인 번호', 'Check number', '确认号码', '確認番号'],
   doneSaved: ['이번에 {amt} 아꼈어요 🎉', 'You saved {amt} 🎉', '这次省了{amt} 🎉', '今回{amt}お得 🎉'],
-  staffNote: ['이 상품은 직원이 코드를 확인한 후 이용할 수 있어요.', 'Staff will verify the code before use.', '店员核对代码后方可使用。', 'スタッフがコードを確認後にご利用いただけます。'],
+  staffNote: ['직원이 이 확인 번호를 조회한 뒤 이용할 수 있어요.', 'Staff will look up this number before use.', '店员查询此确认号码后即可使用。', 'スタッフがこの確認番号を照会してからご利用いただけます。'],
 
   // ── DROP 상세 ──
   payInApp: ['앱에서 결제', 'Pay in app', 'APP内付款', 'アプリ決済'],
@@ -401,7 +401,7 @@ const D: Record<string, [string, string, string, string]> = {
   typeReservation: ['예약형', 'Booking', '预订型', '予約制'],
   typeTicket: ['티켓', 'Ticket', '票券', 'チケット'],
   weather: ['기상 영향', 'Weather dependent', '受天气影响', '天候の影響あり'],
-  staffVerify: ['직원 확인', 'Staff verify', '店员确认', 'スタッフ確認'],
+  staffVerify: ['확인 번호 대조', 'Number check', '核对确认号码', '確認番号照合'],
   memberPriceHint: ['잼 회원은 {price}', 'JAM members pay {price}', 'JAM会员{price}', 'JAM会員は{price}'],
   homeStarterTitle: ["{plan} {price}으로 시작해 보세요","Start with {plan} for {price}","{price}开启{plan}","{plan} {price}で始めよう"],
   homeStarterTrip: ["이번 여행에 담은 것만으로 {amt} 아껴요","Save {amt} on this trip with what you planned","仅本次行程已收藏的就能省{amt}","今回の旅に入れたものだけで{amt}お得"],

@@ -705,7 +705,7 @@ export class MerchantController {
         userBenefit: { include: { benefit: { select: { title: true } } } },
       },
     });
-    if (!r || r.merchantId !== m.id) throw new NotFoundException('확인할 수 없는 코드입니다');
+    if (!r || r.merchantId !== m.id) throw new NotFoundException('확인할 수 없는 번호입니다');
     const expired = r.verifyExpires < new Date();
     return {
       valid: !expired && r.status === 'DONE',

@@ -1,5 +1,5 @@
 /**
- * 가맹점 모드 — 점주 전용. 오늘 현황, 사용내역, 매장 코드, 직원 확인코드 조회.
+ * 가맹점 모드 — 점주 전용. 오늘 현황, 사용내역, 매장 코드, 고가 상품 확인 번호 조회.
  */
 import { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -163,9 +163,9 @@ export default function MerchantMode() {
           {!!pinMsg && <Text style={[st.hint, { color: C.ok, marginTop: 6 }]}>{pinMsg}</Text>}
         </Card>
 
-        <Text style={st.section}>직원 확인 코드 조회</Text>
+        <Text style={st.section}>확인 번호 조회 (고가 상품)</Text>
         <Card>
-          <Text style={st.hint}>고가 상품은 손님 완료화면의 6자리 코드를 여기에 입력해 확인하세요. (90초 유효)</Text>
+          <Text style={st.hint}>고가 상품은 손님 완료 화면에 뜬 6자리 확인 번호를 여기에 넣어 진짜 사용 건인지 확인하세요. (90초 안에만 조회됩니다)</Text>
           <View style={{ flexDirection: 'row', gap: 8 }}>
             <TextInput
               value={token}
@@ -189,7 +189,7 @@ export default function MerchantMode() {
                 </>
               ) : (
                 <Text style={[st.verifyTitle, { color: C.bad }]}>
-                  ✕ {verifyResult.expired ? '만료된 코드입니다' : verifyResult.error ?? '확인할 수 없는 코드입니다'}
+                  ✕ {verifyResult.expired ? '90초가 지난 번호입니다' : verifyResult.error ?? '확인할 수 없는 번호입니다'}
                 </Text>
               )}
             </View>
