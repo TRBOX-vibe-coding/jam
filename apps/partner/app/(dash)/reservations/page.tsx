@@ -24,7 +24,7 @@ export default function ReservationsPage() {
     <div className="space-y-6">
       <h1 className="text-xl font-bold">예약</h1>
       <p className="text-xs text-ink-3">
-        고객이 앱에서 결제하면 예약이 <b>자동 확정</b>되어 여기에 실시간으로 쌓입니다. 전화 확인이 필요 없어요.
+        손님이 홀릭잼에서 결제하면 예약이 <b>자동 확정</b>되어 여기에 실시간으로 쌓입니다. 전화 확인이 필요 없어요.
       </p>
 
       {/* 오늘 이용 예정 — 사무실에서 아침에 확인하는 화면 */}

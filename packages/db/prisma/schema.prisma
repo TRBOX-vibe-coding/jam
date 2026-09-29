@@ -834,6 +834,12 @@ model Order {
   /// 취소할 때 돌려준 금액. 지금(C 방식)은 본사가 토스 상점관리자에서 환불하고 여기엔 그 금액을 적는다.
   refundAmount Int?
   cancelReason String?
+  /// 결제하는 사람 — 결제 영수증·예약 확인·고객 문의에 쓴다 (2026-09-29). 결제마다 그때 넣은 값을 남긴다.
+  buyerName  String?
+  buyerPhone String?
+  buyerEmail String?
+  /// 필수 동의(주문 내용·취소 규정 확인, 개인정보 수집·이용, 가게 상품이면 가게에 연락처 제공)를 받은 시각
+  agreedAt   DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 

@@ -92,8 +92,8 @@ function summarize(o: any) {
     kind,
     title: o.items.map((i: any) => (i.qty > 1 ? `${i.name} ×${i.qty}` : i.name)).join(', '),
     merchant,
-    customer: resv?.contactName || o.user.nickname,
-    phone: resv?.contactPhone || o.user.phone || null,
+    customer: o.buyerName || resv?.contactName || o.user.nickname,
+    phone: o.buyerPhone || resv?.contactPhone || o.user.phone || null,
     useAt,
     amount: o.paidAmount || o.totalAmount,
   };
@@ -247,6 +247,8 @@ export class AdminOrdersController {
         { orderNo: { contains: term, mode: 'insensitive' } },
         { user: { nickname: { contains: term } } },
         { user: { phone: { contains: term } } },
+        { buyerName: { contains: term } },
+        { buyerPhone: { contains: term } },
         { vouchers: { some: { reservation: { is: { OR: [{ contactName: { contains: term } }, { contactPhone: { contains: term } }] } } } } },
       ];
     }

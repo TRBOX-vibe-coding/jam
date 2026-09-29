@@ -8,8 +8,8 @@ import {
   BadRequestException, Body, Controller, ForbiddenException, Get, Module,
   NotFoundException, Param, Post, Query, UseGuards,
 } from '@nestjs/common';
-import { IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
-import { normalizePhone, PHONE_REQUIRED } from './phone.util';
+import { IsBoolean, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { buyerOrderData, checkBuyer, type Buyer } from './buyer.util';
 import { Type } from 'class-transformer';
 import { PrismaService } from './prisma.service';
 import { AuthModule, OptionalUserGuard, UserGuard, UserId } from './auth';
@@ -18,8 +18,11 @@ import { clickCounts, rankSort } from './ranking.util';
 
 class ClaimDto {
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(10) qty?: number;
-  /** 결제하고 받는 기획전 상품이면 연락처가 필요하다 (2026-09-29) */
+  /** 결제하고 받는 기획전 상품이면 결제 정보가 필요하다 (2026-09-29) */
+  @IsOptional() @IsString() contactName?: string;
   @IsOptional() @IsString() contactPhone?: string;
+  @IsOptional() @IsString() buyerEmail?: string;
+  @IsOptional() @IsBoolean() agreed?: boolean;
 }
 
 async function hasActiveMembership(db: PrismaService['client'], userId: string) {
@@ -162,13 +165,12 @@ export class DropsController {
 
     const validTo = drop.useWithinDays ? addDays(now, drop.useWithinDays) : drop.closeAt;
 
-    // 결제하고 받는 기획전 상품은 연락처를 받는다 (2026-09-29) — 할인 딜은 받지 않는다
-    let phone: string | null = null;
+    // 결제하고 받는 기획전 상품은 결제 정보(이름·휴대폰·동의)를 받는다 (2026-09-29) — 할인 딜은 받지 않는다
+    let buyer: Buyer | null = null;
     if (drop.kind === 'TICKET') {
-      const buyer = await db.user.findUniqueOrThrow({ where: { id: userId }, select: { phone: true } });
-      phone = normalizePhone(dto.contactPhone) ?? normalizePhone(buyer.phone);
-      if (!phone) throw new BadRequestException(PHONE_REQUIRED);
-      if (phone !== buyer.phone) await db.user.update({ where: { id: userId }, data: { phone } });
+      const saved = await db.user.findUniqueOrThrow({ where: { id: userId }, select: { phone: true } });
+      buyer = checkBuyer(dto, saved);
+      if (buyer.phone !== saved.phone) await db.user.update({ where: { id: userId }, data: { phone: buyer.phone } });
     }
 
     return db.$transaction(async (tx) => {
@@ -216,6 +218,7 @@ export class DropsController {
           totalAmount: amount,
           paidAmount: amount,
           paidAt: now,
+          ...(buyer ? buyerOrderData(buyer, now) : {}),
           items: {
             create: {
               type: 'DROP',

@@ -516,6 +516,8 @@ export class MerchantController {
       select: {
         orderNo: true,
         paidAt: true,
+        buyerName: true,
+        buyerPhone: true,
         totalAmount: true,
         status: true,
         items: { select: { type: true, productId: true, refId: true, name: true, unitPrice: true, qty: true, amount: true } },
@@ -622,9 +624,9 @@ export class MerchantController {
             at: x.createdAt,
             endAt: null,
             title: prod?.name ?? c?.drop.title ?? x.userBenefit?.benefit.title ?? '-',
-            customer: x.user.nickname,
+            customer: (kind !== 'BENEFIT' && order?.buyerName) || x.user.nickname,
             // 돈을 내고 산 것(이용권·기획전 상품)만 — 결제할 때 가게에 알려 주는 데 동의받은 번호
-            phone: order && kind !== 'BENEFIT' ? x.user.phone ?? null : null,
+            phone: order && kind !== 'BENEFIT' ? order.buyerPhone ?? x.user.phone ?? null : null,
             headcount: x.headcount,
             status: x.status === 'DONE' ? '사용 완료' : '사용 취소',
             cancelled: x.status !== 'DONE',

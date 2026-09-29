@@ -6,6 +6,8 @@ export type Me = {
   nickname: string;
   /** 결제할 때 넣은 휴대폰 번호 — 다음 결제 때 저절로 채운다 */
   phone?: string | null;
+  /** 지난 결제 때 넣은 결제 정보 — 결제 화면에 미리 채운다 (2026-09-29) */
+  buyer?: { name: string | null; phone: string | null; email: string | null } | null;
   provider: string;
   membership: {
     planCode: string; planName: string; source: string; startAt: string; endAt: string;

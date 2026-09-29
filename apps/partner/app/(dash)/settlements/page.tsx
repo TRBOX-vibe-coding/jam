@@ -28,7 +28,7 @@ export default function SettlementsPage() {
         </div>
       )}
       <p className="text-xs text-ink-3">
-        앱에서 결제된 매출의 정산 내역입니다. 지급 완료 전 내역은 <b>확정 후 순차 지급</b>됩니다.
+        홀릭잼에서 결제된 매출의 정산 내역입니다. 지급 완료 전 내역은 <b>확정 후 순차 지급</b>됩니다.
         손님이 취소하고 규정대로 돌려받지 않은 돈(예: 하루 전 취소로 남은 50%)도 <b>사장님 몫</b>으로 정산되고, 홀릭잼은 수수료만 뗍니다.
       </p>
 
@@ -47,7 +47,7 @@ export default function SettlementsPage() {
         {rows === null ? (
           <TableSkeleton rows={6} cols={6} />
         ) : rows.length === 0 ? (
-          <Empty text="정산 내역이 없습니다. 앱 결제 매출이 생기면 여기에 표시됩니다." />
+          <Empty text="정산 내역이 없습니다. 홀릭잼 결제 매출이 생기면 여기에 표시됩니다." />
         ) : (
           <Table head={['상태', '정산 기간', '매출', '수수료', '지급액', '지급일', '메모']}>
             {rows.map((s) => (

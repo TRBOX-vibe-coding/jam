@@ -8,7 +8,8 @@ import {
   BadRequestException, Body, Controller, Get, Module, NotFoundException,
   Param, Post, Req, UseGuards,
 } from '@nestjs/common';
-import { IsOptional, IsString, Matches } from 'class-validator';
+import { IsBoolean, IsOptional, IsString, Matches } from 'class-validator';
+import { buyerOrderData, checkBuyer } from './buyer.util';
 import { PrismaService } from './prisma.service';
 import { AuthModule, OptionalUserGuard, UserGuard, UserId } from './auth';
 import { addDays, makeOrderNo } from './util';
@@ -17,6 +18,11 @@ import { langOf, trField } from './i18n.util';
 
 class PurchaseDto {
   @IsString() planCode!: string;
+  /** 결제 정보 — 이름·휴대폰(필수), 이메일(선택), 필수 동의 (2026-09-29) */
+  @IsOptional() @IsString() contactName?: string;
+  @IsOptional() @IsString() contactPhone?: string;
+  @IsOptional() @IsString() buyerEmail?: string;
+  @IsOptional() @IsBoolean() agreed?: boolean;
   /** 기간잼(3일/5일)의 사용 시작일. 미리 결제해도 이 날 00시부터 개시된다 (2026-09-09 픽스). 없으면 오늘. */
   @IsOptional() @IsString() @Matches(/^\d{4}-\d{2}-\d{2}$/) startDate?: string;
 }
@@ -135,6 +141,8 @@ export class MembershipController {
     const db = this.prisma.client;
     const plan = await db.membershipPlan.findUnique({ where: { code: dto.planCode } });
     if (!plan || !plan.isActive) throw new NotFoundException('판매 중인 멤버십이 아닙니다');
+    const saved = await db.user.findUniqueOrThrow({ where: { id: userId }, select: { phone: true } });
+    const buyer = checkBuyer(dto, saved);
 
     // 단체 전용 잼은 코드를 가진 회원만 살 수 있다 (2026-09-18 대표 확정)
     if (plan.isPrivate) {
@@ -176,6 +184,7 @@ export class MembershipController {
     const endAt = isShortJam ? addDays(startAt, plan.durationDays + 1) : endOfLongJam(startAt, plan.durationDays);
 
     const result = await db.$transaction(async (tx) => {
+      if (buyer.phone !== saved.phone) await tx.user.update({ where: { id: userId }, data: { phone: buyer.phone } });
       const order = await tx.order.create({
         data: {
           userId,
@@ -184,6 +193,7 @@ export class MembershipController {
           totalAmount: plan.price,
           paidAmount: plan.price,
           paidAt: now,
+          ...buyerOrderData(buyer, now),
           items: {
             create: {
               type: 'MEMBERSHIP',

@@ -8,7 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { track } from '../../lib/analytics';
 import { api, img } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
-import { ContactCard, validPhone } from '../../lib/contact';
+import { BuyerCard, buyerBody, buyerFrom, buyerProblem, EMPTY_AGREE, type Agree, type Buyer } from '../../lib/contact';
 import { useI18n } from '../../lib/i18n';
 import { C } from '../../lib/theme';
 import { Btn, Card, LoadError, Loading, Screen, Tag } from '../../lib/ui';
@@ -30,10 +30,10 @@ export default function ProductDetail() {
   const [saved, setSaved] = useState(false); // 담기(찜)
   const [slotId, setSlotId] = useState<string | null>(null);
   const [headcount, setHeadcount] = useState(1);
-  // 연락처 — 가게가 무슨 일이 있을 때 전화할 번호 (2026-09-29). 한 번 넣으면 다음에 저절로 채운다
-  const [phone, setPhone] = useState('');
-  const [agree, setAgree] = useState(false);
-  useEffect(() => { if (me?.phone && !phone) setPhone(me.phone); }, [me?.phone]);
+  // 결제 정보 — 이름·휴대폰·이메일과 필수 동의 (2026-09-29). 지난 결제 때 넣은 것으로 채운다
+  const [buyer, setBuyer] = useState<Buyer>(() => buyerFrom(me));
+  const [agree, setAgree] = useState<Agree>(EMPTY_AGREE);
+  useEffect(() => { if (me && !buyer.name && !buyer.phone) setBuyer(buyerFrom(me)); }, [me?.id]);
   const [busy, setBusy] = useState(false);
   /** 가는 날 'YYYY-MM-DD' — 티켓·PASS만, 안 골라도 된다 (2026-09-24 대표 확정 3-2) */
   const [visitDay, setVisitDay] = useState<string | null>(null);
@@ -68,8 +68,9 @@ export default function ProductDetail() {
       notify(t('resvTimeTitle'), t('pickTimeFirst'));
       return;
     }
-    if (!validPhone(phone) || !agree) {
-      notify(t('contactTitle'), !validPhone(phone) ? t('contactInvalid') : t('contactNeeded'));
+    const problem = buyerProblem(buyer, agree, true);
+    if (problem) {
+      notify(t('buyerTitle'), t(problem));
       return;
     }
     setBusy(true);
@@ -77,7 +78,7 @@ export default function ProductDetail() {
       const r = await api<any>(`/products/${id}/purchase`, {
         method: 'POST',
         body: {
-          slotId: slotId ?? undefined, headcount, contactName: me.nickname, contactPhone: phone,
+          slotId: slotId ?? undefined, headcount, ...buyerBody(buyer),
           visitDate: p.type !== 'RESERVATION' && visitDay ? visitDay : undefined,
         },
       });
@@ -253,9 +254,9 @@ export default function ProductDetail() {
           </>
         )}
 
-        {/* 연락처 — 로그인한 손님에게만. 판매 중일 때만 묻는다 */}
+        {/* 결제 정보 — 로그인한 손님에게만, 판매 중일 때만 */}
         {me && !saleBlocked && (
-          <ContactCard phone={phone} onPhone={setPhone} agree={agree} onAgree={setAgree} storeName={p.merchant.name} />
+          <BuyerCard buyer={buyer} onBuyer={setBuyer} agree={agree} onAgree={setAgree} storeName={p.merchant.name} />
         )}
 
         {/* 취소·환불 안내 — 결제 전에 보여준다. 숫자는 본사 설정에서 (2026-09-28) */}

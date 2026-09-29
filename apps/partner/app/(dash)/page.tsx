@@ -47,7 +47,7 @@ export default function Dashboard() {
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-3"><StatSkeleton /><StatSkeleton /><StatSkeleton /></div>
       ) : (
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <Stat label="🔔 오늘 판매" value={`${sales?.todayCount ?? 0}건`} sub="앱에서 결제·예약·딜 수령" />
+          <Stat label="🔔 오늘 판매" value={`${sales?.todayCount ?? 0}건`} sub="홀릭잼에서 결제·예약·딜 받기" />
           <Stat label="오늘 사용" value={`${summary.todayRedemptions}건`} sub="손님 휴대폰에서 사장님이 처리" />
           <Stat label="이번 달 사용" value={`${summary.monthRedemptions}건`} />
           {/* 마감 시각이 지난 딜은 세지 않는다 — status만 보면 2주 전에 끝난 딜까지 '진행 중'이 된다 */}

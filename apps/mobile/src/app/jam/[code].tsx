@@ -16,6 +16,7 @@ import { useAuth } from '../../lib/auth';
 import { useI18n } from '../../lib/i18n';
 import { C } from '../../lib/theme';
 import { Btn, Card, Loading, LoadError, Screen, Tag } from '../../lib/ui';
+import { BuyerCard, buyerBody, buyerFrom, buyerProblem, EMPTY_AGREE, type Agree, type Buyer } from '../../lib/contact';
 import { RefundNotice } from '../../lib/refund-notice';
 
 type Sample = {
@@ -49,6 +50,10 @@ export default function JamBuyScreen() {
   const [tripStart, setTripStart] = useState<string | null>(null);
   const [startDate, setStartDate] = useState<string>(ymd(new Date()));
   const [busy, setBusy] = useState(false);
+  // 결제 정보 (2026-09-29) — 지난 결제 때 넣은 것으로 채운다
+  const [buyer, setBuyer] = useState<Buyer>(() => buyerFrom(me));
+  const [agree, setAgree] = useState<Agree>(EMPTY_AGREE);
+  useEffect(() => { if (me && !buyer.name && !buyer.phone) setBuyer(buyerFrom(me)); }, [me?.id]);
 
   const load = useCallback(() => {
     setFailed(false);
@@ -110,11 +115,16 @@ export default function JamBuyScreen() {
   async function pay() {
     if (!d) return;
     if (!me) { router.push('/(tabs)/my' as never); return; }
+    const problem = buyerProblem(buyer, agree, false);
+    if (problem) {
+      Platform.OS === 'web' ? window.alert(t(problem)) : Alert.alert(t('buyerTitle'), t(problem));
+      return;
+    }
     setBusy(true);
     try {
       const r = await api<any>('/membership/purchase', {
         method: 'POST',
-        body: { planCode: d.code, startDate: isShort ? startDate : undefined },
+        body: { planCode: d.code, startDate: isShort ? startDate : undefined, ...buyerBody(buyer) },
       });
       track('membership_purchase', { type: 'plan', id: d.code });
       await refresh();
@@ -243,6 +253,9 @@ export default function JamBuyScreen() {
             <Text style={st.period}>{jamPeriodText(periodStart, periodEnd)}</Text>
           </Card>
         )}
+
+        {/* 결제 정보 — 이름·휴대폰·이메일과 필수 동의 (2026-09-29). 잼은 가게 상품이 아니라 가게 동의는 없다 */}
+        {me && !d.owned && <BuyerCard buyer={buyer} onBuyer={setBuyer} agree={agree} onAgree={setAgree} />}
 
         {/* 결제 — PG 붙기 전까지 모의결제. 숨기지 않고 화면에 적는다 */}
         <Card>

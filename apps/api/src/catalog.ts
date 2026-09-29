@@ -110,9 +110,20 @@ export class CatalogController {
       where: { ownerUserId: userId },
       select: { id: true, name: true, status: true },
     });
+    // 지난 결제 때 넣은 정보 — 다음 결제 화면에 미리 채운다 (2026-09-29)
+    const lastBuyer = await db.order.findFirst({
+      where: { userId, buyerName: { not: null } },
+      orderBy: { createdAt: 'desc' },
+      select: { buyerName: true, buyerPhone: true, buyerEmail: true },
+    });
 
     return {
       ...user,
+      buyer: {
+        name: lastBuyer?.buyerName ?? null,
+        phone: user.phone ?? lastBuyer?.buyerPhone ?? null,
+        email: lastBuyer?.buyerEmail ?? user.email ?? null,
+      },
       // 무료 회원(FREE)도 membership 객체는 있다 — 혜택 규칙을 붙이려고 만든다.
       // 2026-09-12 대표 확정: 상품 '유료 회원 가격'과 쿠폰 사용은 isPaid 기준. 쿠폰은 started까지 본다.
       membership: membership

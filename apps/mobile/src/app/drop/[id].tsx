@@ -8,7 +8,7 @@ import { useAuth } from '../../lib/auth';
 import { useI18n } from '../../lib/i18n';
 import { C } from '../../lib/theme';
 import { Btn, Card, LoadError, Loading, Screen, Tag } from '../../lib/ui';
-import { ContactCard, validPhone } from '../../lib/contact';
+import { BuyerCard, buyerBody, buyerFrom, buyerProblem, EMPTY_AGREE, type Agree, type Buyer } from '../../lib/contact';
 
 function notify(title: string, msg: string) {
   if (Platform.OS === 'web') window.alert(`${title}\n${msg}`);
@@ -25,10 +25,10 @@ export default function DropDetail() {
   const [d, setD] = useState<any | null>(null);
   const [failed, setFailed] = useState(false);
   const [busy, setBusy] = useState(false);
-  // 결제하고 받는 기획전 상품은 연락처를 받는다 (2026-09-29)
-  const [phone, setPhone] = useState('');
-  const [agree, setAgree] = useState(false);
-  useEffect(() => { if (me?.phone && !phone) setPhone(me.phone); }, [me?.phone]);
+  // 결제하고 받는 기획전 상품은 결제 정보를 받는다 (2026-09-29)
+  const [buyer, setBuyer] = useState<Buyer>(() => buyerFrom(me));
+  const [agree, setAgree] = useState<Agree>(EMPTY_AGREE);
+  useEffect(() => { if (me && !buyer.name && !buyer.phone) setBuyer(buyerFrom(me)); }, [me?.id]);
 
   const load = useCallback(() => {
     setFailed(false);
@@ -44,15 +44,16 @@ export default function DropDetail() {
       router.push('/(tabs)/my');
       return;
     }
-    if (d.kind === 'TICKET' && (!validPhone(phone) || !agree)) {
-      notify(t('contactTitle'), !validPhone(phone) ? t('contactInvalid') : t('contactNeeded'));
+    const problem = d.kind === 'TICKET' ? buyerProblem(buyer, agree, true) : null;
+    if (problem) {
+      notify(t('buyerTitle'), t(problem));
       return;
     }
     setBusy(true);
     try {
       const r = await api<any>(`/drops/${id}/claim`, {
         method: 'POST',
-        body: d.kind === 'TICKET' ? { contactPhone: phone } : {},
+        body: d.kind === 'TICKET' ? buyerBody(buyer) : {},
       });
       track(r.type === 'TICKET' ? 'ticket_purchase' : 'drop_claim', { type: 'drop', id: String(id) });
       notify(r.type === 'TICKET' ? t('paidDone') : t('claimed'), r.message);
@@ -107,7 +108,7 @@ export default function DropDetail() {
         </Card>
 
         {me && d.kind === 'TICKET' && !d.locked && !soldOut && (
-          <ContactCard phone={phone} onPhone={setPhone} agree={agree} onAgree={setAgree} storeName={d.merchant.name} />
+          <BuyerCard buyer={buyer} onBuyer={setBuyer} agree={agree} onAgree={setAgree} storeName={d.merchant.name} />
         )}
         {d.locked ? (
           <Card style={{ backgroundColor: C.warnSoft, borderColor: C.warnSoft }}>

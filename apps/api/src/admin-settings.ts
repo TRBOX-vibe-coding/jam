@@ -22,7 +22,7 @@ class AdminCreateDropDto {
   @IsString() merchantId!: string;
   @IsString() @MinLength(2) title!: string;
   @IsOptional() @IsString() description?: string;
-  /** DEAL=현장 결제 딜(무료 받기), TICKET=앱에서 결제 */
+  /** DEAL=현장 결제 딜(무료 받기)만 받는다. 결제형(TICKET)은 기획전 상품이 따로 만든다 (2026-09-29) */
   @IsOptional() @IsString() kind?: 'DEAL' | 'TICKET';
   @Type(() => Number) @IsInt() @Min(0) normalPrice!: number;
   @Type(() => Number) @IsInt() @Min(0) dropPrice!: number;

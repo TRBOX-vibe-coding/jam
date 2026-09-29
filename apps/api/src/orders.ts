@@ -9,8 +9,8 @@ import {
   BadRequestException, Body, Controller, Get, Module, NotFoundException,
   Param, Patch, Post, Query, UseGuards,
 } from '@nestjs/common';
-import { IsInt, IsOptional, IsString, Matches, Max, Min } from 'class-validator';
-import { normalizePhone, PHONE_REQUIRED } from './phone.util';
+import { IsBoolean, IsInt, IsOptional, IsString, Matches, Max, Min } from 'class-validator';
+import { buyerOrderData, checkBuyer } from './buyer.util';
 import { Type } from 'class-transformer';
 import { PrismaService } from './prisma.service';
 import { AuthModule, OptionalUserGuard, UserGuard, UserId } from './auth';
@@ -29,6 +29,10 @@ class PurchaseProductDto {
   @Type(() => Number) @IsInt() @Min(1) @Max(20) headcount!: number;
   @IsOptional() @IsString() contactName?: string;
   @IsOptional() @IsString() contactPhone?: string;
+  /** 결제 영수증을 받을 이메일 (선택) */
+  @IsOptional() @IsString() buyerEmail?: string;
+  /** 필수 동의 — 주문 내용·취소 규정 확인, 개인정보 수집·이용, 가게에 연락처 제공 */
+  @IsOptional() @IsBoolean() agreed?: boolean;
   /** 가는 날 'YYYY-MM-DD' — 티켓·PASS만, 안 골라도 된다 (2026-09-24 대표 확정 3-2) */
   @IsOptional() @Matches(/^\d{4}-\d{2}-\d{2}$/) visitDate?: string;
 }
@@ -180,10 +184,9 @@ export class OrdersController {
     if (product.type === 'RESERVATION' && !dto.slotId) {
       throw new BadRequestException('예약 시간을 선택해 주세요');
     }
-    // 연락처 — 가게가 무슨 일이 있을 때 전화할 번호 (2026-09-29). 한 번 넣으면 회원 정보에 남는다
-    const buyer = await db.user.findUniqueOrThrow({ where: { id: userId }, select: { phone: true, nickname: true } });
-    const phone = normalizePhone(dto.contactPhone) ?? normalizePhone(buyer.phone);
-    if (!phone) throw new BadRequestException(PHONE_REQUIRED);
+    // 결제 정보 — 이름·휴대폰·이메일과 필수 동의 (2026-09-29). 휴대폰은 가게가 무슨 일이 있을 때 전화하는 번호다
+    const saved = await db.user.findUniqueOrThrow({ where: { id: userId }, select: { phone: true } });
+    const buyer = checkBuyer(dto, saved);
     // 판매 기간 밖이면 결제를 막는다 (2026-09-19 문서 4-6, 대표 '오픈 전 필수')
     const sale = saleState(product, now);
     if (sale === 'UPCOMING') throw new BadRequestException(`${dayLabel(product.saleFrom!)}부터 판매합니다`);
@@ -201,7 +204,7 @@ export class OrdersController {
     }
 
     return db.$transaction(async (tx) => {
-      if (phone !== buyer.phone) await tx.user.update({ where: { id: userId }, data: { phone } });
+      if (buyer.phone !== saved.phone) await tx.user.update({ where: { id: userId }, data: { phone: buyer.phone } });
       // 한 사람당 수량 — 기획전의 '1인 1장' 같은 조건 (2026-09-24 대표 확정 3-3). 취소한 건은 세지 않는다.
       if (product.maxPerUser != null) {
         const mine = await tx.voucher.count({ where: { userId, productId: id, status: { not: 'CANCELLED' } } });
@@ -249,6 +252,7 @@ export class OrdersController {
           totalAmount: amount,
           paidAmount: amount,
           paidAt: now,
+          ...buyerOrderData(buyer, now),
           items: {
             create: {
               type: 'PRODUCT',
@@ -259,8 +263,8 @@ export class OrdersController {
               amount,
             },
           },
-          // 지금은 연습 결제. 토스를 붙일 때 휴대폰 결제는 결제창에서 뺀다 — 결제한 달 말일까지만 취소돼서
-          // '구매 후 3개월 환불'을 지킬 수 없다 (2026-09-29 대표 확정)
+          // 지금은 연습 결제. 토스를 붙일 때 결제창에서 카드·간편 결제만 연다 — 계좌이체·휴대폰 결제는 받지 않는다(9/29).
+          // 휴대폰 결제는 결제한 달 말일까지만 취소돼서 '구매 후 3개월 환불'을 지킬 수 없다 (2026-09-29 대표 확정)
           payments: {
             create: { provider: 'MOCK', status: 'PAID', amount, method: 'mock', paidAt: now },
           },
@@ -290,8 +294,8 @@ export class OrdersController {
             slotId: slot.id,
             voucherId: voucher.id,
             headcount: dto.headcount,
-            contactName: dto.contactName?.trim() || buyer.nickname,
-            contactPhone: phone,
+            contactName: buyer.name,
+            contactPhone: buyer.phone,
             status: 'CONFIRMED',
           },
         });
