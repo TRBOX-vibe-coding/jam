@@ -58,7 +58,8 @@ export default function JamScreen() {
 
   /** 이 잼이 여는 범위를 이름으로 한 줄 — 아이디 개수만 세면 고객은 못 알아본다 */
   function scopeLine(p: Plan) {
-    if (p.scope === 'ALL') return t('jamScopeAll');
+    // 전부 여는 잼(잼마스터)은 다낭 같은 해외 가게까지 연다
+    if (p.scope === 'ALL') return t('jamScopeEvery');
     if (p.scope === 'MANUAL') return t('jamScopePicked');
     // 열린 지역을 전부 고른 잼(3일잼·5일잼)은 사실상 전체다 — 지역 이름을 6개 늘어놓지 않는다
     const tags = p.scopeTags ?? [];

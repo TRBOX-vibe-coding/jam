@@ -196,6 +196,7 @@ const D: Record<string, [string, string, string, string]> = {
   jamLead: ["잼을 시작하면 부산 곳곳의 할인 쿠폰이 열려요","Start a JAM and coupons across Busan open up","开通JAM即可使用釜山各地优惠券","JAMを始めると釜山中のクーポンが使えます"],
   jamDays: ["{n}일 동안","{n} days","{n}天","{n}日間"],
   jamScopeAll: ["부산 전체 쿠폰","All Busan coupons","釜山全部优惠券","釜山全体のクーポン"],
+  jamScopeEvery: ["모든 가게 쿠폰","Every store's coupons","所有门店优惠券","すべての店舗のクーポン"],
   jamScopePicked: ["지정한 가게 쿠폰","Selected stores only","指定门店优惠券","指定店舗のクーポン"],
   jamScopeMore: ["{name} 외 {n}곳","{name} +{n} more","{name}等{n}处","{name}ほか{n}件"],
   orgOnly: ["단체 전용","Members of your org","团体专属","団体限定"],

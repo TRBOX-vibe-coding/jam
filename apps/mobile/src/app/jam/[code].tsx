@@ -74,7 +74,7 @@ export default function JamBuyScreen() {
   useFocusEffect(load);
 
   function scopeLine(p: Detail) {
-    if (p.scope === 'ALL') return t('jamScopeAll');
+    if (p.scope === 'ALL') return t('jamScopeEvery');
     if (p.scope === 'MANUAL') return t('jamScopePicked');
     const tags = p.scopeTags ?? [];
     const everyRegion = regions.length > 0 && p.scopeRegionIds.length >= regions.length;
