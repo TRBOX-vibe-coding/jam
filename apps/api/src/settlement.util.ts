@@ -1,76 +1,88 @@
 /**
- * 정산 — 주기(기간)와 계산.
+ * 정산 — 정산일과 계산.
  *
- * 주기 — 2026-09-29 사용자 결정: "정산 날짜는 PG(토스)를 붙일 때 홀릭잼 대표가 정한 날짜로, 바꿀 수도 있게.
- *   우리는 시스템으로 정산 날짜를 정하게 해 주면 된다."
- *   본사가 설정에서 주기(한 달에 한 번 · 두 번 · 매주)와 지급일(기간이 끝나고 며칠 뒤)을 정하면,
- *   기간이 끝날 때마다 정산이 저절로 만들어진다(settlement-auto.ts). 가게 정산 화면에는 지금 주기와 지급 예정일이 보인다.
- *   주기를 바꿀 때 가게에 알리는 것은 홀릭잼 본사 몫이다.
- * 계산 — 2026-09-29 대표 확정: ① 가게에서 사용 처리된 이용권의 판매액 ② 취소하고 돌려주지 않은 돈(가게 몫). 수수료만 뗀다.
+ * 정산일 — 2026-09-29 사용자 결정:
+ *   "정산 날짜는 PG(토스)를 붙일 때 홀릭잼 대표가 정한 날짜로, 바꿀 수도 있게. 우리는 시스템으로 정산 날짜를 정하게 해 주면 된다."
+ *   "날짜 지정이 맞다 — 예) 매달 15일, 또는 매달 15일·30일. 그래야 관리자가 정산 관리가 쉽다."
+ *   본사가 설정에서 매달 정산일을 하루나 이틀 고른다. 정산일마다 '지난 정산일부터 그 전날까지' 가게에서 사용 처리된 것을
+ *   정산한다 — 예) 매달 15일이면 11월 15일~12월 14일 사용분을 12월 15일에 보낸다. 정산일 0시에 그 기간의 정산이
+ *   저절로 만들어진다(settlement-auto.ts). 가게 정산 화면에는 정산일과 지급 예정일이 보인다.
+ *   정산일을 바꿀 때 가게에 알리는 것은 홀릭잼 본사 몫이다.
+ * 계산 — 결제한 날이 아니라 가게에서 사용 처리한 날 기준이다. 2026-09-29 사용자: "결제일 기준으로 정산했다가 취소하면
+ *   정리가 더 힘들다" — 사용 처리된 이용권은 취소가 안 되니 정산한 돈이 뒤집히지 않는다.
+ *   ① 가게에서 사용 처리된 이용권의 판매액 ② 취소하고 돌려주지 않은 돈(가게 몫, 취소한 날 기준). 수수료만 뗀다(2026-09-29 대표 확정).
  */
 import { PrismaService } from './prisma.service';
 import { feeOf, feeRate } from './fee.util';
 
 type Db = PrismaService['client'];
 
-export type SettlementCycle = 'MONTHLY' | 'SEMI_MONTHLY' | 'WEEKLY';
-export type SettlementPolicy = { cycle: SettlementCycle; payDelayDays: number };
+/** 매달 정산일 — 하루면 한 달에 한 번, 이틀이면 두 번. 31은 말일 */
+export type SettlementPolicy = { payDays: number[] };
 
 export const SETTLEMENT_POLICY_KEY = 'settlementPolicy';
-export const DEFAULT_SETTLEMENT_POLICY: SettlementPolicy = { cycle: 'SEMI_MONTHLY', payDelayDays: 5 };
+export const LAST_DAY = 31;
+export const DEFAULT_SETTLEMENT_POLICY: SettlementPolicy = { payDays: [15, 30] };
 
-export const CYCLE_LABEL: Record<SettlementCycle, string> = {
-  MONTHLY: '한 달에 한 번 (1일~말일)',
-  SEMI_MONTHLY: '한 달에 두 번 (1~15일 · 16일~말일)',
-  WEEKLY: '일주일에 한 번 (월요일~일요일)',
-};
+export const dayLabel = (d: number) => (d >= LAST_DAY ? '말일' : `${d}일`);
+export const policyLabel = (p: SettlementPolicy) => `매달 ${p.payDays.map(dayLabel).join('·')}`;
+export const POLICY_NOTE = '정산일마다 지난 정산일부터 그 전날까지 가게에서 사용 처리된 것을 보냅니다 (결제한 날이 아니라 사용 처리한 날 기준)';
 
-export const policyLabel = (p: SettlementPolicy) => `${CYCLE_LABEL[p.cycle]} · 기간이 끝나고 ${p.payDelayDays}일 뒤 지급`;
+/** 저장된 값을 그대로 믿지 않는다 — 1~31일 가운데 서로 다른 하루나 이틀 */
+export function normalizePolicy(v: unknown): SettlementPolicy {
+  const raw = (v as { payDays?: unknown } | null)?.payDays;
+  const days = Array.isArray(raw) ? raw.map(Number).filter((d) => Number.isInteger(d) && d >= 1 && d <= LAST_DAY) : [];
+  const uniq = [...new Set(days)].sort((a, b) => a - b).slice(0, 2);
+  return uniq.length ? { payDays: uniq } : DEFAULT_SETTLEMENT_POLICY;
+}
 
 export async function getSettlementPolicy(db: Db): Promise<SettlementPolicy> {
   const row = await db.setting.findUnique({ where: { key: SETTLEMENT_POLICY_KEY } });
-  const saved = (row?.value ?? {}) as Partial<SettlementPolicy>;
-  const p = { ...DEFAULT_SETTLEMENT_POLICY, ...saved };
-  if (!CYCLE_LABEL[p.cycle]) p.cycle = DEFAULT_SETTLEMENT_POLICY.cycle;
-  return p;
+  return normalizePolicy(row?.value);
 }
 
 export type Period = { start: Date; end: Date };
 
-/** date가 들어 있는 정산 기간 — 끝(end)은 다음 기간 첫날 0시 */
-export function periodOf(cycle: SettlementCycle, date: Date): Period {
-  const y = date.getFullYear();
-  const m = date.getMonth();
-  const day = date.getDate();
-  if (cycle === 'MONTHLY') return { start: new Date(y, m, 1), end: new Date(y, m + 1, 1) };
-  if (cycle === 'SEMI_MONTHLY') {
-    return day <= 15
-      ? { start: new Date(y, m, 1), end: new Date(y, m, 16) }
-      : { start: new Date(y, m, 16), end: new Date(y, m + 1, 1) };
-  }
-  const back = (date.getDay() + 6) % 7; // 월요일부터 며칠 지났나
-  const start = new Date(y, m, day - back);
-  return { start, end: new Date(start.getFullYear(), start.getMonth(), start.getDate() + 7) };
+/** 그달의 정산일 0시 — 그달에 없는 날(예: 2월 30일)은 그달 말일 */
+function payDatesOfMonth(p: SettlementPolicy, y: number, m: number): Date[] {
+  const dim = new Date(y, m + 1, 0).getDate();
+  return [...new Set(p.payDays.map((d) => Math.min(d, dim)))].sort((a, b) => a - b).map((d) => new Date(y, m, d));
+}
+
+/** date 앞뒤 몇 달의 정산일 — 오래된 것부터 */
+function payDatesAround(p: SettlementPolicy, date: Date, before: number, after: number): Date[] {
+  const out: Date[] = [];
+  for (let k = -before; k <= after; k++) out.push(...payDatesOfMonth(p, date.getFullYear(), date.getMonth() + k));
+  return out.sort((a, b) => a.getTime() - b.getTime());
+}
+
+/** date가 들어 있는 정산 기간 — [지난 정산일 0시, 다음 정산일 0시). 끝(end)이 곧 그 기간을 보내는 정산일이다 */
+export function periodOf(p: SettlementPolicy, date: Date): Period {
+  const t = date.getTime();
+  const list = payDatesAround(p, date, 2, 2);
+  const i = list.findIndex((d) => d.getTime() > t);
+  return { start: list[i - 1], end: list[i] };
 }
 
 /** 이미 끝난 정산 기간들 — 가장 최근 것부터 count개 */
-export function endedPeriods(cycle: SettlementCycle, now: Date, count: number): Period[] {
+export function endedPeriods(p: SettlementPolicy, now: Date, count: number): Period[] {
   const out: Period[] = [];
-  let p = periodOf(cycle, now);
+  let cur = periodOf(p, now);
   for (let i = 0; i < count; i++) {
-    p = periodOf(cycle, new Date(p.start.getTime() - 1));
-    out.push(p);
+    cur = periodOf(p, new Date(cur.start.getTime() - 1));
+    out.push(cur);
   }
   return out;
 }
 
 /**
- * 지급 예정일 — 기간 마지막 날에서 payDelayDays일 뒤 (예: 9월 1~15일, 5일 뒤 → 9월 20일).
- * 끝은 '다음 날 0시'로 저장된 정산도, '마지막 날 23:59'로 저장된 옛 정산도 있어 1밀리초 앞 날짜를 마지막 날로 본다.
+ * 지급 예정일 — 기간이 끝난 뒤(끝 시각 포함) 처음 오는 정산일.
+ * 지금 정산일로 만든 정산은 끝이 곧 정산일이다. 정산일을 바꾸기 전에 만든 정산도 그다음 정산일로 보인다.
  */
-export function payDueOf(periodEnd: Date, policy: SettlementPolicy): Date {
-  const last = new Date(periodEnd.getTime() - 1);
-  return new Date(last.getFullYear(), last.getMonth(), last.getDate() + policy.payDelayDays);
+export function payDueOf(periodEnd: Date, p: SettlementPolicy): Date {
+  const t = periodEnd.getTime();
+  const list = payDatesAround(p, periodEnd, 0, 2);
+  return list.find((d) => d.getTime() >= t) ?? list[list.length - 1];
 }
 
 export type SettlementAmounts = { grossAmount: number; feeAmount: number; netAmount: number; cancelKeptAmount: number };
@@ -124,7 +136,7 @@ export async function computeSettlements(db: Db, start: Date, end: Date): Promis
 /**
  * 정산을 만들거나 다시 계산한다.
  *  - 같은 기간 정산이 있으면: '정산 예정'이면 새 숫자로 고치고, 확정·지급된 것은 그대로 둔다(onlyMissing이면 건드리지 않는다).
- *  - 주기를 바꿔서 앞 정산과 기간이 겹치면: 앞 정산이 끝난 날부터로 잘라 만든다 — 같은 날이 두 번 세지지 않고, 빠지는 날도 없다.
+ *  - 정산일을 바꿔서 앞 정산과 기간이 겹치면: 앞 정산이 끝난 날부터로 잘라 만든다 — 같은 날이 두 번 세지지 않고, 빠지는 날도 없다.
  */
 export async function saveSettlements(db: Db, period: Period, opts: { onlyMissing?: boolean } = {}) {
   const full = await computeSettlements(db, period.start, period.end);

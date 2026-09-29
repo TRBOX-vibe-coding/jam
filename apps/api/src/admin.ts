@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import { saveImageDataUrl } from './uploads';
 import {
-  IsIn, IsInt, IsNumber, IsOptional, IsString, Matches, Max, MaxLength, Min, MinLength,
+  ArrayMaxSize, ArrayMinSize, IsArray, IsIn, IsInt, IsNumber, IsOptional, IsString, Matches, Max, MaxLength, Min, MinLength,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { randomBytes } from 'node:crypto';
@@ -19,8 +19,7 @@ import { MERCHANT_SCOPE_SELECT, PLAN_SCOPE_SELECT, planGivesMemberPrice, planPro
 import { parsePeriod, periodKeys, saleState } from './product-period.util';
 import { DEFAULT_COMMISSION, feeOf, feeRate } from './fee.util';
 import {
-  endedPeriods, getSettlementPolicy, payDueOf, policyLabel, saveSettlements, SETTLEMENT_POLICY_KEY,
-  type SettlementCycle, type SettlementPolicy,
+  endedPeriods, getSettlementPolicy, normalizePolicy, payDueOf, POLICY_NOTE, policyLabel, saveSettlements, SETTLEMENT_POLICY_KEY,
 } from './settlement.util';
 import { SettlementAutoService } from './settlement-auto';
 
@@ -155,10 +154,10 @@ class GenerateSettlementDto {
   @IsString() periodStart!: string; // ISO
   @IsString() periodEnd!: string;
 }
-/** 정산 주기 — 토스를 붙일 때 홀릭잼이 정한 날짜로 맞추고, 바꿀 수 있다 (2026-09-29) */
+/** 정산일 — 매달 하루나 이틀(31 = 말일). 토스를 붙일 때 홀릭잼이 정한 날짜로 맞추고, 바꿀 수 있다 (2026-09-29) */
 class SettlementPolicyDto {
-  @IsIn(['MONTHLY', 'SEMI_MONTHLY', 'WEEKLY']) cycle!: SettlementCycle;
-  @Type(() => Number) @IsInt() @Min(0) @Max(60) payDelayDays!: number;
+  @IsArray() @ArrayMinSize(1) @ArrayMaxSize(2) @Type(() => Number) @IsInt({ each: true }) @Min(1, { each: true }) @Max(31, { each: true })
+  payDays!: number[];
 }
 class CreateProductDto {
   @IsString() merchantId!: string;
@@ -612,24 +611,25 @@ export class AdminController {
     return rows.map((r) => ({ ...r, payDueAt: payDueOf(r.periodEnd, policy) }));
   }
 
-  /** 정산 주기 — 설정 화면과 정산 화면에서 쓴다. 최근에 끝난 기간 6개도 함께 준다 */
+  /** 정산일 — 설정 화면과 정산 화면에서 쓴다. 최근에 끝난 기간 6개도 함께 준다 */
   @Get('settings/settlement-policy')
   async settlementPolicy() {
     const policy = await getSettlementPolicy(this.prisma.client);
-    const periods = endedPeriods(policy.cycle, new Date(), 6).map((p) => ({ start: p.start, end: p.end }));
-    return { ...policy, label: policyLabel(policy), periods };
+    const periods = endedPeriods(policy, new Date(), 6).map((p) => ({ start: p.start, end: p.end }));
+    return { ...policy, label: policyLabel(policy), note: POLICY_NOTE, periods };
   }
 
   @Put('settings/settlement-policy')
   async saveSettlementPolicy(@AdminId() adminId: string, @Body() dto: SettlementPolicyDto) {
-    const value: SettlementPolicy = { cycle: dto.cycle, payDelayDays: dto.payDelayDays };
+    if (new Set(dto.payDays).size !== dto.payDays.length) throw new BadRequestException('정산일 두 개를 서로 다른 날로 골라 주세요');
+    const value = normalizePolicy({ payDays: dto.payDays });
     await this.prisma.client.setting.upsert({
       where: { key: SETTLEMENT_POLICY_KEY },
       update: { value },
       create: { key: SETTLEMENT_POLICY_KEY, value },
     });
     await this.audit(adminId, 'SETTLEMENT_POLICY_UPDATE', 'Setting', SETTLEMENT_POLICY_KEY, policyLabel(value));
-    return { ok: true, message: '정산 주기를 저장했습니다. 다음 정산부터 새 주기로 만들어지고, 가게 정산 화면에도 바로 보입니다.', policy: value };
+    return { ok: true, message: `정산일을 ${policyLabel(value)}로 저장했습니다. 다음 정산부터 이 날짜로 만들어지고, 가게 정산 화면에도 바로 보입니다.`, policy: value };
   }
 
   /**

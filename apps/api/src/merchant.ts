@@ -10,7 +10,7 @@ import {
 import { IsEmail, IsIn, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min, MinLength } from 'class-validator';
 import { Type } from 'class-transformer';
 import * as XLSX from 'xlsx';
-import { getSettlementPolicy, payDueOf, policyLabel } from './settlement.util';
+import { getSettlementPolicy, payDueOf, POLICY_NOTE, policyLabel } from './settlement.util';
 import { PrismaService } from './prisma.service';
 import { saveImageDataUrl } from './uploads';
 import { AuthModule, UserGuard, UserId } from './auth';
@@ -700,12 +700,12 @@ export class MerchantController {
     return rows.map((r) => ({ ...r, payDueAt: payDueOf(r.periodEnd, policy) }));
   }
 
-  /** 정산 주기 — 본사가 정한 주기와 지급일 (가게 정산 화면 맨 위에 보인다) */
+  /** 정산일 — 본사가 정한 매달 정산일 (가게 정산 화면 맨 위에 보인다) */
   @Get('my/settlement-policy')
   async settlementPolicy(@UserId() userId: string) {
     await this.myMerchant(userId);
     const policy = await getSettlementPolicy(this.prisma.client);
-    return { ...policy, label: policyLabel(policy) };
+    return { ...policy, label: policyLabel(policy), note: POLICY_NOTE };
   }
 
   /**

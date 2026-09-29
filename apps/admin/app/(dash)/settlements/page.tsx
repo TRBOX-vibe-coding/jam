@@ -6,7 +6,7 @@ import { Badge, Button, Card, CardHeader, Empty, Modal, Table, TableSkeleton, Td
 /** 보류 이유 보기 — 눌러서 넣고 고쳐 쓴다 */
 const HOLD_PRESETS = ['환불·분쟁 확인 중', '사업자·통장 서류 확인 중', '사용 처리 기록 확인 중'];
 
-type PolicyView = { label: string; periods: { start: string; end: string }[] };
+type PolicyView = { label: string; note: string; periods: { start: string; end: string }[] };
 const md = (s: string) => new Date(s).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' });
 /** 기간 이름 — 끝(end)은 다음 기간 첫날 0시라 하루 앞 날짜로 보인다 */
 const periodName = (p: { start: string; end: string }) =>
@@ -19,7 +19,7 @@ export default function SettlementsPage() {
   const [holdFor, setHoldFor] = useState<any | null>(null);
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
-  // 정산 주기 — 본사가 설정에서 정한다. 기간이 끝나면 저절로 만들어지고, 여기서는 골라서 다시 계산한다 (2026-09-29)
+  // 정산일 — 본사가 설정에서 매달 정산일을 고른다. 정산일 0시에 저절로 만들어지고, 여기서는 기간을 골라 다시 계산한다 (2026-09-29)
   const [policy, setPolicy] = useState<PolicyView | null>(null);
   const [pick, setPick] = useState(0);
   useEffect(() => {
@@ -83,12 +83,12 @@ export default function SettlementsPage() {
 
       <Card className="p-4">
         <div className="flex flex-wrap items-center gap-2 text-sm">
-          <span className="font-semibold">정산 주기</span>
+          <span className="font-semibold">정산일</span>
           <span className="text-ink-2">{policy?.label ?? '…'}</span>
           <a href="/settings" className="text-xs font-semibold text-brand underline underline-offset-2">설정에서 바꾸기</a>
         </div>
         <p className="mt-2 text-xs text-ink-3">
-          기간이 끝나면 가게마다 정산이 저절로 만들어집니다. 취소처럼 숫자가 바뀌었으면 기간을 골라 [다시 계산]을 누르세요 —
+          {policy?.note ?? ''}. 정산일 0시에 가게마다 정산이 저절로 만들어집니다. 숫자가 바뀐 일이 있으면 기간을 골라 [다시 계산]을 누르세요 —
           &lsquo;정산 예정&rsquo;만 새 숫자로 고쳐지고, 확정된 정산은 그대로입니다.
         </p>
         <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -106,7 +106,7 @@ export default function SettlementsPage() {
       </Card>
 
       <p className="text-xs text-ink-3">
-        정산 기준: 기간 안에 ① <b>가게에서 사용 처리된 이용권</b>의 판매액 ② <b>취소하고 돌려주지 않은 돈</b>(예: 하루 전 취소로 남은 50%) —
+        정산 기준(결제한 날이 아니라 <b>사용 처리한 날</b> 기준): 기간 안에 ① <b>가게에서 사용 처리된 이용권</b>의 판매액 ② <b>취소하고 돌려주지 않은 돈</b>(예: 하루 전 취소로 남은 50%) —
         둘 다 가게 몫이고 <b>수수료만 뗍니다</b>. 수수료율은 상품마다 정할 수 있고, 비우면 가게 기본(새 가게 10%)입니다. 상시 할인 혜택에는 수수료가 없습니다.
       </p>
       <p className="text-xs text-ink-3">
@@ -120,7 +120,7 @@ export default function SettlementsPage() {
         {rows === null ? (
           <TableSkeleton rows={5} cols={6} />
         ) : rows.length === 0 ? (
-          <Empty text="생성된 정산이 없습니다. '이번 달 정산 생성'을 눌러 보세요." />
+          <Empty text="아직 정산이 없습니다. 정산일이 되면 가게마다 저절로 만들어집니다." />
         ) : (
           <Table head={['상태', '가맹점', '기간', '판매액', '수수료', '지급액', '처리']}>
             {rows.map((s) => (

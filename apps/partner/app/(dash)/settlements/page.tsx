@@ -11,12 +11,12 @@ const dEnd = (s: string) => d(new Date(new Date(s).getTime() - 1).toISOString())
 
 export default function SettlementsPage() {
   const [rows, setRows] = useState<any[] | null>(null);
-  // 정산 주기 — 본사가 정한 주기와 지급일 (2026-09-29)
-  const [policy, setPolicy] = useState<{ label: string } | null>(null);
+  // 정산일 — 본사가 정한 매달 정산일 (2026-09-29)
+  const [policy, setPolicy] = useState<{ label: string; note: string } | null>(null);
 
   useEffect(() => {
     api<any[]>('/merchant/my/settlements').then(setRows).catch(() => setRows([]));
-    api<{ label: string }>('/merchant/my/settlement-policy').then(setPolicy).catch(() => {});
+    api<{ label: string; note: string }>('/merchant/my/settlement-policy').then(setPolicy).catch(() => {});
   }, []);
 
   return (
@@ -24,11 +24,12 @@ export default function SettlementsPage() {
       <h1 className="text-xl font-bold">정산</h1>
       {policy && (
         <div className="rounded-lg bg-brand-soft px-4 py-2.5 text-sm text-ink-2">
-          <b className="text-ink">정산 주기</b> · {policy.label}
+          <b className="text-ink">정산일</b> · {policy.label}
+          <div className="mt-0.5 text-xs text-ink-3">{policy.note}</div>
         </div>
       )}
       <p className="text-xs text-ink-3">
-        홀릭잼에서 결제된 매출의 정산 내역입니다. 지급 완료 전 내역은 <b>확정 후 순차 지급</b>됩니다.
+        홀릭잼에서 결제된 매출의 정산 내역입니다. 결제한 날이 아니라 <b>가게에서 사용 처리한 날</b>을 기준으로 정산하고, 지급 완료 전 내역은 <b>확정 후 정산일에 지급</b>됩니다.
         손님이 취소하고 규정대로 돌려받지 않은 돈(예: 하루 전 취소로 남은 50%)도 <b>사장님 몫</b>으로 정산되고, 홀릭잼은 수수료만 뗍니다.
       </p>
 
