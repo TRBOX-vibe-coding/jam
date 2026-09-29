@@ -10,11 +10,30 @@ import { Button, Card, CardHeader } from '@/components/ui';
 type Cycle = 'MONTHLY' | 'SEMI_MONTHLY' | 'WEEKLY';
 type Policy = { cycle: Cycle; payDelayDays: number };
 
-const OPTIONS: { key: Cycle; label: string; hint: string }[] = [
-  { key: 'MONTHLY', label: '한 달에 한 번', hint: '1일~말일을 한 번에 정산합니다. 예) 9월 1~30일 → 10월 5일 지급' },
-  { key: 'SEMI_MONTHLY', label: '한 달에 두 번', hint: '1~15일, 16일~말일로 나눠 정산합니다. 예) 9월 1~15일 → 9월 20일 지급' },
-  { key: 'WEEKLY', label: '일주일에 한 번', hint: '월요일~일요일로 정산합니다. 예) 9월 22~28일 → 10월 3일 지급' },
+const OPTIONS: { key: Cycle; label: string }[] = [
+  { key: 'MONTHLY', label: '한 달에 한 번' },
+  { key: 'SEMI_MONTHLY', label: '한 달에 두 번' },
+  { key: 'WEEKLY', label: '일주일에 한 번' },
 ];
+
+const md = (x: Date) => `${x.getMonth() + 1}월 ${x.getDate()}일`;
+const plus = (x: Date, days: number) => new Date(x.getFullYear(), x.getMonth(), x.getDate() + days);
+
+/** 주기마다 이번 달·이번 주 기준 예시 — 넣은 지급일(기간이 끝나고 ○일 뒤)로 계산한다 */
+function hints(delay: number): Record<Cycle, string> {
+  const now = new Date();
+  const month = now.getMonth() + 1;
+  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  const half = new Date(now.getFullYear(), now.getMonth(), 15);
+  const monday = plus(now, -((now.getDay() + 6) % 7));
+  const sunday = plus(monday, 6);
+  const week = monday.getMonth() === sunday.getMonth() ? `${md(monday)}~${sunday.getDate()}일` : `${md(monday)}~${md(sunday)}`;
+  return {
+    MONTHLY: `1일~말일을 한 번에 정산합니다. 예) ${month}월 1~${monthEnd.getDate()}일 → ${md(plus(monthEnd, delay))} 지급`,
+    SEMI_MONTHLY: `1~15일, 16일~말일로 나눠 정산합니다. 예) ${month}월 1~15일 → ${md(plus(half, delay))} 지급`,
+    WEEKLY: `월요일~일요일로 정산합니다. 예) ${week} → ${md(plus(sunday, delay))} 지급`,
+  };
+}
 
 export function SettlementPolicyCard() {
   const [p, setP] = useState<Policy | null>(null);
@@ -48,6 +67,7 @@ export function SettlementPolicyCard() {
     }
   }
 
+  const hint = hints(p.payDelayDays);
   return (
     <Card>
       <CardHeader
@@ -69,7 +89,7 @@ export function SettlementPolicyCard() {
                 <input type="radio" name="cycle" checked={p.cycle === o.key} onChange={() => setP({ ...p, cycle: o.key })} />
                 {o.label}
               </div>
-              <div className="mt-1 text-[11px] leading-4 text-ink-3">{o.hint}</div>
+              <div className="mt-1 text-[11px] leading-4 text-ink-3">{hint[o.key]}</div>
             </label>
           ))}
         </div>
