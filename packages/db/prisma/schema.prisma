@@ -357,8 +357,9 @@ model Merchant {
   /// 지역·종류로는 못 묶는 가게 모음(부산 곳곳의 러닝코스 가게)을 잼에 담을 때 조건으로 쓴다.
   tags String[] @default([])
 
-  /// 거래 수수료율(%). 상품 판매에만 적용하고 상시 할인 혜택에는 수수료가 없다.
-  commissionRate Decimal @default(0) @db.Decimal(5, 2)
+  /// 가게 기본 수수료율(%) — 새 가게는 10% (2026-09-29 대표 확정). 상품 판매에만 적용하고 상시 할인 혜택에는 수수료가 없다.
+  /// 상품에 수수료율을 따로 정하면 그것을 쓴다 (Product.commissionRate). 계산은 api/src/fee.util.ts
+  commissionRate Decimal @default(10) @db.Decimal(5, 2)
 
   bankName    String?
   bankAccount String?
@@ -715,6 +716,9 @@ model Product {
   /// 한 사람이 살 수 있는 수량. 비우면 제한 없음 (2026-09-24 대표 확정 3-3 — 기획전이 '1인 1장'을 요구)
   maxPerUser Int?
 
+  /// 이 상품의 수수료율(%). 비우면 가게 기본 수수료율 — "기본 10%이지만 상품에 따라 달라질 수 있음" (2026-09-29 대표 확정)
+  commissionRate Decimal? @db.Decimal(5, 2)
+
   /// 판매 기간 — 이 기간에만 결제된다. 비우면 제한 없음. 그 날 0시로 저장하고 끝나는 날은 23:59까지
   /// (2026-09-19 문서 4-6, 대표 '오픈 전 필수'). 계산은 api/src/product-period.util.ts
   saleFrom DateTime?
@@ -1014,6 +1018,9 @@ model Settlement {
   paidAt      DateTime?
   memo        String?
   createdAt   DateTime  @default(now())
+
+  /// 판매액 중 '취소하고 남은 돈' — 규정대로 일부만 돌려준 주문의 남은 결제액. 이것도 가게 몫이고 수수료만 뗀다 (2026-09-29 대표 확정)
+  cancelKeptAmount Int @default(0)
 
   /// 정산 보류 — 2026-09-24 대표 확정 2-2 B. 돈을 멈추는 건 토스에서 한다(그 가게 지급요청서를 안 보냄).
   /// 홀릭잼에는 보류했다는 표시와 이유만 남겨, 본사 대시보드와 가게 정산 화면에 보이게 한다.

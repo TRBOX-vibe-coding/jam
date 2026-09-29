@@ -253,6 +253,8 @@ export class OrdersController {
               amount,
             },
           },
+          // 지금은 연습 결제. 토스를 붙일 때 휴대폰 결제는 결제창에서 뺀다 — 결제한 달 말일까지만 취소돼서
+          // '구매 후 3개월 환불'을 지킬 수 없다 (2026-09-29 대표 확정)
           payments: {
             create: { provider: 'MOCK', status: 'PAID', amount, method: 'mock', paidAt: now },
           },

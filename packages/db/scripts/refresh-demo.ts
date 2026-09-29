@@ -422,6 +422,8 @@ async function refreshDatedTicket(now: Date) {
         memberPrice: 49000,
         totalQty: 40,
         maxPerUser: 4,
+        // 상품마다 수수료가 다를 수 있다는 예시 — 가게 기본 10%, 이 행사 상품만 15% (2026-09-29 대표 확정)
+        commissionRate: 15,
         verification: 'QR_ONLY',
         cancelPolicy: '기상 악화로 운항하지 않으면 전액 환불',
         weatherDependent: true,

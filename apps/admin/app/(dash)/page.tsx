@@ -326,7 +326,7 @@ export default function Dashboard() {
               {dash.holds.map((h) => (
                 <tr key={h.id}>
                   <Td className="whitespace-nowrap font-medium">{h.merchant.name}</Td>
-                  <Td className="whitespace-nowrap text-xs text-ink-3">{dmd(h.periodStart)} ~ {dmd(h.periodEnd)}</Td>
+                  <Td className="whitespace-nowrap text-xs text-ink-3">{dmd(h.periodStart)} ~ {dmd(new Date(new Date(h.periodEnd).getTime() - 1).toISOString())}</Td>
                   <Td className="tabular-nums">{won(h.netAmount)}</Td>
                   <Td className="whitespace-nowrap text-xs">{dmd(h.heldAt)}</Td>
                   <Td className="max-w-[260px] text-xs text-bad">{h.holdReason}</Td>

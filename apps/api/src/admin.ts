@@ -17,6 +17,10 @@ import { PrismaService } from './prisma.service';
 import { AdminGuard, AdminId, AuthModule } from './auth';
 import { MERCHANT_SCOPE_SELECT, PLAN_SCOPE_SELECT, planGivesMemberPrice, planProductRules, scopeCovers } from './plan-scope.util';
 import { parsePeriod, periodKeys, saleState } from './product-period.util';
+import { DEFAULT_COMMISSION, feeOf, feeRate } from './fee.util';
+
+/** 수수료율(%) — 빈 값이면 가게 기본으로 돌린다 */
+const RATE_OR_EMPTY = /^(\d{1,2}(\.\d{1,2})?)?$/;
 
 /** 'YYYY-MM-DD' 또는 빈 값(지우기) */
 const DAY_OR_EMPTY = /^(\d{4}-\d{2}-\d{2})?$/;
@@ -166,6 +170,8 @@ class CreateProductDto {
   @IsOptional() @Matches(DAY_OR_EMPTY) saleTo?: string;
   @IsOptional() @Matches(DAY_OR_EMPTY) useFrom?: string;
   @IsOptional() @Matches(DAY_OR_EMPTY) useTo?: string;
+  /** 이 상품의 수수료율(%) — 비우면 가게 기본 (2026-09-29 대표 확정) */
+  @IsOptional() @Matches(RATE_OR_EMPTY) commissionRate?: string;
 }
 class PatchProductDto {
   @IsOptional() isActive?: boolean;
@@ -182,6 +188,16 @@ class PatchProductDto {
   @IsOptional() @Matches(DAY_OR_EMPTY) saleTo?: string;
   @IsOptional() @Matches(DAY_OR_EMPTY) useFrom?: string;
   @IsOptional() @Matches(DAY_OR_EMPTY) useTo?: string;
+  /** 이 상품의 수수료율(%) — 빈 값이면 가게 기본으로 돌린다 (2026-09-29 대표 확정) */
+  @IsOptional() @Matches(RATE_OR_EMPTY) commissionRate?: string;
+}
+/** 수수료율 문자 → 저장할 값. 빈 값은 null(가게 기본), 50%를 넘으면 막는다 */
+function parseRate(v: string | undefined): { value?: number | null; error?: string } {
+  if (v === undefined) return {};
+  if (v === '') return { value: null };
+  const n = Number(v);
+  if (!(n >= 0 && n <= 50)) return { error: '수수료율은 0~50% 사이로 넣어 주세요' };
+  return { value: n };
 }
 /** 이 상품에 회원가를 주는 잼 — 화면에서 체크한 결과 그대로. 잼 범위와 다른 것만 예외로 남는다 (3-5 A) */
 class SetProductMemberPlansDto {
@@ -376,7 +392,7 @@ export class AdminController {
         intro: dto.intro,
         address: dto.address,
         ownerUserId: dto.ownerUserId,
-        commissionRate: dto.commissionRate ?? 0,
+        commissionRate: dto.commissionRate ?? DEFAULT_COMMISSION,
         contactPhone: dto.contactPhone,
         contactEmail: dto.contactEmail,
         ownerName: dto.ownerName,
@@ -582,8 +598,10 @@ export class AdminController {
   }
 
   /**
-   * 기간 정산 생성: 해당 기간의 이용권 사용(Redemption VOUCHER 기준) 매출을
-   * 가맹점별로 모아 수수료를 계산한다.
+   * 기간 정산 생성 — 가맹점별로 모아 수수료만 떼고 가게 몫을 계산한다 (2026-09-29 대표 확정).
+   *  ① 기간 안에 가게에서 사용 처리된 이용권의 판매액
+   *  ② 기간 안에 취소하고 남은 돈 — 규정대로 일부만 돌려준 주문의 남은 결제액(예: 하루 전 취소로 남은 50%)
+   * 수수료율은 상품에 정해 두면 그것, 없으면 가게 기본(fee.util.ts).
    */
   @Post('settlements/generate')
   async generate(@AdminId() adminId: string, @Body() dto: GenerateSettlementDto) {
@@ -592,37 +610,53 @@ export class AdminController {
     const periodEnd = new Date(dto.periodEnd);
     if (!(periodStart < periodEnd)) throw new BadRequestException('기간이 올바르지 않습니다');
 
+    const byMerchant = new Map<string, { gross: number; fee: number; kept: number }>();
+    const add = (merchantId: string, amount: number, rate: number, kept: boolean) => {
+      const a = byMerchant.get(merchantId) ?? { gross: 0, fee: 0, kept: 0 };
+      a.gross += amount;
+      a.fee += feeOf(amount, rate);
+      if (kept) a.kept += amount;
+      byMerchant.set(merchantId, a);
+    };
+
+    // ① 가게에서 사용 처리된 이용권
     const used = await db.redemption.findMany({
       where: {
         status: 'DONE', type: 'VOUCHER',
         createdAt: { gte: periodStart, lt: periodEnd },
       },
       include: {
-        voucher: { include: { order: { include: { items: true } } } },
+        voucher: { include: { order: { include: { items: true } }, product: { select: { commissionRate: true } } } },
         merchant: { select: { id: true, commissionRate: true } },
       },
     });
-
-    const byMerchant = new Map<string, { gross: number; rate: number }>();
     for (const r of used) {
       if (!r.voucher) continue;
       const item = r.voucher.order.items.find((i) => i.productId === r.voucher!.productId);
-      const gross = item?.amount ?? 0;
-      const cur = byMerchant.get(r.merchantId) ?? { gross: 0, rate: Number(r.merchant.commissionRate) };
-      cur.gross += gross;
-      byMerchant.set(r.merchantId, cur);
+      add(r.merchantId, item?.amount ?? 0, feeRate(r.voucher.product, r.merchant), false);
+    }
+
+    // ② 취소하고 남은 돈 — 가게 몫, 수수료만 뗀다. 환불액을 모르는 옛 취소 건은 넣지 않는다
+    const cancelled = await db.order.findMany({
+      where: { status: 'CANCELLED', cancelledAt: { gte: periodStart, lt: periodEnd }, refundAmount: { not: null } },
+      include: {
+        items: { include: { product: { select: { commissionRate: true, merchant: { select: { id: true, commissionRate: true } } } } } },
+      },
+    });
+    for (const o of cancelled) {
+      const kept = (o.paidAmount || o.totalAmount) - (o.refundAmount ?? 0);
+      const it = o.items.find((i) => i.product);
+      if (kept <= 0 || !it?.product) continue; // 잼 주문 등 가게 상품이 아닌 것은 홀릭잼 몫
+      add(it.product.merchant.id, kept, feeRate(it.product, it.product.merchant), true);
     }
 
     const created = [];
-    for (const [merchantId, { gross, rate }] of byMerchant) {
-      const fee = Math.floor((gross * rate) / 100);
+    for (const [merchantId, a] of byMerchant) {
+      const data = { grossAmount: a.gross, feeAmount: a.fee, netAmount: a.gross - a.fee, cancelKeptAmount: a.kept };
       const row = await db.settlement.upsert({
         where: { merchantId_periodStart_periodEnd: { merchantId, periodStart, periodEnd } },
-        update: { grossAmount: gross, feeAmount: fee, netAmount: gross - fee },
-        create: {
-          merchantId, periodStart, periodEnd,
-          grossAmount: gross, feeAmount: fee, netAmount: gross - fee,
-        },
+        update: data,
+        create: { merchantId, periodStart, periodEnd, ...data },
       });
       created.push(row);
     }
@@ -677,7 +711,7 @@ export class AdminController {
     const rows = await db.product.findMany({
       orderBy: { createdAt: 'desc' },
       include: {
-        merchant: { select: { id: true, name: true, ...MERCHANT_SCOPE_SELECT } },
+        merchant: { select: { id: true, name: true, commissionRate: true, ...MERCHANT_SCOPE_SELECT } },
         category: { select: { name: true, emoji: true } },
         _count: { select: { slots: true, vouchers: true } },
       },
@@ -696,6 +730,8 @@ export class AdminController {
       /** 판매 기간·이용 기간 'YYYY-MM-DD' + 판매 상태 (2026-09-19 문서 4-6) */
       period: periodKeys(r),
       saleState: saleState(r),
+      /** 적용 수수료율(%) — 상품에 없으면 가게 기본 (2026-09-29 대표 확정) */
+      feeRate: feeRate(r, r.merchant),
     }));
   }
 
@@ -769,6 +805,8 @@ export class AdminController {
     if (!merchant) throw new NotFoundException('가맹점을 찾을 수 없습니다');
     const period = parsePeriod(dto, dto.type);
     if (period.error) throw new BadRequestException(period.error);
+    const rate = parseRate(dto.commissionRate);
+    if (rate.error) throw new BadRequestException(rate.error);
     const imageUrl = dto.imageBase64 ? saveImageDataUrl(dto.imageBase64, 'product') : null;
     const p = await this.prisma.client.product.create({
       data: {
@@ -785,6 +823,7 @@ export class AdminController {
         totalQty: dto.type !== 'RESERVATION' ? dto.totalQty ?? null : null,
         maxPerUser: dto.maxPerUser ?? null,
         ...period.data,
+        commissionRate: rate.value ?? null,
         imageUrl,
       },
     });
@@ -805,6 +844,9 @@ export class AdminController {
     // 판매 기간·이용 기간 — 보낸 칸만 바꾼다
     const period = parsePeriod(dto, cur.type, cur);
     if (period.error) throw new BadRequestException(period.error);
+    // 수수료율 — 빈 값이면 가게 기본으로
+    const rate = parseRate(dto.commissionRate);
+    if (rate.error) throw new BadRequestException(rate.error);
 
     // 총 판매 수량 — 0이면 무제한. 이미 판 것보다 줄일 수는 없다.
     const qty: { totalQty?: number | null; isActive?: boolean } = {};
@@ -824,6 +866,7 @@ export class AdminController {
       data: {
         ...qty,
         ...period.data,
+        ...(rate.value !== undefined ? { commissionRate: rate.value } : {}),
         ...(dto.maxPerUser != null ? { maxPerUser: dto.maxPerUser === 0 ? null : dto.maxPerUser } : {}),
         ...(dto.isActive != null ? { isActive: dto.isActive } : {}),
         ...(dto.basePrice != null ? { basePrice: dto.basePrice } : {}),
@@ -860,6 +903,7 @@ export class AdminController {
           verification: src.verification,
           totalQty: src.totalQty,
           maxPerUser: src.maxPerUser,
+          commissionRate: src.commissionRate,
           saleFrom: src.saleFrom,
           saleTo: src.saleTo,
           useFrom: src.useFrom,

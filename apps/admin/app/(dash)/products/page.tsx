@@ -5,6 +5,7 @@ import { Badge, Button, Card, CardHeader, Empty, Modal, Table, TableSkeleton, Td
 import { ProductCouponsModal } from '@/components/product-coupons';
 import { ProductQtyModal } from '@/components/product-qty-modal';
 import { ProductPeriodModal } from '@/components/product-period-modal';
+import { ProductFeeModal } from '@/components/product-fee-modal';
 import { ProductPlansModal } from '@/components/product-plans';
 
 const TYPE_LABEL: Record<string, string> = { TICKET: '티켓', RESERVATION: '예약형', PASS: 'PASS' };
@@ -52,7 +53,7 @@ export default function ProductsPage() {
   const [merchants, setMerchants] = useState<any[]>([]);
   const [msg, setMsg] = useState('');
   const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState({ merchantId: '', name: '', type: 'RESERVATION', basePrice: '', memberPrice: '', verification: 'QR_ONLY', totalQty: '', maxPerUser: '', saleFrom: '', saleTo: '', useFrom: '', useTo: '' });
+  const [form, setForm] = useState({ merchantId: '', name: '', type: 'RESERVATION', basePrice: '', memberPrice: '', verification: 'QR_ONLY', totalQty: '', maxPerUser: '', saleFrom: '', saleTo: '', useFrom: '', useTo: '', commissionRate: '' });
   const [image, setImage] = useState<string | null>(null); // data URL
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -65,6 +66,7 @@ export default function ProductsPage() {
   const [couponFor, setCouponFor] = useState<any | null>(null);
   const [qtyFor, setQtyFor] = useState<any | null>(null); // 수량 제한 (2026-09-24 대표 확정 3-3)
   const [periodFor, setPeriodFor] = useState<any | null>(null); // 판매·이용 기간 (2026-09-19 문서 4-6)
+  const [feeFor, setFeeFor] = useState<any | null>(null); // 상품 수수료율 (2026-09-29 대표 확정)
   const [planFor, setPlanFor] = useState<any | null>(null);
   // 상품에 묶는 근처 할인 쿠폰 — 슈퍼 관리자 전용 (2026-09-12 대표 확정)
   const [slots, setSlots] = useState<any[] | null>(null);
@@ -112,12 +114,13 @@ export default function ProductsPage() {
           saleTo: form.saleTo || undefined,
           useFrom: form.type !== 'RESERVATION' ? form.useFrom || undefined : undefined,
           useTo: form.type !== 'RESERVATION' ? form.useTo || undefined : undefined,
+          commissionRate: form.commissionRate || undefined,
           imageBase64: image ?? undefined,
         },
       });
       setMsg('상품 등록 완료');
       setShowCreate(false);
-      setForm({ merchantId: '', name: '', type: 'RESERVATION', basePrice: '', memberPrice: '', verification: 'QR_ONLY', totalQty: '', maxPerUser: '', saleFrom: '', saleTo: '', useFrom: '', useTo: '' });
+      setForm({ merchantId: '', name: '', type: 'RESERVATION', basePrice: '', memberPrice: '', verification: 'QR_ONLY', totalQty: '', maxPerUser: '', saleFrom: '', saleTo: '', useFrom: '', useTo: '', commissionRate: '' });
       setImage(null);
       load();
     } catch (e: any) {
@@ -305,6 +308,7 @@ export default function ProductsPage() {
                   <input className={inputCls} placeholder="총 판매 수량 (비우면 무제한)" title="다 팔리면 저절로 품절됩니다" value={form.totalQty} onChange={(e) => setForm({ ...form, totalQty: e.target.value.replace(/\D/g, '') })} />
                 )}
                 <input className={inputCls} placeholder="한 사람당 최대 (비우면 제한 없음)" title="예) 기획전 1인 1장" value={form.maxPerUser} onChange={(e) => setForm({ ...form, maxPerUser: e.target.value.replace(/\D/g, '') })} />
+                <input className={inputCls} placeholder="수수료 % (비우면 가게 기본)" title="가게에는 수수료만 떼고 드립니다. 비우면 가게 기본 수수료율(보통 10%)" value={form.commissionRate} onChange={(e) => setForm({ ...form, commissionRate: e.target.value.replace(/[^\d.]/g, '') })} />
               </div>
               {/* 판매 기간·이용 기간 — 비우면 제한 없음 (2026-09-19 문서 4-6) */}
               <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
@@ -375,7 +379,13 @@ export default function ProductsPage() {
                       </div>
                     </Td>
                     <Td><Badge>{TYPE_LABEL[p.type] ?? p.type}</Badge></Td>
-                    <Td className="tabular-nums">{won(p.basePrice)}</Td>
+                    <Td className="tabular-nums">
+                      {won(p.basePrice)}
+                      {/* 적용 수수료율 — 상품에 따로 정했으면 파랗게, 아니면 가게 기본 (2026-09-29 대표 확정) */}
+                      <div className={`text-[11px] ${p.commissionRate != null ? 'font-semibold text-brand' : 'text-ink-3'}`}>
+                        수수료 {p.feeRate}%{p.commissionRate == null ? ' · 가게 기본' : ''}
+                      </div>
+                    </Td>
                     <Td className="tabular-nums">
                       {p.memberPrice != null ? won(p.memberPrice) : <span className="text-ink-3">—</span>}
                       {p.memberPrice != null && (
@@ -409,6 +419,7 @@ export default function ProductsPage() {
                         <Button small onClick={() => setCouponFor(p)}>쿠폰 묶기</Button>
                         <Button small variant="ghost" onClick={() => setQtyFor(p)}>수량</Button>
                         <Button small variant="ghost" onClick={() => setPeriodFor(p)}>기간</Button>
+                        <Button small variant="ghost" onClick={() => setFeeFor(p)}>수수료</Button>
                         <Button small variant="ghost" onClick={() => setPlanFor(p)}>회원가 잼</Button>
                         <Button small onClick={() => duplicateProduct(p)}>복사</Button>
                         <label className="cursor-pointer">
@@ -570,6 +581,15 @@ export default function ProductsPage() {
       )}
       {couponFor && (
         <ProductCouponsModal product={couponFor} onClose={() => setCouponFor(null)} />
+      )}
+      {feeFor && (
+        <ProductFeeModal
+          product={feeFor}
+          onClose={(saved) => {
+            setFeeFor(null);
+            if (saved) { setMsg(`'${feeFor.name}' 수수료를 저장했습니다`); load(); }
+          }}
+        />
       )}
       {periodFor && (
         <ProductPeriodModal

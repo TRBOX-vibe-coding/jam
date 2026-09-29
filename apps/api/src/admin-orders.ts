@@ -28,6 +28,7 @@ import {
 } from './refund-policy.util';
 import { syncBundledCoupons } from './bundled-coupons.util';
 import { isDatedTicket } from './product-period.util';
+import { feeRate } from './fee.util';
 
 class RefundPolicyDto {
   @Type(() => Number) @IsInt() @Min(0) @Max(1440) graceMinutes!: number;
@@ -53,7 +54,10 @@ const ORDER_INCLUDE = {
   vouchers: {
     include: {
       product: {
-        select: { id: true, name: true, type: true, totalQty: true, isActive: true, useFrom: true, merchant: { select: { name: true } } },
+        select: {
+          id: true, name: true, type: true, totalQty: true, isActive: true, useFrom: true, commissionRate: true,
+          merchant: { select: { name: true, commissionRate: true } },
+        },
       },
       reservation: { include: { slot: { select: { id: true, startAt: true } } } },
     },
@@ -273,6 +277,12 @@ export class AdminOrdersController {
         refund: Math.floor((p.amount * p.rule.percent) / 100),
       })),
       suggested: a.suggested,
+      /** 환불하고 남는 돈이 누구 몫인지 — 가게 상품이면 가게(수수료만 뗀다), 잼 등은 홀릭잼 (2026-09-29 대표 확정) */
+      kept: (() => {
+        const v = o.vouchers[0];
+        if (!v) return { to: 'HOLICGEM' as const, merchant: null, feeRate: null };
+        return { to: 'STORE' as const, merchant: v.product.merchant.name, feeRate: feeRate(v.product, v.product.merchant) };
+      })(),
     };
   }
 

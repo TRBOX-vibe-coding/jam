@@ -134,7 +134,7 @@ async function main() {
       regionId: R[m.region].id,
       intro: m.intro,
       ownerUserId: m.owner ?? null,
-      commissionRate: m.commission ?? 0,
+      commissionRate: m.commission ?? 10,
       address: m.address ?? '부산광역시',
       tags: m.tags ?? [],
     };

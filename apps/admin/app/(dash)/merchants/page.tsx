@@ -18,7 +18,7 @@ function fileToDataUrl(file: File): Promise<string> {
   });
 }
 
-const EMPTY_FORM = { name: '', regionId: '', categoryId: '', address: '', ownerName: '', contactPhone: '', contactEmail: '', intro: '', commissionRate: '0', avgSpendPerPerson: '', tags: [] as string[] };
+const EMPTY_FORM = { name: '', regionId: '', categoryId: '', address: '', ownerName: '', contactPhone: '', contactEmail: '', intro: '', commissionRate: '10', avgSpendPerPerson: '', tags: [] as string[] };
 
 export default function MerchantsPage() {
   const [rows, setRows] = useState<any[] | null>(null);
@@ -240,7 +240,7 @@ export default function MerchantsPage() {
               <input className={inputCls} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold text-ink-3">수수료율(%)</label>
+              <label className="mb-1 block text-xs font-semibold text-ink-3">기본 수수료율(%) — 상품마다 따로 정할 수 있음</label>
               <input className={inputCls} value={form.commissionRate} onChange={(e) => setForm({ ...form, commissionRate: e.target.value.replace(/[^\d.]/g, '') })} />
             </div>
             <div>

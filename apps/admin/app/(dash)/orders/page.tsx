@@ -24,6 +24,8 @@ type Preview = {
   warnings: string[];
   parts: { label: string; amount: number; percent: number; reason: string; refund: number }[];
   suggested: number;
+  /** 환불하고 남는 돈이 누구 몫인지 (2026-09-29 대표 확정) */
+  kept?: { to: 'STORE' | 'HOLICGEM'; merchant: string | null; feeRate: number | null };
 };
 
 const KIND_CHIP: Record<string, string> = {
@@ -223,6 +225,16 @@ export default function OrdersPage() {
                     <input className={`${inputCls} w-full`} value={reason} placeholder="예) 손님 일정 변경" onChange={(e) => setReason(e.target.value)} />
                   </label>
                 </div>
+
+                {/* 남는 돈은 가게 몫 — 홀릭잼은 수수료만 뗀다 (2026-09-29 대표 확정) */}
+                {pv.kept && refundNum < pv.paid && (
+                  <p className="rounded-lg bg-ground px-4 py-2.5 text-[13px] text-ink-2">
+                    환불하고 남는 <b className="text-ink">{won(pv.paid - refundNum)}</b>은{' '}
+                    {pv.kept.to === 'STORE'
+                      ? <>가게({pv.kept.merchant}) 정산에 들어갑니다. 홀릭잼은 수수료 {pv.kept.feeRate}%만 뗍니다.</>
+                      : <>홀릭잼 몫입니다(잼 주문).</>}
+                  </p>
+                )}
 
                 <label className="flex items-center gap-2 rounded-lg border border-line px-4 py-3">
                   <input type="checkbox" checked={tossDone} onChange={(e) => setTossDone(e.target.checked)} />

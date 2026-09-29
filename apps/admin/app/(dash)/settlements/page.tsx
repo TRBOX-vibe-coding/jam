@@ -77,7 +77,8 @@ export default function SettlementsPage() {
       </div>
 
       <p className="text-xs text-ink-3">
-        정산 기준: 기간 내 <b>현장에서 실제 사용된 이용권</b>의 판매액 × 가맹점별 수수료율. 상시 할인 혜택에는 수수료가 없습니다.
+        정산 기준: 기간 안에 ① <b>가게에서 사용 처리된 이용권</b>의 판매액 ② <b>취소하고 돌려주지 않은 돈</b>(예: 하루 전 취소로 남은 50%) —
+        둘 다 가게 몫이고 <b>수수료만 뗍니다</b>. 수수료율은 상품마다 정할 수 있고, 비우면 가게 기본(새 가게 10%)입니다. 상시 할인 혜택에는 수수료가 없습니다.
       </p>
       <p className="text-xs text-ink-3">
         <b>정산 보류</b>: 돈을 멈추는 것은 토스 관리자 화면에서 합니다(그 가게 지급요청서를 보내지 않거나, 예약해 둔 요청을 &lsquo;전송취소&rsquo;).
@@ -111,9 +112,12 @@ export default function SettlementsPage() {
                 </Td>
                 <Td className="whitespace-nowrap text-xs text-ink-3">
                   {new Date(s.periodStart).toLocaleDateString('ko-KR')} ~{' '}
-                  {new Date(s.periodEnd).toLocaleDateString('ko-KR')}
+                  {new Date(new Date(s.periodEnd).getTime() - 1).toLocaleDateString('ko-KR')}
                 </Td>
-                <Td className="tabular-nums">{won(s.grossAmount)}</Td>
+                <Td className="tabular-nums">
+                  {won(s.grossAmount)}
+                  {s.cancelKeptAmount > 0 && <div className="text-[11px] text-ink-3">취소로 남은 돈 {won(s.cancelKeptAmount)} 포함</div>}
+                </Td>
                 <Td className="tabular-nums text-ink-3">-{won(s.feeAmount)}</Td>
                 <Td className="tabular-nums font-semibold">{won(s.netAmount)}</Td>
                 <Td>
