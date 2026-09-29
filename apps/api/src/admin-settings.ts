@@ -111,7 +111,7 @@ class PatchI18nDto {
 /** 번역 대상 엔티티 정의 — 어떤 필드를 번역하는지 */
 const I18N_ENTITIES: Record<string, { model: string; fields: string[]; label: string }> = {
   drops: { model: 'drop', fields: ['title', 'description'], label: 'title' },
-  products: { model: 'product', fields: ['name', 'description', 'cancelPolicy'], label: 'name' },
+  products: { model: 'product', fields: ['name', 'description'], label: 'name' },
   benefits: { model: 'benefit', fields: ['title', 'freebieName', 'conditions'], label: 'title' },
   merchants: { model: 'merchant', fields: ['name', 'intro', 'address'], label: 'name' },
   campaigns: { model: 'campaign', fields: ['title', 'subtitle', 'subsidyLabel'], label: 'title' },

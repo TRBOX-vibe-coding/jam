@@ -33,7 +33,6 @@ export default function MerchantProductCreate() {
   const [basePrice, setBasePrice] = useState('');
   const [memberPrice, setMemberPrice] = useState('');
   const [verification, setVerification] = useState<'QR_ONLY' | 'QR_PIN'>('QR_ONLY');
-  const [cancelPolicy, setCancelPolicy] = useState('');
   const [totalQty, setTotalQty] = useState('');       // 티켓형 총 판매 수량
   const [slotCapacity, setSlotCapacity] = useState(''); // 예약형 회차당 정원
   const [maxPerUser, setMaxPerUser] = useState('');     // 한 사람당 살 수 있는 수량 (2026-09-24 대표 확정 3-3)
@@ -92,7 +91,6 @@ export default function MerchantProductCreate() {
           basePrice: base,
           memberPrice: member > 0 ? member : undefined,
           verification,
-          cancelPolicy: cancelPolicy.trim() || undefined,
           totalQty: type === 'TICKET' && totalQty ? Number(totalQty) : undefined,
           slotCapacity: type === 'RESERVATION' && slotCapacity ? Number(slotCapacity) : undefined,
           maxPerUser: maxPerUser ? Number(maxPerUser) : undefined,
@@ -259,14 +257,6 @@ export default function MerchantProductCreate() {
           ))}
         </View>
 
-        <Text style={st.label}>취소·변경 정책 (선택)</Text>
-        <TextInput
-          style={st.input}
-          value={cancelPolicy}
-          onChangeText={setCancelPolicy}
-          placeholder="예) 이용 1일 전까지 무료 취소"
-          placeholderTextColor={C.ink3}
-        />
 
         {type === 'RESERVATION' && (
           <Card style={{ marginTop: 14, backgroundColor: C.warnSoft, borderColor: C.warnSoft }}>

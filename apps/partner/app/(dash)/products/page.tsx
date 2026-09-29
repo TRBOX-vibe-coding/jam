@@ -7,7 +7,7 @@ import { QtyEdit } from '@/components/qty-edit';
 const img = (u?: string | null, w = 160) => (u ? (u.startsWith('/') ? `${API_BASE}${u}?w=${w}` : u) : null);
 const TYPE_LABEL: Record<string, string> = { TICKET: '티켓', RESERVATION: '예약형', PASS: 'PASS' };
 
-const EMPTY = { type: 'RESERVATION', name: '', description: '', basePrice: '', memberPrice: '', verification: 'QR_ONLY', cancelPolicy: '', totalQty: '', slotCapacity: '', maxPerUser: '', saleFrom: '', saleTo: '', useFrom: '', useTo: '' };
+const EMPTY = { type: 'RESERVATION', name: '', description: '', basePrice: '', memberPrice: '', verification: 'QR_ONLY', totalQty: '', slotCapacity: '', maxPerUser: '', saleFrom: '', saleTo: '', useFrom: '', useTo: '' };
 
 /** 'YYYY-MM-DD' → '10.3' */
 const md = (s: string) => { const [, m, d] = s.split('-'); return `${Number(m)}.${Number(d)}`; };
@@ -62,7 +62,6 @@ export default function MyProductsPage() {
           basePrice: Number(f.basePrice),
           memberPrice: f.memberPrice ? Number(f.memberPrice) : undefined,
           verification: f.verification,
-          cancelPolicy: f.cancelPolicy || undefined,
           totalQty: f.type === 'TICKET' && f.totalQty ? Number(f.totalQty) : undefined,
           slotCapacity: f.type === 'RESERVATION' && f.slotCapacity ? Number(f.slotCapacity) : undefined,
           maxPerUser: f.maxPerUser ? Number(f.maxPerUser) : undefined,
@@ -130,7 +129,6 @@ export default function MyProductsPage() {
               <input className={inputCls} placeholder="회차당 정원 (예: 6)" title="시간 회차 하나에 받을 수 있는 인원" value={f.slotCapacity} onChange={(e) => setF({ ...f, slotCapacity: e.target.value.replace(/\D/g, '') })} />
             )}
             <input className={inputCls} placeholder="한 사람당 최대 (비우면 제한 없음)" title="예) 1인 1장" value={f.maxPerUser} onChange={(e) => setF({ ...f, maxPerUser: e.target.value.replace(/\D/g, '') })} />
-            <input className={inputCls} placeholder="취소 정책 (예: 기상 악화 시 전액 환불)" value={f.cancelPolicy} onChange={(e) => setF({ ...f, cancelPolicy: e.target.value })} />
             {/* 판매 기간·이용 기간 — 비우면 제한 없음 (2026-09-19 문서 4-6) */}
             <div className="col-span-2 flex flex-wrap items-center gap-2 lg:col-span-4">
               <span className="text-xs font-semibold text-ink-3">판매 기간</span>

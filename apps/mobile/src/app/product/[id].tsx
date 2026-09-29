@@ -161,7 +161,6 @@ export default function ProductDetail() {
           {p.type !== 'RESERVATION' && p.period && (p.period.useFrom || p.period.useTo) && (
             <Text style={st.periodLine}>{t('periodUse', { range: rangeText(p.period.useFrom, p.period.useTo) })}</Text>
           )}
-          {p.cancelPolicy && <Text style={st.policy}>· {p.cancelPolicy}</Text>}
         </Card>
 
         {p.type === 'RESERVATION' && (
@@ -300,7 +299,6 @@ const st = StyleSheet.create({
   price: { fontSize: 24, fontWeight: '700', color: C.ink },
   normal: { fontSize: 14, color: C.ink3, textDecorationLine: 'line-through' },
   memberHint: { fontSize: 12, color: C.gold, fontWeight: '700' },
-  policy: { fontSize: 12, color: C.warn, marginTop: 8 },
   qtyLine: { fontSize: 12.5, fontWeight: '700', color: C.brand, marginTop: 8 },
   periodLine: { fontSize: 12.5, fontWeight: '600', color: C.ink2, marginTop: 6 },
   section: { fontSize: 13, fontWeight: '700', color: C.ink3, marginTop: 12, marginBottom: 8 },
