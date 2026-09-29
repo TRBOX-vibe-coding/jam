@@ -31,7 +31,6 @@ type TripT = {
   items: TripItemT[];
 };
 
-const GRADE_COLOR: Record<string, string> = { GREAT: '#7CF2B0', GOOD: '#9ED2FF', START: '#FFD983' };
 const dstr = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 /**
@@ -167,9 +166,6 @@ export default function TripScreen() {
           <Text style={st.heroSub2}>{range} · {t('savedLabelTrip')}</Text>
           <Text style={st.heroValue}>
             {won(trip.totalSaving)}{trip.hasPlusAlpha ? '+' : ''}
-            {trip.grade && (
-              <Text style={[st.heroGrade, { color: GRADE_COLOR[trip.grade] }]}>  {trip.grade}</Text>
-            )}
           </Text>
           {trip.recommendedPlan && trip.multiple != null && (
             <Text style={st.heroCompare}>

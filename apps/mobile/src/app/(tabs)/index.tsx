@@ -251,7 +251,6 @@ export default function HomeScreen() {
                         nights: `${trip.days - 1}`, days: `${trip.days}`, n: trip.headcount,
                         count: trip.items.length, amt: won(trip.totalSaving),
                       })}
-                      {trip.grade ? ` · ${trip.grade}` : ''}
                     </Text>
                   ) : (
                     <Text style={st.statusSaving}>

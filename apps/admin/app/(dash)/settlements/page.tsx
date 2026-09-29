@@ -6,26 +6,11 @@ import { Badge, Button, Card, CardHeader, Empty, Modal, Table, TableSkeleton, Td
 /** 보류 이유 보기 — 눌러서 넣고 고쳐 쓴다 */
 const HOLD_PRESETS = ['환불·분쟁 확인 중', '사업자·통장 서류 확인 중', '사용 처리 기록 확인 중'];
 
-const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-
-/** 정산 기간 바로 고르기 — 끝나는 날은 그 날 23:59까지 (화면에는 끝나는 날 그대로) */
-function quickRange(kind: 'first' | 'second' | 'month' | 'prev') {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = now.getMonth();
-  if (kind === 'first') return { from: ymd(new Date(y, m, 1)), to: ymd(new Date(y, m, 15)) };
-  if (kind === 'second') return { from: ymd(new Date(y, m, 16)), to: ymd(new Date(y, m + 1, 0)) };
-  if (kind === 'month') return { from: ymd(new Date(y, m, 1)), to: ymd(new Date(y, m + 1, 0)) };
-  return { from: ymd(new Date(y, m - 1, 1)), to: ymd(new Date(y, m, 0)) };
-}
-/** 처음 열었을 때 — 가장 최근에 끝난 보름 */
-function lastHalf() {
-  const now = new Date();
-  if (now.getDate() > 15) return quickRange('first');
-  const y = now.getFullYear();
-  const m = now.getMonth();
-  return { from: ymd(new Date(y, m - 1, 16)), to: ymd(new Date(y, m, 0)) };
-}
+type PolicyView = { label: string; periods: { start: string; end: string }[] };
+const md = (s: string) => new Date(s).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' });
+/** 기간 이름 — 끝(end)은 다음 기간 첫날 0시라 하루 앞 날짜로 보인다 */
+const periodName = (p: { start: string; end: string }) =>
+  `${new Date(p.start).toLocaleDateString('ko-KR')} ~ ${new Date(new Date(p.end).getTime() - 1).toLocaleDateString('ko-KR')}`;
 
 export default function SettlementsPage() {
   const [rows, setRows] = useState<any[] | null>(null);
@@ -34,8 +19,12 @@ export default function SettlementsPage() {
   const [holdFor, setHoldFor] = useState<any | null>(null);
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
-  // 정산 기간 — 본사가 고른다 (9/18 정의서: 기간을 잡아 가맹점별로 정산서를 만든다)
-  const [range, setRange] = useState(lastHalf);
+  // 정산 주기 — 본사가 설정에서 정한다. 기간이 끝나면 저절로 만들어지고, 여기서는 골라서 다시 계산한다 (2026-09-29)
+  const [policy, setPolicy] = useState<PolicyView | null>(null);
+  const [pick, setPick] = useState(0);
+  useEffect(() => {
+    api<PolicyView>('/admin/settings/settlement-policy').then(setPolicy).catch(() => {});
+  }, []);
 
   const load = useCallback(() => {
     api<any[]>('/admin/settlements').then(setRows).catch(() => setRows([]));
@@ -43,19 +32,13 @@ export default function SettlementsPage() {
   useEffect(load, [load]);
 
   async function generate() {
-    const [ys, ms, ds] = range.from.split('-').map(Number);
-    const [ye, me, de] = range.to.split('-').map(Number);
-    const start = new Date(ys, ms - 1, ds);
-    const end = new Date(ye, me - 1, de + 1); // 끝나는 날 다음 날 0시 전까지
-    if (!ys || !ye || !(start < end)) {
-      setMsg('정산 기간을 다시 골라 주세요');
-      return;
-    }
-    const r = await api<{ count: number }>('/admin/settlements/generate', {
+    const p = policy?.periods[pick];
+    if (!p) return;
+    const r = await api<{ message: string }>('/admin/settlements/generate', {
       method: 'POST',
-      body: { periodStart: start.toISOString(), periodEnd: end.toISOString() },
+      body: { periodStart: p.start, periodEnd: p.end },
     });
-    setMsg(`${range.from} ~ ${range.to} 정산 ${r.count}건을 만들었습니다`);
+    setMsg(`${periodName(p)} — ${r.message}`);
     load();
   }
 
@@ -95,24 +78,31 @@ export default function SettlementsPage() {
         <h1 className="text-xl font-bold">정산</h1>
         <div className="flex items-center gap-3">
           {msg && <span className="rounded bg-ok-soft px-3 py-1 text-xs font-semibold text-ok">{msg}</span>}
-          <Button onClick={generate}>정산 만들기</Button>
         </div>
       </div>
 
       <Card className="p-4">
         <div className="flex flex-wrap items-center gap-2 text-sm">
-          <span className="font-semibold">정산 기간</span>
-          <input type="date" value={range.from} onChange={(e) => setRange({ ...range, from: e.target.value })}
-            className="rounded-md border border-line px-2.5 py-1.5 text-sm" />
-          <span className="text-ink-3">~</span>
-          <input type="date" value={range.to} onChange={(e) => setRange({ ...range, to: e.target.value })}
-            className="rounded-md border border-line px-2.5 py-1.5 text-sm" />
-          {([['first', '이번 달 1~15일'], ['second', '이번 달 16일~말일'], ['month', '이번 달 전체'], ['prev', '지난달 전체']] as const).map(([k, label]) => (
-            <button key={k} onClick={() => setRange(quickRange(k))}
-              className="rounded-md border border-line px-2.5 py-1 text-xs font-semibold text-ink-2 hover:bg-ground">{label}</button>
-          ))}
+          <span className="font-semibold">정산 주기</span>
+          <span className="text-ink-2">{policy?.label ?? '…'}</span>
+          <a href="/settings" className="text-xs font-semibold text-brand underline underline-offset-2">설정에서 바꾸기</a>
         </div>
-        <p className="mt-2 text-xs text-ink-3">기간을 고르고 [정산 만들기]를 누르면 가게마다 그 기간의 정산이 만들어집니다. 같은 기간을 다시 누르면 새 숫자로 고쳐집니다.</p>
+        <p className="mt-2 text-xs text-ink-3">
+          기간이 끝나면 가게마다 정산이 저절로 만들어집니다. 취소처럼 숫자가 바뀌었으면 기간을 골라 [다시 계산]을 누르세요 —
+          &lsquo;정산 예정&rsquo;만 새 숫자로 고쳐지고, 확정된 정산은 그대로입니다.
+        </p>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <select
+            value={pick}
+            onChange={(e) => setPick(Number(e.target.value))}
+            className="rounded-md border border-line bg-white px-2.5 py-1.5 text-sm"
+          >
+            {(policy?.periods ?? []).map((p, i) => (
+              <option key={p.start} value={i}>{periodName(p)}</option>
+            ))}
+          </select>
+          <Button small onClick={generate} disabled={!policy}>다시 계산</Button>
+        </div>
       </Card>
 
       <p className="text-xs text-ink-3">
@@ -152,6 +142,7 @@ export default function SettlementsPage() {
                 <Td className="whitespace-nowrap text-xs text-ink-3">
                   {new Date(s.periodStart).toLocaleDateString('ko-KR')} ~{' '}
                   {new Date(new Date(s.periodEnd).getTime() - 1).toLocaleDateString('ko-KR')}
+                  {s.status !== 'PAID' && s.payDueAt && <div className="text-[11px] text-ink-3">지급 예정 {md(s.payDueAt)}</div>}
                 </Td>
                 <Td className="tabular-nums">
                   {won(s.grossAmount)}

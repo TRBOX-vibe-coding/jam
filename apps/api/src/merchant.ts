@@ -10,6 +10,7 @@ import {
 import { IsEmail, IsIn, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min, MinLength } from 'class-validator';
 import { Type } from 'class-transformer';
 import * as XLSX from 'xlsx';
+import { getSettlementPolicy, payDueOf, policyLabel } from './settlement.util';
 import { PrismaService } from './prisma.service';
 import { saveImageDataUrl } from './uploads';
 import { AuthModule, UserGuard, UserId } from './auth';
@@ -527,7 +528,7 @@ export class MerchantController {
       db.reservation.findMany({
         where: { product: { merchantId: m.id }, slot: { startAt: { gte: start, lte: end } } },
         include: {
-          user: { select: { nickname: true } },
+          user: { select: { nickname: true, phone: true } },
           product: productSel,
           slot: { select: { startAt: true, endAt: true } },
           voucher: { select: { usedAt: true, order: orderSel } },
@@ -536,7 +537,7 @@ export class MerchantController {
       db.redemption.findMany({
         where: { merchantId: m.id, createdAt: { gte: start, lte: end } },
         include: {
-          user: { select: { nickname: true } },
+          user: { select: { nickname: true, phone: true } },
           voucher: { select: { reservation: { select: { id: true } }, product: productSel, order: orderSel } },
           dropClaim: {
             select: {
@@ -590,7 +591,7 @@ export class MerchantController {
           endAt: r.slot.endAt,
           title: r.product.name,
           customer: r.contactName || r.user.nickname,
-          phone: r.contactPhone || null,
+          phone: r.contactPhone || r.user.phone || null,
           headcount: r.headcount,
           status: RESV[r.status] ?? r.status,
           cancelled: r.status === 'CANCELLED',
@@ -622,7 +623,8 @@ export class MerchantController {
             endAt: null,
             title: prod?.name ?? c?.drop.title ?? x.userBenefit?.benefit.title ?? '-',
             customer: x.user.nickname,
-            phone: null,
+            // 돈을 내고 산 것(이용권·기획전 상품)만 — 결제할 때 가게에 알려 주는 데 동의받은 번호
+            phone: order && kind !== 'BENEFIT' ? x.user.phone ?? null : null,
             headcount: x.headcount,
             status: x.status === 'DONE' ? '사용 완료' : '사용 취소',
             cancelled: x.status !== 'DONE',
@@ -686,11 +688,22 @@ export class MerchantController {
   @Get('my/settlements')
   async settlements(@UserId() userId: string) {
     const m = await this.myMerchant(userId);
-    return this.prisma.client.settlement.findMany({
+    const db = this.prisma.client;
+    const policy = await getSettlementPolicy(db);
+    const rows = await db.settlement.findMany({
       where: { merchantId: m.id },
       orderBy: { periodEnd: 'desc' },
       take: 24,
     });
+    return rows.map((r) => ({ ...r, payDueAt: payDueOf(r.periodEnd, policy) }));
+  }
+
+  /** 정산 주기 — 본사가 정한 주기와 지급일 (가게 정산 화면 맨 위에 보인다) */
+  @Get('my/settlement-policy')
+  async settlementPolicy(@UserId() userId: string) {
+    await this.myMerchant(userId);
+    const policy = await getSettlementPolicy(this.prisma.client);
+    return { ...policy, label: policyLabel(policy) };
   }
 
   /**

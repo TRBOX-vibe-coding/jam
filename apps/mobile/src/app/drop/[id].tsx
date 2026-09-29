@@ -1,5 +1,5 @@
 /** DROP 상세 — 받기(DEAL) 또는 바로 결제(TICKET) */
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Alert, Image, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { track } from '../../lib/analytics';
@@ -8,6 +8,7 @@ import { useAuth } from '../../lib/auth';
 import { useI18n } from '../../lib/i18n';
 import { C } from '../../lib/theme';
 import { Btn, Card, LoadError, Loading, Screen, Tag } from '../../lib/ui';
+import { ContactCard, validPhone } from '../../lib/contact';
 
 function notify(title: string, msg: string) {
   if (Platform.OS === 'web') window.alert(`${title}\n${msg}`);
@@ -24,6 +25,10 @@ export default function DropDetail() {
   const [d, setD] = useState<any | null>(null);
   const [failed, setFailed] = useState(false);
   const [busy, setBusy] = useState(false);
+  // 결제하고 받는 기획전 상품은 연락처를 받는다 (2026-09-29)
+  const [phone, setPhone] = useState('');
+  const [agree, setAgree] = useState(false);
+  useEffect(() => { if (me?.phone && !phone) setPhone(me.phone); }, [me?.phone]);
 
   const load = useCallback(() => {
     setFailed(false);
@@ -39,9 +44,16 @@ export default function DropDetail() {
       router.push('/(tabs)/my');
       return;
     }
+    if (d.kind === 'TICKET' && (!validPhone(phone) || !agree)) {
+      notify(t('contactTitle'), !validPhone(phone) ? t('contactInvalid') : t('contactNeeded'));
+      return;
+    }
     setBusy(true);
     try {
-      const r = await api<any>(`/drops/${id}/claim`, { method: 'POST', body: {} });
+      const r = await api<any>(`/drops/${id}/claim`, {
+        method: 'POST',
+        body: d.kind === 'TICKET' ? { contactPhone: phone } : {},
+      });
       track(r.type === 'TICKET' ? 'ticket_purchase' : 'drop_claim', { type: 'drop', id: String(id) });
       notify(r.type === 'TICKET' ? t('paidDone') : t('claimed'), r.message);
       if (r.type === 'TICKET') router.push('/wallet');
@@ -94,6 +106,9 @@ export default function DropDetail() {
           </View>
         </Card>
 
+        {me && d.kind === 'TICKET' && !d.locked && !soldOut && (
+          <ContactCard phone={phone} onPhone={setPhone} agree={agree} onAgree={setAgree} storeName={d.merchant.name} />
+        )}
         {d.locked ? (
           <Card style={{ backgroundColor: C.warnSoft, borderColor: C.warnSoft }}>
             <Text style={st.lockText}>{t('memberOnlyDrop')}</Text>

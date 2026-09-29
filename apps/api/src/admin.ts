@@ -18,6 +18,11 @@ import { AdminGuard, AdminId, AuthModule } from './auth';
 import { MERCHANT_SCOPE_SELECT, PLAN_SCOPE_SELECT, planGivesMemberPrice, planProductRules, scopeCovers } from './plan-scope.util';
 import { parsePeriod, periodKeys, saleState } from './product-period.util';
 import { DEFAULT_COMMISSION, feeOf, feeRate } from './fee.util';
+import {
+  endedPeriods, getSettlementPolicy, payDueOf, policyLabel, saveSettlements, SETTLEMENT_POLICY_KEY,
+  type SettlementCycle, type SettlementPolicy,
+} from './settlement.util';
+import { SettlementAutoService } from './settlement-auto';
 
 /** 수수료율(%) — 빈 값이면 가게 기본으로 돌린다 */
 const RATE_OR_EMPTY = /^(\d{1,2}(\.\d{1,2})?)?$/;
@@ -149,6 +154,11 @@ class HoldSettlementDto {
 class GenerateSettlementDto {
   @IsString() periodStart!: string; // ISO
   @IsString() periodEnd!: string;
+}
+/** 정산 주기 — 토스를 붙일 때 홀릭잼이 정한 날짜로 맞추고, 바꿀 수 있다 (2026-09-29) */
+class SettlementPolicyDto {
+  @IsIn(['MONTHLY', 'SEMI_MONTHLY', 'WEEKLY']) cycle!: SettlementCycle;
+  @Type(() => Number) @IsInt() @Min(0) @Max(60) payDelayDays!: number;
 }
 class CreateProductDto {
   @IsString() merchantId!: string;
@@ -590,12 +600,36 @@ export class AdminController {
   // ---------------- 정산 ----------------
 
   @Get('settlements')
-  settlements() {
-    return this.prisma.client.settlement.findMany({
+  async settlements() {
+    const db = this.prisma.client;
+    const policy = await getSettlementPolicy(db);
+    const rows = await db.settlement.findMany({
       orderBy: { periodEnd: 'desc' },
       take: 100,
       include: { merchant: { select: { name: true } } },
     });
+    // 지급 예정일 — 지금 정해 둔 주기의 지급일로 계산한다
+    return rows.map((r) => ({ ...r, payDueAt: payDueOf(r.periodEnd, policy) }));
+  }
+
+  /** 정산 주기 — 설정 화면과 정산 화면에서 쓴다. 최근에 끝난 기간 6개도 함께 준다 */
+  @Get('settings/settlement-policy')
+  async settlementPolicy() {
+    const policy = await getSettlementPolicy(this.prisma.client);
+    const periods = endedPeriods(policy.cycle, new Date(), 6).map((p) => ({ start: p.start, end: p.end }));
+    return { ...policy, label: policyLabel(policy), periods };
+  }
+
+  @Put('settings/settlement-policy')
+  async saveSettlementPolicy(@AdminId() adminId: string, @Body() dto: SettlementPolicyDto) {
+    const value: SettlementPolicy = { cycle: dto.cycle, payDelayDays: dto.payDelayDays };
+    await this.prisma.client.setting.upsert({
+      where: { key: SETTLEMENT_POLICY_KEY },
+      update: { value },
+      create: { key: SETTLEMENT_POLICY_KEY, value },
+    });
+    await this.audit(adminId, 'SETTLEMENT_POLICY_UPDATE', 'Setting', SETTLEMENT_POLICY_KEY, policyLabel(value));
+    return { ok: true, message: '정산 주기를 저장했습니다. 다음 정산부터 새 주기로 만들어지고, 가게 정산 화면에도 바로 보입니다.', policy: value };
   }
 
   /**
@@ -611,58 +645,10 @@ export class AdminController {
     const periodEnd = new Date(dto.periodEnd);
     if (!(periodStart < periodEnd)) throw new BadRequestException('기간이 올바르지 않습니다');
 
-    const byMerchant = new Map<string, { gross: number; fee: number; kept: number }>();
-    const add = (merchantId: string, amount: number, rate: number, kept: boolean) => {
-      const a = byMerchant.get(merchantId) ?? { gross: 0, fee: 0, kept: 0 };
-      a.gross += amount;
-      a.fee += feeOf(amount, rate);
-      if (kept) a.kept += amount;
-      byMerchant.set(merchantId, a);
-    };
-
-    // ① 가게에서 사용 처리된 이용권
-    const used = await db.redemption.findMany({
-      where: {
-        status: 'DONE', type: 'VOUCHER',
-        createdAt: { gte: periodStart, lt: periodEnd },
-      },
-      include: {
-        voucher: { include: { order: { include: { items: true } }, product: { select: { commissionRate: true } } } },
-        merchant: { select: { id: true, commissionRate: true } },
-      },
-    });
-    for (const r of used) {
-      if (!r.voucher) continue;
-      const item = r.voucher.order.items.find((i) => i.productId === r.voucher!.productId);
-      add(r.merchantId, item?.amount ?? 0, feeRate(r.voucher.product, r.merchant), false);
-    }
-
-    // ② 취소하고 남은 돈 — 가게 몫, 수수료만 뗀다. 환불액을 모르는 옛 취소 건은 넣지 않는다
-    const cancelled = await db.order.findMany({
-      where: { status: 'CANCELLED', cancelledAt: { gte: periodStart, lt: periodEnd }, refundAmount: { not: null } },
-      include: {
-        items: { include: { product: { select: { commissionRate: true, merchant: { select: { id: true, commissionRate: true } } } } } },
-      },
-    });
-    for (const o of cancelled) {
-      const kept = (o.paidAmount || o.totalAmount) - (o.refundAmount ?? 0);
-      const it = o.items.find((i) => i.product);
-      if (kept <= 0 || !it?.product) continue; // 잼 주문 등 가게 상품이 아닌 것은 홀릭잼 몫
-      add(it.product.merchant.id, kept, feeRate(it.product, it.product.merchant), true);
-    }
-
-    const created = [];
-    for (const [merchantId, a] of byMerchant) {
-      const data = { grossAmount: a.gross, feeAmount: a.fee, netAmount: a.gross - a.fee, cancelKeptAmount: a.kept };
-      const row = await db.settlement.upsert({
-        where: { merchantId_periodStart_periodEnd: { merchantId, periodStart, periodEnd } },
-        update: data,
-        create: { merchantId, periodStart, periodEnd, ...data },
-      });
-      created.push(row);
-    }
-    await this.audit(adminId, 'SETTLEMENT_GENERATE', 'Settlement', `${dto.periodStart}~${dto.periodEnd}`, `${created.length}건`);
-    return { ok: true, count: created.length, settlements: created };
+    const r = await saveSettlements(db, { start: periodStart, end: periodEnd });
+    await this.audit(adminId, 'SETTLEMENT_GENERATE', 'Settlement', `${dto.periodStart}~${dto.periodEnd}`, `새로 ${r.created} · 다시 계산 ${r.updated}`);
+    const parts = [r.created ? `새로 ${r.created}건` : '', r.updated ? `다시 계산 ${r.updated}건` : ''].filter(Boolean);
+    return { ok: true, count: r.created + r.updated, ...r, message: parts.length ? `정산 ${parts.join(' · ')}` : '바꿀 정산이 없습니다 (확정된 정산은 그대로 둡니다)' };
   }
 
   /**
@@ -1331,6 +1317,6 @@ export class AdminController {
 @Module({
   imports: [AuthModule],
   controllers: [AdminController],
-  providers: [PrismaService],
+  providers: [PrismaService, SettlementAutoService],
 })
 export class AdminModule {}

@@ -4,6 +4,8 @@ import { api, getToken, setToken } from './api';
 export type Me = {
   id: string;
   nickname: string;
+  /** 결제할 때 넣은 휴대폰 번호 — 다음 결제 때 저절로 채운다 */
+  phone?: string | null;
   provider: string;
   membership: {
     planCode: string; planName: string; source: string; startAt: string; endAt: string;

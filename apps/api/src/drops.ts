@@ -8,7 +8,8 @@ import {
   BadRequestException, Body, Controller, ForbiddenException, Get, Module,
   NotFoundException, Param, Post, Query, UseGuards,
 } from '@nestjs/common';
-import { IsInt, IsOptional, Max, Min } from 'class-validator';
+import { IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { normalizePhone, PHONE_REQUIRED } from './phone.util';
 import { Type } from 'class-transformer';
 import { PrismaService } from './prisma.service';
 import { AuthModule, OptionalUserGuard, UserGuard, UserId } from './auth';
@@ -17,6 +18,8 @@ import { clickCounts, rankSort } from './ranking.util';
 
 class ClaimDto {
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(10) qty?: number;
+  /** 결제하고 받는 기획전 상품이면 연락처가 필요하다 (2026-09-29) */
+  @IsOptional() @IsString() contactPhone?: string;
 }
 
 async function hasActiveMembership(db: PrismaService['client'], userId: string) {
@@ -158,6 +161,15 @@ export class DropsController {
     }
 
     const validTo = drop.useWithinDays ? addDays(now, drop.useWithinDays) : drop.closeAt;
+
+    // 결제하고 받는 기획전 상품은 연락처를 받는다 (2026-09-29) — 할인 딜은 받지 않는다
+    let phone: string | null = null;
+    if (drop.kind === 'TICKET') {
+      const buyer = await db.user.findUniqueOrThrow({ where: { id: userId }, select: { phone: true } });
+      phone = normalizePhone(dto.contactPhone) ?? normalizePhone(buyer.phone);
+      if (!phone) throw new BadRequestException(PHONE_REQUIRED);
+      if (phone !== buyer.phone) await db.user.update({ where: { id: userId }, data: { phone } });
+    }
 
     return db.$transaction(async (tx) => {
       // 조건부 차감: remainingQty >= qty 인 행만 갱신된다. 갱신 0건이면 품절.

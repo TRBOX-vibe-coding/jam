@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { Badge, Button, Card, CardHeader, Empty, Table, TableSkeleton, Td } from '@/components/ui';
 import { RefundPolicyCard } from '@/components/refund-policy-card';
+import { SettlementPolicyCard } from '@/components/settlement-policy-card';
 
 export default function SettingsPage() {
   const [regions, setRegions] = useState<any[] | null>(null);
@@ -78,6 +79,7 @@ export default function SettingsPage() {
 
       {/* 취소·환불 규정 — 대표가 운영하면서 직접 바꾸는 숫자 (2026-09-28) */}
       <RefundPolicyCard />
+      <SettlementPolicyCard />
 
       <p className="text-xs text-ink-3">
         아래에서는 앱의 지역 필터와 카테고리 타일을 관리합니다. 지역은 국가 → 도시 → 지역 순서로 묶입니다.

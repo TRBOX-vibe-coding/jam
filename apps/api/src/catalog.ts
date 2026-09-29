@@ -65,7 +65,7 @@ export class CatalogController {
     const user = await db.user.findUniqueOrThrow({
       where: { id: userId },
       select: {
-        id: true, nickname: true, provider: true, email: true, createdAt: true, orgCode: true,
+        id: true, nickname: true, provider: true, email: true, phone: true, createdAt: true, orgCode: true,
         interestRegions: { select: { region: { select: { id: true, name: true } } } },
         interestCategories: { select: { category: { select: { id: true, name: true, emoji: true } } } },
       },

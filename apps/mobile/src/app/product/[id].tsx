@@ -1,13 +1,14 @@
 /**
  * 상품 상세 — 예약형은 날짜·시간·인원 선택 → 결제 → 예약확정까지 앱 안에서 끝낸다.
  */
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Alert, Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { track } from '../../lib/analytics';
 import { api, img } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
+import { ContactCard, validPhone } from '../../lib/contact';
 import { useI18n } from '../../lib/i18n';
 import { C } from '../../lib/theme';
 import { Btn, Card, LoadError, Loading, Screen, Tag } from '../../lib/ui';
@@ -29,6 +30,10 @@ export default function ProductDetail() {
   const [saved, setSaved] = useState(false); // 담기(찜)
   const [slotId, setSlotId] = useState<string | null>(null);
   const [headcount, setHeadcount] = useState(1);
+  // 연락처 — 가게가 무슨 일이 있을 때 전화할 번호 (2026-09-29). 한 번 넣으면 다음에 저절로 채운다
+  const [phone, setPhone] = useState('');
+  const [agree, setAgree] = useState(false);
+  useEffect(() => { if (me?.phone && !phone) setPhone(me.phone); }, [me?.phone]);
   const [busy, setBusy] = useState(false);
   /** 가는 날 'YYYY-MM-DD' — 티켓·PASS만, 안 골라도 된다 (2026-09-24 대표 확정 3-2) */
   const [visitDay, setVisitDay] = useState<string | null>(null);
@@ -63,12 +68,16 @@ export default function ProductDetail() {
       notify(t('resvTimeTitle'), t('pickTimeFirst'));
       return;
     }
+    if (!validPhone(phone) || !agree) {
+      notify(t('contactTitle'), !validPhone(phone) ? t('contactInvalid') : t('contactNeeded'));
+      return;
+    }
     setBusy(true);
     try {
       const r = await api<any>(`/products/${id}/purchase`, {
         method: 'POST',
         body: {
-          slotId: slotId ?? undefined, headcount, contactName: me.nickname,
+          slotId: slotId ?? undefined, headcount, contactName: me.nickname, contactPhone: phone,
           visitDate: p.type !== 'RESERVATION' && visitDay ? visitDay : undefined,
         },
       });
@@ -242,6 +251,11 @@ export default function ProductDetail() {
               </Pressable>
             </Card>
           </>
+        )}
+
+        {/* 연락처 — 로그인한 손님에게만. 판매 중일 때만 묻는다 */}
+        {me && !saleBlocked && (
+          <ContactCard phone={phone} onPhone={setPhone} agree={agree} onAgree={setAgree} storeName={p.merchant.name} />
         )}
 
         {/* 취소·환불 안내 — 결제 전에 보여준다. 숫자는 본사 설정에서 (2026-09-28) */}

@@ -11,14 +11,22 @@ const dEnd = (s: string) => d(new Date(new Date(s).getTime() - 1).toISOString())
 
 export default function SettlementsPage() {
   const [rows, setRows] = useState<any[] | null>(null);
+  // 정산 주기 — 본사가 정한 주기와 지급일 (2026-09-29)
+  const [policy, setPolicy] = useState<{ label: string } | null>(null);
 
   useEffect(() => {
     api<any[]>('/merchant/my/settlements').then(setRows).catch(() => setRows([]));
+    api<{ label: string }>('/merchant/my/settlement-policy').then(setPolicy).catch(() => {});
   }, []);
 
   return (
     <div className="space-y-6">
       <h1 className="text-xl font-bold">정산</h1>
+      {policy && (
+        <div className="rounded-lg bg-brand-soft px-4 py-2.5 text-sm text-ink-2">
+          <b className="text-ink">정산 주기</b> · {policy.label}
+        </div>
+      )}
       <p className="text-xs text-ink-3">
         앱에서 결제된 매출의 정산 내역입니다. 지급 완료 전 내역은 <b>확정 후 순차 지급</b>됩니다.
         손님이 취소하고 규정대로 돌려받지 않은 돈(예: 하루 전 취소로 남은 50%)도 <b>사장님 몫</b>으로 정산되고, 홀릭잼은 수수료만 뗍니다.
@@ -57,7 +65,9 @@ export default function SettlementsPage() {
                 </Td>
                 <Td className="tabular-nums text-ink-3">-{won(s.feeAmount)}</Td>
                 <Td className="tabular-nums font-bold">{won(s.netAmount)}</Td>
-                <Td className="whitespace-nowrap text-xs text-ink-3">{s.paidAt ? d(s.paidAt) : '-'}</Td>
+                <Td className="whitespace-nowrap text-xs text-ink-3">
+                  {s.paidAt ? d(s.paidAt) : s.payDueAt ? <span>예정 {d(s.payDueAt)}</span> : '-'}
+                </Td>
                 <Td className={`max-w-[240px] text-xs ${s.heldAt ? 'font-semibold text-bad' : 'truncate text-ink-3'}`}>
                   {s.heldAt ? `보류 · ${s.holdReason}` : s.memo || '-'}
                 </Td>
