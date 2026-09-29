@@ -55,7 +55,7 @@ async function main() {
     [
       { code: 'JAM3', name: '3일잼', description: '부산 여행 3일 동안 모든 혜택', price: 4900, durationDays: 3, sortOrder: 1 },
       { code: 'JAM5', name: '5일잼', description: '부산 여행 5일 동안 모든 혜택', price: 6900, durationDays: 5, sortOrder: 2 },
-      { code: 'JAMMASTER', name: '잼마스터', description: '1년 내내 모든 혜택 + 전용 DROP 선오픈', price: 30000, durationDays: 365, sortOrder: 3 },
+      { code: 'JAMMASTER', name: '잼마스터', description: '1년 내내 모든 혜택', price: 30000, durationDays: 365, sortOrder: 3 },
     ].map((p) =>
       prisma.membershipPlan.upsert({ where: { code: p.code }, update: p, create: p }),
     ),
