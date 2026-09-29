@@ -197,9 +197,16 @@ export default function UseTab() {
                 {v.product.merchant.name} · {t('people', { n: v.headcount })}
                 {v.reservation?.slot ? ' · ' + slotLabel(v.reservation.slot.startAt, locale) : ''}
               </Text>
+              {/* 이용 기간이 시작 전이면 그날부터 — 가게에서도 못 쓴다 */}
+              {v.usableFrom && (
+                <Text style={st.from} numberOfLines={1}>
+                  {t('usableFromRow', { date: (() => { const [y, m, d] = v.usableFrom.split('-').map(Number); return new Date(y, m - 1, d).toLocaleDateString(locale, { month: 'long', day: 'numeric' }); })() })}
+                </Text>
+              )}
             </View>
             <Pressable
-              style={st.useBtn}
+              style={[st.useBtn, !!v.usableFrom && st.useBtnOff]}
+              disabled={!!v.usableFrom}
               onPress={() =>
                 redeem.open({
                   kind: 'VOUCHER',
@@ -210,7 +217,7 @@ export default function UseTab() {
                 })
               }
             >
-              <Text style={st.useBtnText}>{t('useNow')}</Text>
+              <Text style={[st.useBtnText, !!v.usableFrom && st.useBtnTextOff]}>{t('useNow')}</Text>
             </Pressable>
           </View>
         ))}
@@ -340,6 +347,8 @@ const st = StyleSheet.create({
   from: { fontSize: 11, fontWeight: '700', color: C.brand, marginTop: 2 },
   useBtn: { backgroundColor: C.brand, borderRadius: 9, paddingHorizontal: 13, paddingVertical: 9 },
   useBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  useBtnOff: { backgroundColor: C.white, borderWidth: 1, borderColor: C.line },
+  useBtnTextOff: { color: C.ink3 },
   filterBar: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8,
     backgroundColor: C.brandSoft, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, marginTop: 4,

@@ -99,7 +99,13 @@ export default function WalletScreen() {
         <Text style={st.section}>{t('titleWallet')}</Text>
         {vouchers.length === 0 && <EmptyText text={t('noVouchers')} />}
         {vouchers.map((v) => {
-          const stt = VSTATUS[v.status] ?? { key: v.status, tone: 'warn' as const };
+          // 이용 기간이 시작 전인 티켓(예: 날짜가 정해진 불꽃축제 크루즈)은 그날 전까지 '이용일 전' — 가게에서도 못 쓴다
+          const notYet = !!v.usableFrom && ['ISSUED', 'RESERVED'].includes(v.status);
+          const fromDate = v.usableFrom
+            ? (() => { const [y, m, d] = v.usableFrom.split('-').map(Number); return new Date(y, m - 1, d).toLocaleDateString(locale, { month: 'long', day: 'numeric' }); })()
+            : '';
+          const oneDay = notYet && fromDate === new Date(new Date(v.validTo).getTime() - 60_000).toLocaleDateString(locale, { month: 'long', day: 'numeric' });
+          const stt = notYet ? { key: 'stBeforeUse', tone: 'brand' as const } : VSTATUS[v.status] ?? { key: v.status, tone: 'warn' as const };
           return (
             <Card key={v.id}>
               <View style={st.rowBetween}>
@@ -123,7 +129,9 @@ export default function WalletScreen() {
                     <Text style={st.factValue} numberOfLines={1}>
                       {v.reservation
                         ? new Date(v.reservation.slot.startAt).toLocaleString(locale, { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-                        : t('anytime')}
+                        : notYet
+                          ? (oneDay ? fromDate : t('usableFromShort', { date: fromDate }))
+                          : t('anytime')}
                     </Text>
                   </View>
                   <View style={st.fact}>
@@ -132,7 +140,7 @@ export default function WalletScreen() {
                   </View>
                   <View style={st.fact}>
                     <Text style={st.factLabel}>{t('factStatus')}</Text>
-                    <Text style={[st.factValue, { color: C.ok }]}>{t('usableNow')}</Text>
+                    <Text style={[st.factValue, { color: notYet ? C.warn : C.ok }]}>{t(notYet ? 'stBeforeUse' : 'usableNow')}</Text>
                   </View>
                 </View>
               )}
@@ -156,6 +164,7 @@ export default function WalletScreen() {
                   <Btn
                     title={t('useNow')}
                     small
+                    disabled={notYet}
                     onPress={() => redeem.open({ kind: 'VOUCHER', merchantId: v.product.merchant.id, merchantName: v.product.merchant.name, itemId: v.id, title: v.product.name })}
                   />
                 </View>
