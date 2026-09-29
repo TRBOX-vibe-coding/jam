@@ -80,8 +80,7 @@ export default function SettingsPage() {
       <RefundPolicyCard />
 
       <p className="text-xs text-ink-3">
-        아래에서는 앱의 지역 필터와 카테고리 타일을 관리합니다. 국가 → 도시 → 지역 구조라
-        나중에 <b>다낭·호이안</b> 같은 해외 확장도 여기서 국가만 바꿔 추가하면 됩니다.
+        아래에서는 앱의 지역 필터와 카테고리 타일을 관리합니다. 지역은 국가 → 도시 → 지역 순서로 묶입니다.
       </p>
 
       {/* 지역 */}

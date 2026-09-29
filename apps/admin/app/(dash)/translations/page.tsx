@@ -80,7 +80,7 @@ export default function TranslationsPage() {
 
       <p className="text-xs text-ink-3">
         앱에 보이는 콘텐츠의 <b>영어·중국어·일본어</b> 번역을 입력·수정합니다. 저장하면 앱에 바로 반영되고,
-        번역이 없는 항목은 한국어 원문이 그대로 나갑니다. (2단계: 점주가 올리면 AI가 자동 번역)
+        번역이 없는 항목은 한국어 원문이 그대로 나갑니다.
       </p>
 
       {/* 탭 */}
