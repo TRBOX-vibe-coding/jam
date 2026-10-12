@@ -14,7 +14,7 @@ type ScanResult = {
   merchant: { id: string; name: string; region: string; address: string | null };
   benefits: { id: string; title: string; type: string; companionLimit: number | null; conditions: string | null; blocked: string | null }[];
   dropClaims: { id: string; title: string; qty: number; normalPrice: number; dropPrice: number; blocked: string | null }[];
-  vouchers: { id: string; code: string; productName: string; verification: string; headcount: number; reservedAt: string | null }[];
+  vouchers: { id: string; code: string; productName: string; headcount: number; reservedAt: string | null }[];
   empty: boolean;
 };
 
@@ -49,8 +49,6 @@ export default function UseScreen() {
             merchantName: r.merchantName,
             itemTitle: r.itemTitle,
             savedAmount: String(r.savedAmount),
-            verifyToken: r.verifyToken,
-            staff: r.staffCheckRequired ? '1' : '0',
             opened: String(r.openedCoupons ?? 0),
           },
         });
@@ -104,9 +102,6 @@ export default function UseScreen() {
               {t('voucherMeta', { n: v.headcount, code: v.code })}
               {v.reservedAt ? t('reservedMeta', { date: new Date(v.reservedAt).toLocaleString(locale, { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) }) : ''}
             </Text>
-            {v.verification !== 'QR_ONLY' && (
-              <View style={{ marginBottom: 8 }}><Tag text={t('staffItem')} tone="warn" /></View>
-            )}
             <Btn title={t('useNow')} small onPress={() => redeem('VOUCHER', v.id, v.productName)} disabled={busy} />
           </Card>
         ))}

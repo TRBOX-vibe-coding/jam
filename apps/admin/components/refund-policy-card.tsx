@@ -88,8 +88,8 @@ export function RefundPolicyCard() {
           <Row label="결제 직후 전액 환불" hint="이 시간 안에 취소하면 어떤 상품이든 전액 돌려줍니다. 야놀자·여기어때는 10분~1시간입니다.">
             결제 후 {num('graceMinutes', 1440)} 분 안
           </Row>
-          <Row label="예약 상품 — 이용 이틀 전부터">{num('twoDaysBeforePercent', 100)} % 환불</Row>
-          <Row label="예약 상품 — 이용 하루 전">{num('dayBeforePercent', 100)} % 환불</Row>
+          <Row label="예약 상품 — 이용일 기준 2일 전까지">{num('twoDaysBeforePercent', 100)} % 환불</Row>
+          <Row label="예약 상품 — 이용일 1일 전">{num('dayBeforePercent', 100)} % 환불</Row>
           <Row label="예약 상품 — 이용 당일">{num('sameDayPercent', 100)} % 환불</Row>
           <Row label="날짜 없는 티켓·PASS" hint="가게에서 사용 처리하기 전에만 환불됩니다.">
             구매 후 {num('undatedMonths', 24)} 개월까지 전액 환불

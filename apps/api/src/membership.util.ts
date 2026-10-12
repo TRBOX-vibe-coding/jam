@@ -27,7 +27,7 @@ export async function isPaidMember(db: Db, userId: string | null | undefined): P
  * 결제 상품에 묶어둔 쿠폰의 기본 사용 기간(일).
  * BenefitGrantRule.validDays로 상품별 조정 가능.
  */
-export const PRODUCT_COUPON_VALID_DAYS = 90;
+export const PRODUCT_COUPON_VALID_DAYS = 30; // 2026-10-11 대표 확정 4: 비우면 90일 → 30일
 
 /**
  * 이 쿠폰을 '상품 결제로 받아서' 지금 쓸 수 있는지.

@@ -3,7 +3,7 @@
  * 실제 홀릭잼 공식 혜택표(2026-08 기준 공개자료)의 가맹점·혜택을 기반으로 구성했다.
  * DROP은 시드 실행 시각 기준으로 "오늘 열려 있는" 상태가 되도록 상대 시간으로 만든다.
  */
-import { PrismaClient, BenefitType, GrantTrigger, ProductType, VerificationLevel, DropKind, DropStatus, DropAudience } from '@prisma/client';
+import { PrismaClient, BenefitType, GrantTrigger, ProductType, DropKind, DropStatus, DropAudience } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { randomBytes } from 'node:crypto';
 
@@ -156,12 +156,12 @@ async function main() {
   // ---------- 상시 혜택 + 발급 규칙 ----------
   type BSeed = {
     merchant: string; title: string; type: BenefitType; value?: number;
-    freebieName?: string; companionLimit?: number | null; maxUsePerDay?: number;
+    freebieName?: string; companionLimit?: number | null;
     conditions?: string;
   };
   const benefitSeeds: BSeed[] = [
     { merchant: 'casabusano', title: '음료 10% · 디저트 5% 할인', type: 'PERCENT', value: 10, companionLimit: null },
-    { merchant: 'scruffy', title: '결제금액 20% 할인', type: 'PERCENT', value: 20, companionLimit: null, maxUsePerDay: 1 },
+    { merchant: 'scruffy', title: '결제금액 20% 할인', type: 'PERCENT', value: 20, companionLimit: null },
     { merchant: 'podo', title: '와인 슬러시 1+1', type: 'FREEBIE', freebieName: '와인 슬러시 1잔', companionLimit: null },
     { merchant: 'basement', title: '결제금액 20% 할인', type: 'PERCENT', value: 20 },
     { merchant: 'dough', title: '오븐 스파게티 무료 제공', type: 'FREEBIE', freebieName: '오븐 스파게티', conditions: '피자 주문 시' },
@@ -185,7 +185,6 @@ async function main() {
       value: b.value ?? 0,
       freebieName: b.freebieName,
       companionLimit: b.companionLimit === undefined ? null : b.companionLimit,
-      maxUsePerDay: b.maxUsePerDay,
       conditions: b.conditions,
       isActive: true,
     };
@@ -221,7 +220,6 @@ async function main() {
       name: '송정 입문 서핑 강습 (2시간)',
       description: '보드·슈트 렌탈 포함. 국제 서핑 자격 강사.',
       basePrice: 50000, memberPrice: 45000,
-      verification: 'QR_PIN' as VerificationLevel,
       weatherDependent: true,
       cancelPolicy: '기상 악화 시 무료 변경/취소',
       slots: [
@@ -236,7 +234,6 @@ async function main() {
       name: '광안리 선셋 요트투어 (60분)',
       description: '광안대교 야경 코스. 음료 1잔 포함.',
       basePrice: 40000, memberPrice: 32000,
-      verification: 'QR_PIN' as VerificationLevel,
       weatherDependent: true,
       cancelPolicy: '기상 악화 시 전액 환불',
       slots: [
@@ -248,9 +245,8 @@ async function main() {
       key: 'cruise-ticket',
       merchant: 'rivercruise', cat: 'marine', type: 'TICKET' as ProductType,
       name: '해운대 리버크루즈 탑승권',
-      description: '구매 후 30일 내 사용. 현장 QR 확인.',
+      description: '구매 후 3개월 안에 사용.',
       basePrice: 19000, memberPrice: 15000,
-      verification: 'QR_ONLY' as VerificationLevel,
       slots: [],
     },
     {
@@ -259,7 +255,6 @@ async function main() {
       name: '송정 바다 PASS',
       description: '서핑 체험 + 송정·해운대 로컬 혜택 자동 오픈',
       basePrice: 35000, memberPrice: null,
-      verification: 'QR_PIN' as VerificationLevel,
       slots: [],
     },
   ];
@@ -275,7 +270,6 @@ async function main() {
       description: p.description,
       basePrice: p.basePrice,
       memberPrice: p.memberPrice,
-      verification: p.verification,
       weatherDependent: p.weatherDependent ?? false,
       cancelPolicy: p.cancelPolicy,
       isActive: true,

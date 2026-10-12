@@ -18,6 +18,13 @@ export function makeVoucherCode(): string {
 }
 
 /** 사용완료 화면 검증 토큰: 직원이 읽기 쉬운 6자리 */
+/** 매장 코드 — 숫자 4자리. 바로 전 코드와는 다르게 만든다 (2026-10-11 대표 확정 6) */
+export function makeStorePin(prev?: string | null): string {
+  let pin = '';
+  do { pin = String(randomInt(0, 10000)).padStart(4, '0'); } while (pin === prev);
+  return pin;
+}
+
 export function makeVerifyToken(): string {
   const alphabet = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // 혼동 문자(I,L,O,0,1) 제외
   let out = '';

@@ -120,7 +120,6 @@ export default function ProductDetail() {
           <View style={{ flexDirection: 'row', gap: 5, marginBottom: 8 }}>
             <Tag text={p.type === 'RESERVATION' ? t('typeReservation') : p.type === 'PASS' ? 'PASS' : t('typeTicket')} />
             {p.weatherDependent && <Tag text={t('weather')} tone="warn" />}
-            {p.verification !== 'QR_ONLY' && <Tag text={t('staffVerify')} tone="warn" />}
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
             <Text style={[st.title, { flex: 1 }]}>{p.name}</Text>

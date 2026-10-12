@@ -2,17 +2,18 @@
  * 상품 판매 기간·이용 기간 — 2026-09-19 문서 4-6, 대표가 '오픈 전 필수'로 체크.
  *
  *   판매 기간  이 기간에만 결제된다. 비우면 제한 없음. 손님 목록에는 지금 판매 중인 상품만 보인다
- *   이용 기간  이용권을 쓸 수 있는 기간 (티켓·PASS). 비우면 산 날부터 30일. 예약 상품은 회차가 곧 이용일
+ *   이용 기간  이용권을 쓸 수 있는 기간 (티켓·PASS). 비우면 산 날부터 3개월 — 환불 기간(구매 후 3개월)과
+ *             같게 맞췄다 (2026-10-11 대표 확정 5). 예약 상품은 회차가 곧 이용일
  *   이용 시작일이 있는 티켓은 대표 규정의 '날짜 있는 티켓(불꽃축제 등)'으로 보고,
- *   취소 규정을 이용일 기준(이틀 전 100% · 하루 전 50% · 당일 0%)으로 계산한다 (admin-orders.ts)
+ *   취소 규정을 이용일 기준(2일 전까지 100% · 1일 전 50% · 당일 0%)으로 계산한다 (admin-orders.ts)
  *
  * 날짜는 모두 그 날 0시로 저장하고, 끝나는 날은 그 날 23:59까지로 본다.
  */
 import { dayKey, dayLabel, dayStart, parseDay } from './bundled-coupons.util';
 
 const DAY = 86_400_000;
-/** 이용 기간이 없는 티켓·PASS 이용권을 쓸 수 있는 날 수 */
-export const TICKET_VALID_DAYS = 30;
+/** 이용 기간이 없는 티켓·PASS 이용권을 쓸 수 있는 기간 — 산 날부터 몇 개월 (환불 기간과 같다) */
+export const TICKET_VALID_MONTHS = 3;
 
 export type Period = { saleFrom: Date | null; saleTo: Date | null; useFrom: Date | null; useTo: Date | null };
 export type PeriodInput = { saleFrom?: string | null; saleTo?: string | null; useFrom?: string | null; useTo?: string | null };
@@ -37,10 +38,12 @@ export function onSaleWhere(now = new Date()) {
   };
 }
 
-/** 이용권을 쓸 수 있는 기간 — 이용 기간이 있으면 그것, 없으면 산 날부터 30일 */
+/** 이용권을 쓸 수 있는 기간 — 이용 기간이 있으면 그것, 없으면 산 날부터 3개월(그날 23:59까지) */
 export function voucherWindow(p: { useFrom: Date | null; useTo: Date | null }, now = new Date()) {
   const validFrom = p.useFrom && dayStart(p.useFrom) > now ? dayStart(p.useFrom) : now;
-  const validTo = p.useTo ? endOfDay(p.useTo) : new Date(validFrom.getTime() + TICKET_VALID_DAYS * DAY);
+  const until = new Date(validFrom);
+  until.setMonth(until.getMonth() + TICKET_VALID_MONTHS);
+  const validTo = p.useTo ? endOfDay(p.useTo) : endOfDay(until);
   return { validFrom, validTo };
 }
 

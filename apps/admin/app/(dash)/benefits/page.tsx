@@ -7,7 +7,7 @@ const TYPE_LABEL: Record<string, string> = { PERCENT: '% 할인', AMOUNT: '금�
 
 const EMPTY_FORM = {
   merchantId: '', title: '', type: 'PERCENT', value: '', freebieName: '',
-  companionLimit: '', maxUsePerUser: '', maxUsePerDay: '', minOrderAmount: '', conditions: '',
+  companionLimit: '', minOrderAmount: '', conditions: '',
 };
 
 /** 혜택 내용 한 줄 요약 */
@@ -19,8 +19,6 @@ function benefitDesc(b: any) {
     : `${b.freebieName} 증정`;
   const conds: string[] = [];
   if (b.companionLimit) conds.push(`동반 ${b.companionLimit}인`);
-  if (b.maxUsePerUser) conds.push(`1인 ${b.maxUsePerUser}회`);
-  if (b.maxUsePerDay) conds.push(`하루 ${b.maxUsePerDay}회`);
   if (b.minOrderAmount) conds.push(`${won(b.minOrderAmount)} 이상`);
   return { core, conds: conds.join(' · ') };
 }
@@ -80,8 +78,6 @@ export default function BenefitsPage() {
       merchantId: b.merchantId, title: b.title, type: b.type,
       value: b.value ? String(b.value) : '', freebieName: b.freebieName ?? '',
       companionLimit: b.companionLimit ? String(b.companionLimit) : '',
-      maxUsePerUser: b.maxUsePerUser ? String(b.maxUsePerUser) : '',
-      maxUsePerDay: b.maxUsePerDay ? String(b.maxUsePerDay) : '',
       minOrderAmount: b.minOrderAmount ? String(b.minOrderAmount) : '',
       conditions: b.conditions ?? '',
     });
@@ -94,8 +90,6 @@ export default function BenefitsPage() {
         value: form.value ? Number(form.value) : undefined,
         freebieName: form.type === 'FREEBIE' ? form.freebieName : undefined,
         companionLimit: form.companionLimit ? Number(form.companionLimit) : undefined,
-        maxUsePerUser: form.maxUsePerUser ? Number(form.maxUsePerUser) : undefined,
-        maxUsePerDay: form.maxUsePerDay ? Number(form.maxUsePerDay) : undefined,
         minOrderAmount: form.minOrderAmount ? Number(form.minOrderAmount) : undefined,
         conditions: form.conditions || undefined,
       };
@@ -264,14 +258,6 @@ export default function BenefitsPage() {
             <div>
               <label className="mb-1 block text-xs font-semibold text-ink-3">동반 인원까지</label>
               <input className={inputCls} value={form.companionLimit} onChange={(e) => setForm({ ...form, companionLimit: e.target.value.replace(/\D/g, '') })} placeholder="비우면 제한 없음" />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-ink-3">1인당 총 횟수</label>
-              <input className={inputCls} value={form.maxUsePerUser} onChange={(e) => setForm({ ...form, maxUsePerUser: e.target.value.replace(/\D/g, '') })} placeholder="비우면 제한 없음" />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-ink-3">하루 최대 횟수</label>
-              <input className={inputCls} value={form.maxUsePerDay} onChange={(e) => setForm({ ...form, maxUsePerDay: e.target.value.replace(/\D/g, '') })} placeholder="비우면 제한 없음" />
             </div>
             <div>
               <label className="mb-1 block text-xs font-semibold text-ink-3">최소 주문금액</label>

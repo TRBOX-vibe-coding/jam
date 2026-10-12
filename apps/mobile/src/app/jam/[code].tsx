@@ -5,8 +5,8 @@
  * 상품 결제와 같은 모양으로 맞춘다 — 무엇이 열리는지 보고, 시작일을 고르고, 아래 고정 바로 결제한다.
  * 결제는 PG 붙기 전까지 모의결제다. 화면에도 그렇게 적는다.
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { createElement, useCallback, useEffect, useRef, useState } from 'react';
+import { Alert, Image, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { track } from '../../lib/analytics';
@@ -102,8 +102,17 @@ export default function JamBuyScreen() {
       return ymd(dt);
     });
     if (tripStart && !base.includes(tripStart) && tripStart > base[0]) base.push(tripStart);
+    // 날짜 칸으로 고른 먼 날짜도 칩에 보여 준다
+    if (startDate && !base.includes(startDate) && startDate > base[0]) base.push(startDate);
     return base.sort();
   })();
+  /** 시작일은 오늘부터 1년 안 (2026-10-11 대표 확정 3) */
+  const maxStart = (() => { const dt = new Date(); dt.setHours(0, 0, 0, 0); dt.setDate(dt.getDate() + 365); return ymd(dt); })();
+  const [typedDate, setTypedDate] = useState('');
+  const pickTyped = (v: string) => {
+    setTypedDate(v);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(v) && v >= days[0] && v <= maxStart && !Number.isNaN(new Date(`${v}T00:00:00`).getTime())) setStartDate(v);
+  };
 
   // 고른 날이 화면 밖에 있으면 고른 게 없어 보인다 — 그 자리로 밀어 준다
   const dayList = useRef<ScrollView>(null);
@@ -239,6 +248,26 @@ export default function JamBuyScreen() {
                 );
               })}
             </ScrollView>
+            <View style={st.otherDay}>
+              <Text style={st.otherDayLabel}>{t('jamPickOther')}</Text>
+              {Platform.OS === 'web'
+                ? createElement('input', {
+                    type: 'date', min: days[0], max: maxStart, value: startDate,
+                    onChange: (e: { target: { value: string } }) => pickTyped(e.target.value),
+                    'aria-label': t('jamStartDate'),
+                    style: { border: '1px solid ' + C.line, borderRadius: 10, padding: '8px 10px', fontSize: 14, color: C.ink, background: C.white, fontFamily: 'inherit' },
+                  })
+                : (
+                  <TextInput
+                    value={typedDate}
+                    onChangeText={pickTyped}
+                    placeholder={maxStart}
+                    placeholderTextColor={C.ink3}
+                    keyboardType="numbers-and-punctuation"
+                    style={st.otherDayInput}
+                  />
+                )}
+            </View>
             <Text style={st.period}>
               {jamSpanText(d.durationDays, t)} · {jamPeriodText(periodStart, periodEnd)}
             </Text>
@@ -331,6 +360,9 @@ const st = StyleSheet.create({
   dayTag: { fontSize: 9.5, fontWeight: '800', color: C.brand, marginTop: 1 },
   dayTextOn: { color: '#fff' },
   period: { fontSize: 12.5, color: C.ink2, marginTop: 11, fontWeight: '600' },
+  otherDay: { marginTop: 10, gap: 6 },
+  otherDayLabel: { fontSize: 12, color: C.ink3 },
+  otherDayInput: { borderWidth: 1, borderColor: C.line, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, fontSize: 14, color: C.ink, backgroundColor: C.white },
 
   payRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
   payText: { fontSize: 13, color: C.ink2, flex: 1, lineHeight: 19 },

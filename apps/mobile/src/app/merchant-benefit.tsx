@@ -27,8 +27,6 @@ export default function MerchantBenefitCreate() {
   const [value, setValue] = useState('');
   const [freebieName, setFreebieName] = useState('');
   const [companionLimit, setCompanionLimit] = useState('');
-  const [maxUsePerUser, setMaxUsePerUser] = useState('');
-  const [maxUsePerDay, setMaxUsePerDay] = useState('');
   const [minOrderAmount, setMinOrderAmount] = useState('');
   const [conditions, setConditions] = useState('');
   const [busy, setBusy] = useState(false);
@@ -51,8 +49,6 @@ export default function MerchantBenefitCreate() {
           value: type === 'FREEBIE' ? undefined : num(value),
           freebieName: type === 'FREEBIE' ? freebieName.trim() : undefined,
           companionLimit: num(companionLimit) || undefined,
-          maxUsePerUser: num(maxUsePerUser) || undefined,
-          maxUsePerDay: num(maxUsePerDay) || undefined,
           minOrderAmount: num(minOrderAmount) || undefined,
           conditions: conditions.trim() || undefined,
         },
@@ -139,23 +135,7 @@ export default function MerchantBenefitCreate() {
             />
           </View>
         </View>
-        <View style={{ flexDirection: 'row', gap: 10 }}>
-          <View style={{ flex: 1 }}>
-            <Text style={st.label}>1인당 총 횟수</Text>
-            <TextInput
-              style={st.input} value={maxUsePerUser} onChangeText={setMaxUsePerUser}
-              placeholder="예: 5" placeholderTextColor={C.ink3} keyboardType="number-pad"
-            />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={st.label}>하루 최대 횟수</Text>
-            <TextInput
-              style={st.input} value={maxUsePerDay} onChangeText={setMaxUsePerDay}
-              placeholder="예: 1" placeholderTextColor={C.ink3} keyboardType="number-pad"
-            />
-          </View>
-        </View>
-
+        {/* 횟수 제한 칸은 없다 — 잼 회원은 횟수 제한 없이 쓴다 (2026-10-11 대표 확정 2) */}
         <Text style={st.label}>기타 조건 메모</Text>
         <TextInput
           style={[st.input, { height: 60 }]}

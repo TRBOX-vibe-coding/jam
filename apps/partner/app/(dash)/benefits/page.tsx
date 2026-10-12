@@ -5,7 +5,7 @@ import { Badge, Button, Card, CardHeader, Empty, Table, TableSkeleton, Td } from
 
 const TYPE_LABEL: Record<string, string> = { PERCENT: '% 할인', AMOUNT: '금액 할인', AMOUNT_PER_PERSON: '1인당 금액 할인', FREEBIE: '서비스 증정' };
 
-const EMPTY = { title: '', type: 'PERCENT', value: '', freebieName: '', companionLimit: '', maxUsePerDay: '', minOrderAmount: '', conditions: '' };
+const EMPTY = { title: '', type: 'PERCENT', value: '', freebieName: '', companionLimit: '', minOrderAmount: '', conditions: '' };
 
 function benefitValue(b: any) {
   if (b.type === 'PERCENT') return `${b.value}% 할인`;
@@ -37,7 +37,6 @@ export default function MyBenefitsPage() {
           value: f.type === 'FREEBIE' ? undefined : Number(f.value),
           freebieName: f.type === 'FREEBIE' ? f.freebieName : undefined,
           companionLimit: f.companionLimit ? Number(f.companionLimit) : undefined,
-          maxUsePerDay: f.maxUsePerDay ? Number(f.maxUsePerDay) : undefined,
           minOrderAmount: f.minOrderAmount ? Number(f.minOrderAmount) : undefined,
           conditions: f.conditions || undefined,
         },
@@ -99,7 +98,6 @@ export default function MyBenefitsPage() {
               />
             )}
             <input className={inputCls} placeholder="동반 적용 인원 (선택)" value={f.companionLimit} onChange={(e) => setF({ ...f, companionLimit: e.target.value.replace(/\D/g, '') })} />
-            <input className={inputCls} placeholder="1일 사용 한도 (선택)" value={f.maxUsePerDay} onChange={(e) => setF({ ...f, maxUsePerDay: e.target.value.replace(/\D/g, '') })} />
             <input className={inputCls} placeholder="최소 주문금액 (선택)" value={f.minOrderAmount} onChange={(e) => setF({ ...f, minOrderAmount: e.target.value.replace(/\D/g, '') })} />
             <input className={inputCls} placeholder="이용 조건 (예: 주말 제외)" value={f.conditions} onChange={(e) => setF({ ...f, conditions: e.target.value })} />
             <div className="col-span-2 flex justify-end lg:col-span-4">
@@ -131,7 +129,6 @@ export default function MyBenefitsPage() {
                 <Td className="max-w-[220px] truncate text-xs text-ink-3">
                   {[
                     b.companionLimit ? `동반 ${b.companionLimit}인` : null,
-                    b.maxUsePerDay ? `1일 ${b.maxUsePerDay}회` : null,
                     b.minOrderAmount ? `${won(b.minOrderAmount)} 이상` : null,
                     b.conditions,
                   ].filter(Boolean).join(' · ') || '-'}

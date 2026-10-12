@@ -21,18 +21,12 @@ const TYPES = [
   { key: 'RESERVATION', label: '예약형', desc: '날짜·시간 회차를 골라 예약 (클래스·투어)' },
 ] as const;
 
-const VERIFS = [
-  { key: 'QR_ONLY', label: '매장 코드만' },
-  { key: 'QR_PIN', label: '매장 코드 + 확인 번호 대조 (고가 상품)' },
-] as const;
-
 export default function MerchantProductCreate() {
   const [type, setType] = useState<'TICKET' | 'RESERVATION'>('TICKET');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [basePrice, setBasePrice] = useState('');
   const [memberPrice, setMemberPrice] = useState('');
-  const [verification, setVerification] = useState<'QR_ONLY' | 'QR_PIN'>('QR_ONLY');
   const [totalQty, setTotalQty] = useState('');       // 티켓형 총 판매 수량
   const [slotCapacity, setSlotCapacity] = useState(''); // 예약형 회차당 정원
   const [maxPerUser, setMaxPerUser] = useState('');     // 한 사람당 살 수 있는 수량 (2026-09-24 대표 확정 3-3)
@@ -90,7 +84,6 @@ export default function MerchantProductCreate() {
           description: description.trim() || undefined,
           basePrice: base,
           memberPrice: member > 0 ? member : undefined,
-          verification,
           totalQty: type === 'TICKET' && totalQty ? Number(totalQty) : undefined,
           slotCapacity: type === 'RESERVATION' && slotCapacity ? Number(slotCapacity) : undefined,
           maxPerUser: maxPerUser ? Number(maxPerUser) : undefined,
@@ -243,20 +236,12 @@ export default function MerchantProductCreate() {
               <Text style={{ color: C.ink3 }}>~</Text>
               <TextInput style={[st.input, { flex: 1 }]} value={useTo} onChangeText={(t) => setUseTo(asDate(t))} placeholder="2026-11-08" placeholderTextColor={C.ink3} keyboardType="number-pad" />
             </View>
-            <Text style={st.fieldHint}>이용권을 이 기간에만 쓸 수 있어요. 비우면 산 날부터 30일. 예) 불꽃축제 11월 8일 하루</Text>
+            <Text style={st.fieldHint}>이용권을 이 기간에만 쓸 수 있어요. 비우면 산 날부터 3개월. 예) 불꽃축제 11월 8일 하루</Text>
           </>
         )}
         {!datesOk && <Text style={[st.fieldHint, { color: C.bad }]}>날짜는 2026-10-01처럼 넣어 주세요</Text>}
 
-        <Text style={st.label}>현장 사용 확인 방식</Text>
-        <View style={st.presetRow}>
-          {VERIFS.map((v) => (
-            <Pressable key={v.key} style={[st.preset, verification === v.key && st.presetOn]} onPress={() => setVerification(v.key)}>
-              <Text style={[st.presetText, verification === v.key && st.presetTextOn]}>{v.label}</Text>
-            </Pressable>
-          ))}
-        </View>
-
+        {/* 현장 사용 확인은 모든 상품이 매장 코드 하나로 — 확인 번호 방식은 없앴다 (2026-10-11 대표 확정 6) */}
 
         {type === 'RESERVATION' && (
           <Card style={{ marginTop: 14, backgroundColor: C.warnSoft, borderColor: C.warnSoft }}>

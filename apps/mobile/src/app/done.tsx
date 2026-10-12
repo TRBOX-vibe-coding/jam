@@ -1,7 +1,7 @@
 /**
  * 사용 완료 화면 — 직원에게 보여주는 화면.
- * 캡처 재사용을 막기 위해 ①실시간 시계(초 단위) ②90초 카운트다운 ③6자리 검증코드를 함께 표시한다.
- * 직원은 초가 흘러가는지만 보면 되고, 고가 상품은 가맹점 모드에서 코드를 조회해 확인한다.
+ * 캡처 재사용을 막기 위해 ①실시간 시계(초 단위) ②90초 카운트다운을 함께 표시한다.
+ * 직원은 초가 흘러가는지만 보면 된다. (고가 상품 확인 번호는 2026-10-11 대표 확정 6으로 없앴다)
  */
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -16,7 +16,7 @@ export default function DoneScreen() {
   const { me } = useAuth();
   const { t, won, locale } = useI18n();
   const p = useLocalSearchParams<{
-    merchantName: string; itemTitle: string; savedAmount: string; verifyToken: string; staff: string; opened?: string;
+    merchantName: string; itemTitle: string; savedAmount: string; opened?: string;
   }>();
   const [now, setNow] = useState(new Date());
   const [left, setLeft] = useState(90);
@@ -58,14 +58,6 @@ export default function DoneScreen() {
           <Text style={st.live}>{t('liveSec', { n: left })}</Text>
         </View>
 
-        {/* 6자리 코드는 직원 확인(고가) 상품에만 노출 — 일반 혜택은 흐르는 시계 확인만으로 끝 */}
-        {p.staff === '1' && (
-          <View style={st.tokenBox}>
-            <Text style={st.tokenLabel}>{t('staffCode')}</Text>
-            <Text style={st.token}>{p.verifyToken}</Text>
-          </View>
-        )}
-
         {/* 이용권을 쓰면서 묶인 쿠폰이 함께 열렸다 (2026-09-12 대표 확정) */}
         {Number(p.opened || 0) > 0 && (
           <Pressable style={st.openedBox} onPress={() => router.replace('/wallet')}>
@@ -77,10 +69,6 @@ export default function DoneScreen() {
         {saved > 0 && (
           <Text style={st.saved}>{t('doneSaved', { amt: won(saved) })}</Text>
         )}
-        {p.staff === '1' && (
-          <Text style={st.staffNote}>{t('staffNote')}</Text>
-        )}
-
         <View style={{ marginTop: 28, width: '100%' }}>
           {/* 확인 후엔 홈이 아니라 [사용] 탭으로 — 사용 흐름의 제자리로 돌아간다 */}
           <Btn title={t('confirm')} onPress={() => router.replace('/(tabs)/scan')} />
@@ -118,8 +106,5 @@ const st = StyleSheet.create({
     marginTop: 22, backgroundColor: C.white, borderWidth: 1.5, borderColor: C.brand,
     borderRadius: 14, paddingHorizontal: 28, paddingVertical: 14, alignItems: 'center',
   },
-  tokenLabel: { fontSize: 11, color: C.ink3, fontWeight: '700' },
-  token: { fontSize: 30, fontWeight: '700', color: C.ink, letterSpacing: 6, marginTop: 2 },
   saved: { marginTop: 18, fontSize: 15, fontWeight: '700', color: C.ok },
-  staffNote: { marginTop: 8, fontSize: 12, color: C.warn, fontWeight: '600', textAlign: 'center' },
 });

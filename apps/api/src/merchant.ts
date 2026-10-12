@@ -15,6 +15,7 @@ import { PrismaService } from './prisma.service';
 import { saveImageDataUrl } from './uploads';
 import { AuthModule, UserGuard, UserId } from './auth';
 import { parsePeriod, periodKeys, saleState } from './product-period.util';
+import { makeStorePin } from './util';
 
 function fmtDateTime(d: Date): string {
   const p = (n: number) => String(n).padStart(2, '0');
@@ -38,15 +39,6 @@ class CreateDropDto {
   @IsOptional() @IsString() imageBase64?: string;
 }
 
-class VerifyDto {
-  @IsString() @MinLength(4) token!: string;
-}
-
-class SetPinDto {
-  /** 자릿수는 점주 자유 (2~10자, 숫자·영문) */
-  @IsString() @MinLength(2) @MaxLength(10) pin!: string;
-}
-
 class SetQtyDto {
   /** 새 총 수량 — 남은 수량은 판매분을 유지한 채 자동 재계산 (2026-09-10 픽스: 점주가 직접 조정) */
   @Type(() => Number) @IsInt() @Min(0) @Max(100000) totalQty!: number;
@@ -59,7 +51,6 @@ class CreateMerchantProductDto {
   @Type(() => Number) @IsInt() @Min(1000) basePrice!: number;
   /** 유료 회원 할인가 — 어느 잼이 받는지는 본사가 정한 잼 범위를 따른다 (2026-09-24 대표 확정 3-5 A) */
   @IsOptional() @Type(() => Number) @IsInt() @Min(100) memberPrice?: number;
-  @IsOptional() @IsIn(['QR_ONLY', 'QR_PIN']) verification?: string;
   @IsOptional() @IsString() cancelPolicy?: string;
   @IsOptional() @IsString() imageBase64?: string;
   /// 티켓형: 총 판매 수량(비우면 무제한). 소진되면 자동 품절.
@@ -81,8 +72,6 @@ class CreateMerchantBenefitDto {
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) value?: number;
   @IsOptional() @IsString() freebieName?: string;
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(20) companionLimit?: number;
-  @IsOptional() @Type(() => Number) @IsInt() @Min(1) maxUsePerUser?: number;
-  @IsOptional() @Type(() => Number) @IsInt() @Min(1) maxUsePerDay?: number;
   @IsOptional() @Type(() => Number) @IsInt() @Min(0) minOrderAmount?: number;
   @IsOptional() @IsString() conditions?: string;
 }
@@ -180,13 +169,16 @@ export class MerchantController {
     };
   }
 
-  /** 사용 확인 코드 설정 — 결제 상품을 QR 없이 사용 처리할 때 손님이 입력하는 코드 (2026-09-08 픽스: 점주가 직접 정한다) */
+  /**
+   * 매장 코드 새로 만들기 — 결제 상품(이용권)을 쓸 때 사장님이 손님 휴대폰에 넣는 숫자 4자리.
+   * 가게가 정하지 않고 시스템이 만들어 준다. 알려졌다 싶으면 눌러서 바꾼다 (2026-10-11 대표 확정 6).
+   */
   @Post('my/pin')
-  async setPin(@UserId() userId: string, @Body() dto: SetPinDto) {
+  async newPin(@UserId() userId: string) {
     const m = await this.myMerchant(userId);
-    const pin = dto.pin.trim();
+    const pin = makeStorePin(m.usePin);
     await this.prisma.client.merchant.update({ where: { id: m.id }, data: { usePin: pin } });
-    return { ok: true, usePin: pin, message: '사용 확인 코드를 저장했습니다. 직원분들께 공유해 주세요.' };
+    return { ok: true, usePin: pin, message: `새 매장 코드 ${pin} — 직원분들께만 알려 주세요. 이전 코드는 이제 쓸 수 없습니다.` };
   }
 
   /** 오늘/이번달 사용 현황 요약 */
@@ -307,7 +299,6 @@ export class MerchantController {
         description: dto.description?.trim() || null,
         basePrice: dto.basePrice,
         memberPrice: dto.memberPrice ?? null,
-        verification: (dto.verification ?? 'QR_ONLY') as never,
         cancelPolicy: dto.cancelPolicy?.trim() || null,
         imageUrl,
         totalQty: dto.type === 'TICKET' ? dto.totalQty ?? null : null,
@@ -347,8 +338,6 @@ export class MerchantController {
         value: dto.type === 'FREEBIE' ? 0 : dto.value!,
         freebieName: dto.type === 'FREEBIE' ? dto.freebieName!.trim() : null,
         companionLimit: dto.companionLimit ?? null,
-        maxUsePerUser: dto.maxUsePerUser ?? null,
-        maxUsePerDay: dto.maxUsePerDay ?? null,
         minOrderAmount: dto.minOrderAmount ?? null,
         conditions: dto.conditions?.trim() || null,
         approval: 'PENDING',
@@ -708,34 +697,6 @@ export class MerchantController {
     return { ...policy, label: policyLabel(policy), note: POLICY_NOTE };
   }
 
-  /**
-   * 완료화면 검증 — 고가 상품(QR_PIN)일 때 직원이 손님 화면의 6자리 토큰을 조회.
-   * 90초 안에서만 유효하고, 이 매장 건만 조회된다.
-   */
-  @Post('verify')
-  async verify(@UserId() userId: string, @Body() dto: VerifyDto) {
-    const m = await this.myMerchant(userId);
-    const r = await this.prisma.client.redemption.findUnique({
-      where: { verifyToken: dto.token.toUpperCase() },
-      include: {
-        user: { select: { nickname: true } },
-        voucher: { include: { product: { select: { name: true } } } },
-        dropClaim: { include: { drop: { select: { title: true } } } },
-        userBenefit: { include: { benefit: { select: { title: true } } } },
-      },
-    });
-    if (!r || r.merchantId !== m.id) throw new NotFoundException('확인할 수 없는 번호입니다');
-    const expired = r.verifyExpires < new Date();
-    return {
-      valid: !expired && r.status === 'DONE',
-      expired,
-      usedAt: r.createdAt,
-      headcount: r.headcount,
-      customer: r.user.nickname,
-      item:
-        r.voucher?.product.name ?? r.dropClaim?.drop.title ?? r.userBenefit?.benefit.title ?? '',
-    };
-  }
 }
 
 @Module({

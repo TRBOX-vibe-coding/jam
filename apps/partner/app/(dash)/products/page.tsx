@@ -7,7 +7,7 @@ import { QtyEdit } from '@/components/qty-edit';
 const img = (u?: string | null, w = 160) => (u ? (u.startsWith('/') ? `${API_BASE}${u}?w=${w}` : u) : null);
 const TYPE_LABEL: Record<string, string> = { TICKET: '티켓', RESERVATION: '예약형', PASS: 'PASS' };
 
-const EMPTY = { type: 'RESERVATION', name: '', description: '', basePrice: '', memberPrice: '', verification: 'QR_ONLY', totalQty: '', slotCapacity: '', maxPerUser: '', saleFrom: '', saleTo: '', useFrom: '', useTo: '' };
+const EMPTY = { type: 'RESERVATION', name: '', description: '', basePrice: '', memberPrice: '', totalQty: '', slotCapacity: '', maxPerUser: '', saleFrom: '', saleTo: '', useFrom: '', useTo: '' };
 
 /** 'YYYY-MM-DD' → '10.3' */
 const md = (s: string) => { const [, m, d] = s.split('-'); return `${Number(m)}.${Number(d)}`; };
@@ -61,7 +61,6 @@ export default function MyProductsPage() {
           description: f.description || undefined,
           basePrice: Number(f.basePrice),
           memberPrice: f.memberPrice ? Number(f.memberPrice) : undefined,
-          verification: f.verification,
           totalQty: f.type === 'TICKET' && f.totalQty ? Number(f.totalQty) : undefined,
           slotCapacity: f.type === 'RESERVATION' && f.slotCapacity ? Number(f.slotCapacity) : undefined,
           maxPerUser: f.maxPerUser ? Number(f.maxPerUser) : undefined,
@@ -112,10 +111,6 @@ export default function MyProductsPage() {
               <option value="TICKET">티켓 (기간 내 사용)</option>
             </select>
             <input className={`${inputCls} col-span-2`} placeholder="상품명 * (예: 입문 서핑 강습 2시간)" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
-            <select className={inputCls} value={f.verification} onChange={(e) => setF({ ...f, verification: e.target.value })}>
-              <option value="QR_ONLY">현장 확인: 매장 코드만</option>
-              <option value="QR_PIN">매장 코드 + 확인 번호 대조 (고가 상품)</option>
-            </select>
             <input className={`${inputCls} col-span-2 lg:col-span-4`} placeholder="설명" value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} />
             <input className={inputCls} placeholder="정상가 *" value={f.basePrice} onChange={(e) => setF({ ...f, basePrice: e.target.value.replace(/\D/g, '') })} />
             <input className={inputCls} placeholder="유료 회원 할인가 (선택)" title="비우면 유료·무료 회원 모두 정상가로 판매됩니다" value={f.memberPrice} onChange={(e) => setF({ ...f, memberPrice: e.target.value.replace(/\D/g, '') })} />
@@ -143,7 +138,7 @@ export default function MyProductsPage() {
                   <input type="date" className={dateCls} value={f.useTo} onChange={(e) => setF({ ...f, useTo: e.target.value })} aria-label="이용 끝나는 날" />
                 </>
               )}
-              <span className="text-[11px] text-ink-3">비우면 제한 없음{f.type === 'TICKET' ? ' · 이용 기간이 없으면 산 날부터 30일' : ''}</span>
+              <span className="text-[11px] text-ink-3">비우면 제한 없음{f.type === 'TICKET' ? ' · 이용 기간이 없으면 산 날부터 3개월' : ''}</span>
             </div>
             <div className="col-span-2 flex items-center gap-2 lg:col-span-4">
               <label className="cursor-pointer whitespace-nowrap rounded-md border border-line bg-white px-3 py-2 text-sm font-semibold text-ink-2 hover:bg-ground">

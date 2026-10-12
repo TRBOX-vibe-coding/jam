@@ -176,7 +176,8 @@ export class MembershipController {
       if (Number.isNaN(s.getTime())) throw new BadRequestException('시작일이 올바르지 않습니다');
       const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
       if (s < todayStart) throw new BadRequestException('시작일은 오늘 이후여야 합니다');
-      if (s.getTime() - now.getTime() > 90 * 86_400_000) throw new BadRequestException('시작일은 90일 이내로 선택해 주세요');
+      // 시작일은 오늘부터 1년 안에서 고른다 (2026-10-11 대표 확정 3 — 90일로 묶지 않는다)
+      if (s.getTime() - now.getTime() > 365 * 86_400_000) throw new BadRequestException('시작일은 오늘부터 1년 안에서 골라 주세요');
       startAt = s;
     }
     // 끝나는 시각 — 3일잼은 3박4일(시작일 0시 ~ 4일차 끝). 1년짜리(잼마스터)는 결제한 시각부터

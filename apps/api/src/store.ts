@@ -65,7 +65,7 @@ export class StoreController {
           where: { isActive: true },
           select: {
             id: true, title: true, type: true, value: true,
-            freebieName: true, companionLimit: true, maxUsePerDay: true, conditions: true, i18n: true,
+            freebieName: true, companionLimit: true, conditions: true, i18n: true,
           },
         },
         products: {

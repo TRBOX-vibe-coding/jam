@@ -64,8 +64,6 @@ export function useRedeem(onDone?: () => void) {
           merchantName: r.merchantName,
           itemTitle: r.itemTitle,
           savedAmount: String(r.savedAmount ?? 0),
-          verifyToken: r.verifyToken,
-          staff: r.staffCheckRequired ? '1' : '0',
           opened: String(r.openedCoupons ?? 0),
         },
       });
@@ -92,10 +90,11 @@ export function useRedeem(onDone?: () => void) {
           {isVoucher && (
             <TextInput
               value={pin}
-              onChangeText={setPin}
+              onChangeText={(v) => setPin(v.replace(/\D/g, '').slice(0, 4))}
               placeholder={t('storeCodePh')}
               placeholderTextColor={C.ink3}
-              maxLength={10}
+              keyboardType="number-pad"
+              maxLength={4}
               autoFocus
               secureTextEntry
               style={st.pin}
@@ -107,7 +106,7 @@ export function useRedeem(onDone?: () => void) {
           <Btn
             title={busy ? '…' : t('ownerConfirmBtn')}
             onPress={submit}
-            disabled={busy || (isVoucher && pin.trim().length < 2)}
+            disabled={busy || (isVoucher && pin.length < 4)}
           />
           <Pressable onPress={close} style={{ marginTop: 12 }}>
             <Text style={st.cancel}>{t('close')}</Text>

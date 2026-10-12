@@ -12,7 +12,6 @@ export default function Dashboard() {
   const [summary, setSummary] = useState<any | null>(null);
   const [redemptions, setRedemptions] = useState<any[] | null>(null);
   const [usePin, setUsePin] = useState<string | null>(null);
-  const [pinInput, setPinInput] = useState('');
   const [pinMsg, setPinMsg] = useState('');
 
   const [sales, setSales] = useState<{ todayCount: number; rows: any[] } | null>(null);
@@ -28,11 +27,11 @@ export default function Dashboard() {
     return () => clearInterval(timer);
   }, []);
 
-  async function savePin() {
+  /** 매장 코드 새로 만들기 — 시스템이 숫자 4자리를 만들어 준다 (2026-10-11 대표 확정 6) */
+  async function newPin() {
     try {
-      const r = await api<{ usePin: string; message: string }>('/merchant/my/pin', { method: 'POST', body: { pin: pinInput.trim() } });
+      const r = await api<{ usePin: string; message: string }>('/merchant/my/pin', { method: 'POST' });
       setUsePin(r.usePin);
-      setPinInput('');
       setPinMsg(r.message);
     } catch (e: any) {
       setPinMsg(e.message);
@@ -58,26 +57,20 @@ export default function Dashboard() {
       {/* 달력 — 숙박 PMS처럼 '손님이 이용한 날' 기준. 아래 '최근 판매'는 팔렸지만 아직 안 온 건을 잡아 준다 */}
       <SalesCalendar />
 
-      {/* 매장 코드 — 손님이 결제 상품(이용권)을 쓸 때 사장님이 손님 휴대폰에 입력한다 (2026-09-08 확정) */}
+      {/* 매장 코드 — 손님이 결제 상품(이용권)을 쓸 때 사장님이 손님 휴대폰에 넣는 숫자 4자리. 시스템이 만든다 (2026-10-11 대표 확정 6) */}
       <Card className="p-5">
         <div className="flex flex-wrap items-center gap-3">
           <div className="min-w-[220px] flex-1">
-            <div className="text-sm font-bold">사용 확인 코드</div>
+            <div className="text-sm font-bold">매장 코드 (숫자 4자리)</div>
             <div className="mt-0.5 text-xs text-ink-3">
-              손님이 결제 상품(이용권)을 쓸 때 사장님이 손님 휴대폰에 입력하는 코드입니다. 손님에게는 알려주지 마세요. 자릿수 자유(2~10자) — 직원분들과만 공유하세요.
+              손님이 결제 상품(이용권)을 쓸 때 사장님이 손님 휴대폰에 넣는 코드입니다. 손님에게는 알려주지 마세요.
+              코드는 홀릭잼이 만들어 드리고, 알려졌다 싶으면 [새 코드 만들기]로 바꾸세요. 바꾸면 이전 코드는 바로 쓸 수 없습니다.
             </div>
           </div>
-          <div className="text-sm">
-            현재: {usePin ? <b className="text-brand tracking-widest">{usePin}</b> : <span className="text-ink-3">미설정</span>}
+          <div className="text-2xl font-extrabold tabular-nums tracking-[0.35em] text-brand">
+            {usePin ?? <span className="text-base font-normal tracking-normal text-ink-3">아직 없음</span>}
           </div>
-          <input
-            className="w-28 rounded-md border border-line bg-white px-3 py-2 text-center text-sm font-bold tracking-widest outline-none focus:border-brand"
-            placeholder="1234"
-            maxLength={10}
-            value={pinInput}
-            onChange={(e) => setPinInput(e.target.value)}
-          />
-          <Button small onClick={savePin} disabled={pinInput.trim().length < 2}>{usePin ? '변경' : '저장'}</Button>
+          <Button small onClick={newPin}>{usePin ? '새 코드 만들기' : '코드 만들기'}</Button>
           {pinMsg && <span className="text-xs font-semibold text-ok">{pinMsg}</span>}
         </div>
       </Card>

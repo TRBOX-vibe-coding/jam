@@ -1,7 +1,7 @@
 /**
  * 취소·환불 규정 — 2026-09-24·09-28 대표 확정.
  *
- *   예약 상품(날짜 있는 것)  이용 당일 취소는 환불 없음 · 하루 전 50% · 이틀 전부터 100%
+ *   예약 상품(날짜 있는 것)  이용일 기준 2일 전까지 100% · 1일 전 50% · 당일 0% (문구는 2026-10-11 대표 확정 7)
  *   날짜 없는 티켓·PASS      구매 후 3개월 안이면 환불 (사용 전에 한해)
  *   잼(멤버십)               시작일 전 취소는 100% · 시작일부터는 환불 없음
  *   딸려 받은 쿠폰            하나라도 쓰면 그 상품은 취소 안 됨
@@ -27,9 +27,9 @@ export type RefundPolicy = {
   graceMinutes: number;
   /** 예약 상품 — 이용 당일(이용 시각이 지난 뒤 포함) 취소 시 돌려주는 비율(%) */
   sameDayPercent: number;
-  /** 예약 상품 — 이용 하루 전 취소 */
+  /** 예약 상품 — 이용일 1일 전 취소 */
   dayBeforePercent: number;
-  /** 예약 상품 — 이용 이틀 전부터 */
+  /** 예약 상품 — 이용일 기준 2일 전까지 취소 */
   twoDaysBeforePercent: number;
   /** 날짜 없는 티켓·PASS — 구매 후 몇 개월까지 환불하는지 */
   undatedMonths: number;
@@ -77,8 +77,8 @@ export function reservationRule(p: RefundPolicy, useAt: Date, paidAt: Date | nul
     return { percent: 100, reason: `결제 후 ${p.graceMinutes}분 안에 취소 — 전액` };
   }
   const days = calendarDaysBefore(useAt, now);
-  if (days >= 2) return { percent: p.twoDaysBeforePercent, reason: `이용 ${days}일 전 취소 — ${p.twoDaysBeforePercent}%` };
-  if (days === 1) return { percent: p.dayBeforePercent, reason: `이용 하루 전 취소 — ${p.dayBeforePercent}%` };
+  if (days >= 2) return { percent: p.twoDaysBeforePercent, reason: `이용일 ${days}일 전 취소 — ${p.twoDaysBeforePercent}%` };
+  if (days === 1) return { percent: p.dayBeforePercent, reason: `이용일 1일 전 취소 — ${p.dayBeforePercent}%` };
   if (days === 0) return { percent: p.sameDayPercent, reason: `이용 당일 취소 — ${p.sameDayPercent}%` };
   return { percent: p.sameDayPercent, reason: `이용일이 이미 지남 — ${p.sameDayPercent}%` };
 }

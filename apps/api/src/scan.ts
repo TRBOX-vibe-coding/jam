@@ -5,7 +5,7 @@
  *   손님이 앱에서 [사용하기] → 사장님이 손님 휴대폰에서 처리
  *   → POST /redeem { merchantId, itemType, itemId, pin? }
  *      쿠폰·딜은 [사장님 확인] 버튼, 이용권은 사장님이 매장 코드(pin)를 입력
- *   → 완료화면에 실시간 시계 + 90초 카운트다운. 고가 상품(QR_PIN)은 확인번호 6자리도 표시.
+ *   → 완료화면에 실시간 시계 + 90초 카운트다운. (확인 번호 조회는 2026-10-11 대표 확정 6으로 없앴다 — 매장 코드 하나로 끝)
  * GET /scan/:qrCode 와 qrCode 경로는 예전 매장 QR 호환용으로만 남아 있다(앱에서 쓰지 않음).
  *
  * 절약금액(savedAmount)은 여기서 계산되어 "이번 달 얼마 아꼈어요"의 원천이 된다.
@@ -70,8 +70,7 @@ export class ScanController {
       include: { benefit: true },
     });
 
-    // 오늘 이 혜택을 몇 번 썼는지 (maxUsePerDay 검사용)
-    const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
+    // 멤버십 쿠폰은 횟수 제한 없이 쓴다 (2026-10-11 대표 확정 2). 상품에 딸린 쿠폰만 한 장에 한 번.
     const usableBenefits = [];
     for (const ub of benefits) {
       let blocked: string | null = null;
@@ -79,17 +78,8 @@ export class ScanController {
       if (ub.validFrom > now) {
         blocked = `${ub.validFrom.getMonth() + 1}월 ${ub.validFrom.getDate()}일 0시에 열려요`;
       }
-      if (ub.benefit.maxUsePerDay) {
-        const todayUsed = await db.redemption.count({
-          where: { userBenefitId: ub.id, status: 'DONE', createdAt: { gte: todayStart } },
-        });
-        if (todayUsed >= ub.benefit.maxUsePerDay) blocked = '오늘 사용 횟수를 모두 썼습니다';
-      }
       if (ub.sourceType === 'PRODUCT' && ub.usedCount >= 1) {
         blocked = '이미 사용한 쿠폰입니다';
-      }
-      if (ub.benefit.maxUsePerUser && ub.usedCount >= ub.benefit.maxUsePerUser) {
-        blocked = '사용 횟수를 모두 썼습니다';
       }
       usableBenefits.push({
         id: ub.id,
@@ -147,7 +137,7 @@ export class ScanController {
         product: { merchantId: merchant.id },
       },
       include: {
-        product: { select: { name: true, verification: true, i18n: true } },
+        product: { select: { name: true, i18n: true } },
         reservation: { include: { slot: { select: { startAt: true } } } },
       },
     });
@@ -165,7 +155,6 @@ export class ScanController {
         id: v.id,
         code: v.code,
         productName: trField(v.product, 'name', lang),
-        verification: v.product.verification,
         headcount: v.headcount,
         reservedAt: v.reservation?.slot.startAt ?? null,
         validTo: v.validTo,
@@ -280,16 +269,6 @@ export class ScanController {
         if (bf.companionLimit != null && headcount > bf.companionLimit + 1) {
           throw new BadRequestException(`본인 포함 최대 ${bf.companionLimit + 1}명까지 적용됩니다`);
         }
-        if (bf.maxUsePerDay) {
-          const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
-          const todayUsed = await tx.redemption.count({
-            where: { userBenefitId: ub.id, status: 'DONE', createdAt: { gte: todayStart } },
-          });
-          if (todayUsed >= bf.maxUsePerDay) {
-            throw new BadRequestException('오늘 사용 횟수를 모두 썼습니다');
-          }
-        }
-
         let saved = 0;
         if (bf.type === 'AMOUNT') saved = bf.value;
         if (bf.type === 'AMOUNT_PER_PERSON') saved = bf.value * headcount;
@@ -301,12 +280,9 @@ export class ScanController {
           where: { id: ub.id },
           data: {
             usedCount: { increment: 1 },
-            // 상품 결제로 받은 쿠폰은 한 장당 한 번만 쓴다 (무료 회원 기준, 2026-09-12 대표 확정).
-            // 유료 잼 회원은 자기 멤버십으로 열린 쿠폰을 기간 내내 반복해서 쓴다.
+            // 상품 결제로 받은 쿠폰은 한 장당 한 번만 쓴다 (2026-09-12 대표 확정).
+            // 잼 회원은 자기 잼으로 열린 쿠폰을 기간 내내 횟수 제한 없이 쓴다 (2026-10-11 대표 확정 2).
             ...(ub.sourceType === 'PRODUCT' ? { status: 'EXHAUSTED' as const } : {}),
-            ...(bf.maxUsePerUser && ub.usedCount + 1 >= bf.maxUsePerUser
-              ? { status: 'EXHAUSTED' }
-              : {}),
           },
         });
 
@@ -318,7 +294,7 @@ export class ScanController {
           },
         });
         await tx.eventLog.create({ data: { userId, event: 'benefit_redeem', entityType: 'benefit', entityId: ub.benefitId } });
-        return this.done(r.id, trField(merchant, 'name', lang), trField(bf, 'title', lang), saved, verifyToken, verifyExpires, 'QR_ONLY');
+        return this.done(r.id, trField(merchant, 'name', lang), trField(bf, 'title', lang), saved);
       }
 
       if (dto.itemType === 'DROP') {
@@ -353,7 +329,7 @@ export class ScanController {
           },
         });
         await tx.eventLog.create({ data: { userId, event: 'drop_redeem', entityType: 'drop', entityId: d.id } });
-        return this.done(r.id, trField(merchant, 'name', lang), trField(d, 'title', lang), saved, verifyToken, verifyExpires, 'QR_ONLY');
+        return this.done(r.id, trField(merchant, 'name', lang), trField(d, 'title', lang), saved);
       }
 
       // VOUCHER
@@ -428,27 +404,17 @@ export class ScanController {
       }
 
       await tx.eventLog.create({ data: { userId, event: 'product_redeem', entityType: 'product', entityId: voucher.productId } });
-      return this.done(
-        r.id, trField(merchant, 'name', lang), trField(voucher.product, 'name', lang), saved,
-        verifyToken, verifyExpires, voucher.product.verification, openedCoupons,
-      );
+      return this.done(r.id, trField(merchant, 'name', lang), trField(voucher.product, 'name', lang), saved, openedCoupons);
     });
   }
 
-  private done(
-    redemptionId: string, merchantName: string, itemTitle: string, saved: number,
-    verifyToken: string, verifyExpires: Date, verification: string, openedCoupons = 0,
-  ) {
+  private done(redemptionId: string, merchantName: string, itemTitle: string, saved: number, openedCoupons = 0) {
     return {
       ok: true,
       redemptionId,
       merchantName,
       itemTitle,
       savedAmount: saved,
-      verifyToken,
-      verifyExpires,
-      /** QR_PIN 상품이면 완료화면에 "직원 확인 필요" 안내를 띄운다 */
-      staffCheckRequired: verification !== 'QR_ONLY',
       /** 이 이용권을 쓰면서 함께 열린 '근처 할인 쿠폰' 수 (2026-09-12 대표 확정) */
       openedCoupons,
       usedAt: new Date(),

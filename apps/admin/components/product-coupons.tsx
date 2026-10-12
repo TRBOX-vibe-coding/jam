@@ -99,7 +99,7 @@ export function ProductCouponsModal({
             </>
           )}
           <li>· 그보다 먼저 가게에서 이용권을 쓰면 그 자리에서 바로 열립니다.</li>
-          <li>· 열린 날부터 아래 &lsquo;사용 기간&rsquo;(비우면 90일) 동안 쓸 수 있습니다.</li>
+          <li>· 열린 날부터 아래 &lsquo;사용 기간&rsquo;(비우면 30일) 동안 쓸 수 있습니다.</li>
         </ul>
       </div>
       <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -123,7 +123,7 @@ export function ProductCouponsModal({
         />
         <input
           className={`${inputCls} max-w-[150px]`}
-          placeholder="사용 기간(기본 90일)"
+          placeholder="사용 기간(기본 30일)"
           value={validDays}
           onChange={(e) => setValidDays(e.target.value.replace(/\D/g, ''))}
         />

@@ -23,7 +23,6 @@ function periodText(p: { type: string; period?: { saleFrom: string | null; saleT
   if (p.type !== 'RESERVATION' && (x.useFrom || x.useTo)) out.push(`이용 ${range(x.useFrom, x.useTo)}`);
   return out.join(' · ');
 }
-const VERIF_LABEL: Record<string, string> = { QR_ONLY: '매장 코드', QR_PIN: '확인 번호 대조', STAFF_CONFIRM: '직원확인' };
 const RESV_LABEL: Record<string, string> = { REQUESTED: '요청', CONFIRMED: '확정', CANCELLED: '취소', NO_SHOW: '노쇼', COMPLETED: '완료' };
 
 const img = (u?: string | null, w = 160) => (u ? (u.startsWith('/') ? `${API_BASE}${u}?w=${w}` : u) : null);
@@ -53,7 +52,7 @@ export default function ProductsPage() {
   const [merchants, setMerchants] = useState<any[]>([]);
   const [msg, setMsg] = useState('');
   const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState({ merchantId: '', name: '', type: 'RESERVATION', basePrice: '', memberPrice: '', verification: 'QR_ONLY', totalQty: '', maxPerUser: '', saleFrom: '', saleTo: '', useFrom: '', useTo: '', commissionRate: '' });
+  const [form, setForm] = useState({ merchantId: '', name: '', type: 'RESERVATION', basePrice: '', memberPrice: '', totalQty: '', maxPerUser: '', saleFrom: '', saleTo: '', useFrom: '', useTo: '', commissionRate: '' });
   const [image, setImage] = useState<string | null>(null); // data URL
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -107,7 +106,6 @@ export default function ProductsPage() {
           type: form.type,
           basePrice: Number(form.basePrice),
           memberPrice: form.memberPrice ? Number(form.memberPrice) : undefined,
-          verification: form.verification,
           totalQty: form.type !== 'RESERVATION' && form.totalQty ? Number(form.totalQty) : undefined,
           maxPerUser: form.maxPerUser ? Number(form.maxPerUser) : undefined,
           saleFrom: form.saleFrom || undefined,
@@ -120,7 +118,7 @@ export default function ProductsPage() {
       });
       setMsg('상품 등록 완료');
       setShowCreate(false);
-      setForm({ merchantId: '', name: '', type: 'RESERVATION', basePrice: '', memberPrice: '', verification: 'QR_ONLY', totalQty: '', maxPerUser: '', saleFrom: '', saleTo: '', useFrom: '', useTo: '', commissionRate: '' });
+      setForm({ merchantId: '', name: '', type: 'RESERVATION', basePrice: '', memberPrice: '', totalQty: '', maxPerUser: '', saleFrom: '', saleTo: '', useFrom: '', useTo: '', commissionRate: '' });
       setImage(null);
       load();
     } catch (e: any) {
@@ -324,7 +322,7 @@ export default function ProductsPage() {
                     <input type="date" className={dateCls} value={form.useTo} onChange={(e) => setForm({ ...form, useTo: e.target.value })} aria-label="이용 끝나는 날" />
                   </>
                 )}
-                <span className="text-[11px] text-ink-3">비우면 제한 없음 · 이용 기간이 없으면 산 날부터 30일</span>
+                <span className="text-[11px] text-ink-3">비우면 제한 없음 · 이용 기간이 없으면 산 날부터 3개월</span>
               </div>
               {/* 회원가는 잼 범위를 따른다 — 상품마다 잼을 고르지 않는다 (2026-09-24 대표 확정 3-5 A) */}
               <p className="mt-3 text-[12px] leading-5 text-ink-3">
@@ -332,10 +330,6 @@ export default function ProductsPage() {
                 이 상품만 다르게 하려면 등록한 뒤 목록의 [회원가 잼]에서 바꾸세요.
               </p>
               <div className="mt-3 flex flex-wrap items-center gap-3">
-                <select className={inputCls} value={form.verification} onChange={(e) => setForm({ ...form, verification: e.target.value })}>
-                  <option value="QR_ONLY">현장 확인: 매장 코드만</option>
-                  <option value="QR_PIN">매장 코드 + 확인 번호 대조 (고가 상품)</option>
-                </select>
                 <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={pickImage} />
                 <Button variant="ghost" onClick={() => fileRef.current?.click()}>
                   {image ? '사진 변경' : '📁 상품 사진'}
@@ -353,7 +347,7 @@ export default function ProductsPage() {
             ) : rows.length === 0 ? (
               <Empty text="등록된 상품이 없습니다" />
             ) : (
-              <Table head={['상태', '가맹점', '상품명', '유형', '정상가', '유료 회원가', '수량', '검증', '회차', '관리']}>
+              <Table head={['상태', '가맹점', '상품명', '유형', '정상가', '유료 회원가', '수량', '회차', '관리']}>
                 {rows.map((p) => (
                   <tr key={p.id} className={p.approval === 'REJECTED' ? 'opacity-60' : ''}>
                     <Td>
@@ -407,7 +401,6 @@ export default function ProductsPage() {
                           : <span className="text-ink-3">무제한</span>}
                       {p.maxPerUser != null && <div className="font-semibold text-brand">1인 {p.maxPerUser}장</div>}
                     </Td>
-                    <Td className="text-xs">{VERIF_LABEL[p.verification]}</Td>
                     <Td className="tabular-nums text-xs">
                       {p.type === 'RESERVATION' ? `${p._count.slots}개` : <span className="text-ink-3">—</span>}
                     </Td>

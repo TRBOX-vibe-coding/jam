@@ -59,7 +59,6 @@ export default function StoreDetail() {
             <Text style={st.benefitTitle}>{b.title}</Text>
             <Text style={st.benefitCond}>
               {b.companionLimit == null ? t('noCompanionLimit') : t('companionUpTo', { n: b.companionLimit })}
-              {b.maxUsePerDay ? t('perDay', { n: b.maxUsePerDay }) : ''}
               {b.conditions ? ` · ${b.conditions}` : ''}
             </Text>
             {/* 파란색이면 지금 쓸 수 있고, 흰색이면 아직이다 (2026-09-18) */}

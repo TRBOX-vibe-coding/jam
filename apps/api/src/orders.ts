@@ -192,7 +192,7 @@ export class OrdersController {
     if (sale === 'UPCOMING') throw new BadRequestException(`${dayLabel(product.saleFrom!)}부터 판매합니다`);
     if (sale === 'ENDED') throw new BadRequestException('판매 기간이 끝난 상품입니다');
 
-    // 이용권을 쓸 수 있는 기간 — 상품의 이용 기간, 없으면 산 날부터 30일
+    // 이용권을 쓸 수 있는 기간 — 상품의 이용 기간, 없으면 산 날부터 3개월 (2026-10-11 대표 확정 5)
     const win = voucherWindow(product, now);
     // 가는 날 — 티켓·PASS만, 이용 기간 안에서. 예약 상품은 예약한 날이 곧 가는 날이다.
     // 이용일이 하루로 정해진 티켓(불꽃축제처럼)은 그 날이 곧 가는 날 — 쿠폰도 그 날 0시에 열린다
@@ -397,7 +397,7 @@ export class OrdersController {
       include: {
         product: {
           select: {
-            name: true, type: true, verification: true, i18n: true, useFrom: true, useTo: true,
+            name: true, type: true, i18n: true, useFrom: true, useTo: true,
             merchant: { select: { id: true, name: true, address: true, i18n: true } },
           },
         },

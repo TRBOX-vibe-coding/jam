@@ -1,5 +1,5 @@
 /**
- * 가맹점 모드 — 점주 전용. 오늘 현황, 사용내역, 매장 코드, 고가 상품 확인 번호 조회.
+ * 가맹점 모드 — 점주 전용. 오늘 현황, 사용내역, 매장 코드(숫자 4자리, 시스템이 만든다).
  */
 import { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -22,9 +22,6 @@ export default function MerchantMode() {
   const [products, setProducts] = useState<any[] | null>(null);
   const [benefits, setBenefits] = useState<any[] | null>(null);
   const [error, setError] = useState('');
-  const [token, setToken] = useState('');
-  const [verifyResult, setVerifyResult] = useState<any | null>(null);
-  const [pinInput, setPinInput] = useState('');
   const [pinMsg, setPinMsg] = useState('');
   const [sales, setSales] = useState<{ todayCount: number } | null>(null);
   const [qtyEditId, setQtyEditId] = useState<string | null>(null);
@@ -41,12 +38,11 @@ export default function MerchantMode() {
     }
   }
 
-  /** 사용 확인 코드 저장 — 손님이 결제 상품을 쓸 때 사장님이 손님 휴대폰에 입력하는 코드 (점주가 직접 정한다) */
-  async function savePin() {
+  /** 매장 코드 새로 만들기 — 시스템이 숫자 4자리를 만들어 준다 (2026-10-11 대표 확정 6) */
+  async function newPin() {
     try {
-      const r = await api<{ message: string }>('/merchant/my/pin', { method: 'POST', body: { pin: pinInput.trim() } });
+      const r = await api<{ message: string }>('/merchant/my/pin', { method: 'POST' });
       setPinMsg(r.message);
-      setPinInput('');
       api<any>('/merchant/my').then(setMy).catch(() => {});
     } catch (e: any) {
       setPinMsg(e.message);
@@ -64,16 +60,6 @@ export default function MerchantMode() {
       api<any>('/merchant/my/sales?days=1').then(setSales).catch(() => {});
     }, []),
   );
-
-  async function verify() {
-    setVerifyResult(null);
-    try {
-      const r = await api<any>('/merchant/verify', { method: 'POST', body: { token } });
-      setVerifyResult(r);
-    } catch (e: any) {
-      setVerifyResult({ valid: false, error: e.message });
-    }
-  }
 
   /** 사용내역 한 줄 카드 — 목록·스크롤 박스 양쪽에서 같은 모양으로 쓴다 */
   function renderRedemption(r: any) {
@@ -140,60 +126,17 @@ export default function MerchantMode() {
           </View>
         )}
 
-        <Text style={st.section}>사용 확인 코드 (우리 매장 코드)</Text>
+        <Text style={st.section}>매장 코드 (숫자 4자리)</Text>
         <Card>
           <Text style={st.hint}>
-            손님이 결제 상품(티켓·예약)을 쓸 때 사장님이 손님 휴대폰에 입력하는 코드예요. 손님에게는 알려주지 마세요.
-            자릿수는 자유(2~10자) — 직원분들과 공유해 주세요.
+            손님이 결제 상품(티켓·예약)을 쓸 때 사장님이 손님 휴대폰에 넣는 코드예요. 손님에게는 알려주지 마세요.
+            코드는 홀릭잼이 만들어 드리고, 알려졌다 싶으면 [새 코드 만들기]를 눌러 바꾸세요. 바꾸면 이전 코드는 바로 쓸 수 없습니다.
           </Text>
-          <Text style={st.pinCurrent}>
-            현재 코드: {my.usePin ? <Text style={{ color: C.brand }}>{my.usePin}</Text> : '아직 없음 (설정해 주세요)'}
-          </Text>
-          <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-            <TextInput
-              value={pinInput}
-              onChangeText={setPinInput}
-              placeholder="예: 1234"
-              placeholderTextColor={C.ink3}
-              maxLength={10}
-              style={st.input}
-            />
-            <Btn title={my.usePin ? '변경' : '저장'} small onPress={savePin} disabled={pinInput.trim().length < 2} />
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 10 }}>
+            <Text style={st.pinBig}>{my.usePin ?? '----'}</Text>
+            <Btn title={my.usePin ? '새 코드 만들기' : '코드 만들기'} small onPress={newPin} />
           </View>
           {!!pinMsg && <Text style={[st.hint, { color: C.ok, marginTop: 6 }]}>{pinMsg}</Text>}
-        </Card>
-
-        <Text style={st.section}>확인 번호 조회 (고가 상품)</Text>
-        <Card>
-          <Text style={st.hint}>고가 상품은 손님 완료 화면에 뜬 6자리 확인 번호를 여기에 넣어 진짜 사용 건인지 확인하세요. (90초 안에만 조회됩니다)</Text>
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            <TextInput
-              value={token}
-              onChangeText={(t) => setToken(t.toUpperCase())}
-              placeholder="예: PJ5VMM"
-              placeholderTextColor={C.ink3}
-              autoCapitalize="characters"
-              maxLength={6}
-              style={st.input}
-            />
-            <Btn title="확인" small onPress={verify} disabled={token.length < 4} />
-          </View>
-          {verifyResult && (
-            <View style={[st.verifyBox, { backgroundColor: verifyResult.valid ? C.okSoft : C.badSoft }]}>
-              {verifyResult.valid ? (
-                <>
-                  <Text style={[st.verifyTitle, { color: C.ok }]}>✓ 정상 사용 건입니다</Text>
-                  <Text style={st.verifyDetail}>
-                    {verifyResult.item} · {verifyResult.customer} · {verifyResult.headcount}명
-                  </Text>
-                </>
-              ) : (
-                <Text style={[st.verifyTitle, { color: C.bad }]}>
-                  ✕ {verifyResult.expired ? '90초가 지난 번호입니다' : verifyResult.error ?? '확인할 수 없는 번호입니다'}
-                </Text>
-              )}
-            </View>
-          )}
         </Card>
 
         <Text style={st.section}>내 DROP</Text>
@@ -284,7 +227,6 @@ export default function MerchantMode() {
                   ? `1인당 ${won(b.value)} 할인`
                   : `${b.freebieName} 증정`}
                 {b.companionLimit ? ` · 동반 ${b.companionLimit}인까지` : ''}
-                {b.maxUsePerDay ? ` · 하루 ${b.maxUsePerDay}회` : ''}
               </Text>
               {b.approval === 'REJECTED' && b.rejectReason && (
                 <Text style={st.rejectReason}>반려 사유: {b.rejectReason}</Text>
@@ -308,7 +250,7 @@ const st = StyleSheet.create({
   statValue: { fontSize: 22, fontWeight: '700', color: C.ink, marginTop: 2 },
   section: { fontSize: 13, fontWeight: '700', color: C.ink3, marginTop: 14, marginBottom: 8 },
   hint: { fontSize: 12, color: C.ink3, lineHeight: 18, marginBottom: 8 },
-  pinCurrent: { fontSize: 14, fontWeight: '700', color: C.ink, marginTop: 8 },
+  pinBig: { fontSize: 30, fontWeight: '800', color: C.brand, letterSpacing: 8, fontVariant: ['tabular-nums'] },
   qtyEditLink: { fontSize: 12.5, fontWeight: '700', color: C.brand, marginTop: 8, textDecorationLine: 'underline' },
   input: {
     flex: 1, borderWidth: 1, borderColor: C.line, borderRadius: 10,

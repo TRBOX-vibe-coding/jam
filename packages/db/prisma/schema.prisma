@@ -347,7 +347,8 @@ model Merchant {
   intro         String?
   thumbnailUrl  String?
 
-  /// 결제 상품 사용 확인 코드 — 점주가 직접 정한다 (QR 없이 코드 입력으로 사용 처리).
+  /// 매장 코드 — 결제 상품(이용권)을 쓸 때 사장님이 손님 휴대폰에 넣는 숫자 4자리.
+  /// 시스템이 만들어 주고, 가게는 [새 코드 만들기]로 바꾼다 (2026-10-11 대표 확정 6).
   usePin String?
 
   /// 1인 평균 이용금액 — % 할인 쿠폰의 예상 절약액 계산 기준 (슈퍼 관리자가 등록, 2026-09-09 픽스)
@@ -426,8 +427,6 @@ model Benefit {
   /// 기존 서비스에서 문서마다 값이 달라 현장 분쟁이 났던 항목이라 여기 하나만 둔다.
   companionLimit Int?
 
-  maxUsePerUser  Int?
-  maxUsePerDay   Int?
   minOrderAmount Int?
   conditions     String?
 
@@ -685,12 +684,6 @@ enum ProductType {
   PASS
 }
 
-enum VerificationLevel {
-  QR_ONLY
-  QR_PIN
-  STAFF_CONFIRM
-}
-
 model Product {
   i18n Json?
   campaignId String?
@@ -708,7 +701,6 @@ model Product {
   basePrice   Int
   memberPrice Int?
 
-  verification VerificationLevel @default(QR_ONLY)
 
   /// 티켓형 총 판매 수량 (null=무제한). 소진되면 자동 품절 처리한다.
   totalQty Int?

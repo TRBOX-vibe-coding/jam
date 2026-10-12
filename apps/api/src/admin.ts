@@ -39,8 +39,6 @@ class CreateBenefitDto {
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) value?: number;
   @IsOptional() @IsString() freebieName?: string;
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(20) companionLimit?: number;
-  @IsOptional() @Type(() => Number) @IsInt() @Min(1) maxUsePerUser?: number;
-  @IsOptional() @Type(() => Number) @IsInt() @Min(1) maxUsePerDay?: number;
   @IsOptional() @Type(() => Number) @IsInt() @Min(0) minOrderAmount?: number;
   @IsOptional() @IsString() conditions?: string;
 }
@@ -49,8 +47,6 @@ class PatchBenefitDto {
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) value?: number;
   @IsOptional() @IsString() freebieName?: string;
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(20) companionLimit?: number;
-  @IsOptional() @Type(() => Number) @IsInt() @Min(1) maxUsePerUser?: number;
-  @IsOptional() @Type(() => Number) @IsInt() @Min(1) maxUsePerDay?: number;
   @IsOptional() @Type(() => Number) @IsInt() @Min(0) minOrderAmount?: number;
   @IsOptional() @IsString() conditions?: string;
   @IsOptional() isActive?: boolean;
@@ -166,7 +162,6 @@ class CreateProductDto {
   @Type(() => Number) @IsInt() @Min(100) basePrice!: number;
   /** 회원가 — 어느 잼이 받는지는 잼 범위를 따른다 (2026-09-24 대표 확정 3-5 A) */
   @IsOptional() @Type(() => Number) @IsInt() @Min(100) memberPrice?: number;
-  @IsOptional() @IsIn(['QR_ONLY', 'QR_PIN', 'STAFF_CONFIRM']) verification?: string;
   @IsOptional() @IsString() description?: string;
   @IsOptional() cancelPolicy?: string;
   @IsOptional() @IsString() imageBase64?: string;
@@ -215,7 +210,7 @@ class SetProductMemberPlansDto {
 /** 결제 상품에 묶어 파는 '근처 할인 쿠폰' 설정 — 슈퍼 관리자 전용 (2026-09-12 대표 확정) */
 class SetProductCouponsDto {
   @IsString({ each: true }) benefitIds!: string[];
-  /** 쿠폰이 열린 뒤 쓸 수 있는 기간(일). 비우면 기본 90일.
+  /** 쿠폰이 열린 뒤 쓸 수 있는 기간(일). 비우면 기본 30일 (2026-10-11 대표 확정 4).
    *  언제 열리는지는 고르지 않는다 — 상품 종류와 손님이 고른 날로 저절로 정해진다 (bundled-coupons.util.ts) */
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(365) validDays?: number;
 }
@@ -803,7 +798,6 @@ export class AdminController {
         type: dto.type as never,
         basePrice: dto.basePrice,
         memberPrice: dto.memberPrice ?? null,
-        verification: (dto.verification ?? 'QR_ONLY') as never,
         description: dto.description,
         cancelPolicy: dto.cancelPolicy,
         // 예약 상품은 회차 정원으로 막히므로 총 수량은 티켓·PASS에만
@@ -887,7 +881,6 @@ export class AdminController {
           imageUrl: src.imageUrl,
           basePrice: src.basePrice,
           memberPrice: src.memberPrice,
-          verification: src.verification,
           totalQty: src.totalQty,
           maxPerUser: src.maxPerUser,
           commissionRate: src.commissionRate,
@@ -1155,8 +1148,6 @@ export class AdminController {
         value: dto.type === 'FREEBIE' ? 0 : dto.value!,
         freebieName: dto.type === 'FREEBIE' ? dto.freebieName!.trim() : null,
         companionLimit: dto.companionLimit ?? null,
-        maxUsePerUser: dto.maxUsePerUser ?? null,
-        maxUsePerDay: dto.maxUsePerDay ?? null,
         minOrderAmount: dto.minOrderAmount ?? null,
         conditions: dto.conditions?.trim() || null,
         approval: 'ACTIVE',
@@ -1200,8 +1191,6 @@ export class AdminController {
     if (dto.value != null) data.value = dto.value;
     if (dto.freebieName !== undefined) data.freebieName = dto.freebieName?.trim() || null;
     if (dto.companionLimit !== undefined) data.companionLimit = dto.companionLimit;
-    if (dto.maxUsePerUser !== undefined) data.maxUsePerUser = dto.maxUsePerUser;
-    if (dto.maxUsePerDay !== undefined) data.maxUsePerDay = dto.maxUsePerDay;
     if (dto.minOrderAmount !== undefined) data.minOrderAmount = dto.minOrderAmount;
     if (dto.conditions !== undefined) data.conditions = dto.conditions?.trim() || null;
     if (dto.isActive != null) data.isActive = dto.isActive;
