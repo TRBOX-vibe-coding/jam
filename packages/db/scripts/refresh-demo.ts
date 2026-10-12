@@ -233,7 +233,7 @@ async function refreshReservations(now: Date) {
       const r = await fetch(`${API}/products/${picked[i].productId}/purchase`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
-        body: JSON.stringify({ slotId: picked[i].id, headcount, contactName: name, contactPhone: phone }),
+        body: JSON.stringify({ slotId: picked[i].id, headcount, contactName: name, contactPhone: phone, agreed: true }),
       });
       if (r.ok) created++;
     } catch {
@@ -263,14 +263,14 @@ async function refreshTicketSales(now: Date) {
 
   let created = 0;
   for (let i = 0; i < products.length; i++) {
-    const [name] = GUESTS[(i + 3) % GUESTS.length];
+    const [name, phone] = GUESTS[(i + 3) % GUESTS.length];
     const token = await guestToken(name, (i + 3) % GUESTS.length);
     if (!token) continue;
     try {
       const r = await fetch(`${API}/products/${products[i].id}/purchase`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
-        body: JSON.stringify({ headcount: 1 }),
+        body: JSON.stringify({ headcount: 1, contactName: name, contactPhone: phone, agreed: true }),
       });
       if (r.ok) created++;
     } catch {
@@ -320,7 +320,7 @@ async function refreshVisitDemo(now: Date) {
       const r = await fetch(`${API}/products/${pid}/purchase`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
-        body: JSON.stringify({ headcount: 1, visitDate: key(visit) }),
+        body: JSON.stringify({ headcount: 1, visitDate: key(visit), contactName: '김지우', contactPhone: '010-2468-1357', agreed: true }),
       }).catch(() => null);
       if (!r || !r.ok) continue;
       v = await db.voucher.findFirst({ where: { userId: user.id, productId: pid, status: 'ISSUED' }, orderBy: { createdAt: 'desc' } });
@@ -387,7 +387,7 @@ async function refreshMemberHome(now: Date) {
       const r = await fetch(`${API}/products/${slot.productId}/purchase`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
-        body: JSON.stringify({ slotId: slot.id, headcount: 2, contactName: user.nickname, contactPhone: '010-2468-1357' }),
+        body: JSON.stringify({ slotId: slot.id, headcount: 2, contactName: '김지우', contactPhone: '010-2468-1357', agreed: true }),
       }).catch(() => null);
       booked = !!r?.ok;
     }
@@ -480,8 +480,56 @@ async function refreshPlanViews(now: Date) {
   return rows.length;
 }
 
+/**
+ * 지난 활동을 최근으로 옮긴다 — 가게 화면(최근 사용 내역 7일 · 이번 달 · 달력)이 비지 않게.
+ * 오늘 전의 마지막 사용 기록이 일주일 넘게 지났으면, 사용 기록·주문·예약 회차를 요일이 유지되게 7일 단위로 앞으로 옮긴다.
+ * 옮긴 회차가 이미 있는 회차와 겹치면 예약만 그 회차로 옮긴다. 몇 번을 돌려도 된다(한 주씩 따라온다).
+ */
+async function refreshRecentUsage(now: Date) {
+  const today = new Date(now); today.setHours(0, 0, 0, 0);
+  const latest = await db.redemption.findFirst({ where: { createdAt: { lt: today } }, orderBy: { createdAt: 'desc' }, select: { createdAt: true } });
+  if (!latest) return { shiftedDays: 0, redemptions: 0, orders: 0, slots: 0 };
+  const yesterday = new Date(today.getTime() - DAY);
+  const gapDays = Math.floor((yesterday.getTime() - latest.createdAt.getTime()) / DAY);
+  const shiftDays = Math.floor(gapDays / 7) * 7;
+  if (shiftDays < 7) return { shiftedDays: 0, redemptions: 0, orders: 0, slots: 0 };
+  const shift = shiftDays * DAY;
+  const move = (d: Date) => new Date(d.getTime() + shift);
+
+  const reds = await db.redemption.findMany({ where: { createdAt: { lt: today } }, select: { id: true, createdAt: true } });
+  for (const r of reds) await db.redemption.update({ where: { id: r.id }, data: { createdAt: move(r.createdAt) } });
+
+  const orders = await db.order.findMany({ where: { createdAt: { lt: today } }, select: { id: true, createdAt: true, paidAt: true, cancelledAt: true } });
+  for (const o of orders) {
+    await db.order.update({
+      where: { id: o.id },
+      data: { createdAt: move(o.createdAt), paidAt: o.paidAt ? move(o.paidAt) : null, cancelledAt: o.cancelledAt ? move(o.cancelledAt) : null },
+    });
+  }
+
+  // 예약이 든 지난 회차 — 같은 시각 회차가 이미 있으면 예약만 옮긴다
+  const slots = await db.productSlot.findMany({
+    where: { startAt: { lt: today }, reservations: { some: {} } },
+    select: { id: true, productId: true, startAt: true, endAt: true, reserved: true },
+  });
+  let moved = 0;
+  for (const sl of slots) {
+    const dup = await db.productSlot.findFirst({ where: { productId: sl.productId, startAt: move(sl.startAt), id: { not: sl.id } }, select: { id: true } });
+    if (dup) {
+      await db.reservation.updateMany({ where: { slotId: sl.id }, data: { slotId: dup.id } });
+      await db.productSlot.update({ where: { id: dup.id }, data: { reserved: { increment: sl.reserved } } });
+      await db.productSlot.update({ where: { id: sl.id }, data: { reserved: 0 } });
+    } else {
+      await db.productSlot.update({ where: { id: sl.id }, data: { startAt: move(sl.startAt), endAt: move(sl.endAt) } });
+    }
+    moved++;
+  }
+  return { shiftedDays: shiftDays, redemptions: reds.length, orders: orders.length, slots: moved };
+}
+
 async function main() {
   const now = new Date();
+  const recent = await refreshRecentUsage(now);
   const drops = await refreshDrops(now);
   const pending = await refreshPending(now);
   const campaigns = await refreshCampaigns(now);
@@ -493,6 +541,7 @@ async function main() {
   const home = await refreshMemberHome(now);
   const dated = await refreshDatedTicket(now);
   const planViews = await refreshPlanViews(now);
+  if (recent.shiftedDays) console.log(`지난 활동 ${recent.shiftedDays}일 앞으로 옮김 — 사용 기록 ${recent.redemptions}건 · 주문 ${recent.orders}건 · 예약 회차 ${recent.slots}개`);
   console.log(`DROP ${drops}개 다시 열림 · 승인 대기 ${pending}개 기간 연장 · 기획전 ${campaigns}개 연장 · 예약 상품 ${slots.products}개에 시간대 ${slots.created}개 추가`);
   console.log(
     resv.skipped
