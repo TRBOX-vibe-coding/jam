@@ -337,7 +337,7 @@ async function refreshVisitDemo(now: Date) {
     for (const r of rules.filter((x) => x.productId === pid)) {
       await db.userBenefit.updateMany({
         where: { userId: user.id, benefitId: r.benefitId, sourceType: 'PRODUCT', sourceId: pid, status: { in: ['ACTIVE', 'PENDING'] }, usedCount: 0 },
-        data: { status: 'ACTIVE', validFrom: visit, validTo: new Date(visit.getTime() + (r.validDays ?? 90) * DAY) },
+        data: { status: 'ACTIVE', validFrom: visit, validTo: new Date(visit.getTime() + (r.validDays ?? 30) * DAY) },
       });
     }
     return { skipped: false, changed: 1 };
