@@ -690,6 +690,14 @@ async function fixSignups(c: Ctx) {
     WHERE f."userId" = u.id AND u."providerId" LIKE 'demo-live-%' AND u."createdAt" > f.first_at - interval '10 minutes'`);
 }
 
+/** 예약한 이용권의 기한은 앱이 만든 것처럼 '예약 시각이 끝나는 때'로 맞춘다 (옛 예시 예약은 시간대만 옮겨져 기한이 예약일보다 앞에 남아 있었다) */
+async function fixReservationVouchers(c: Ctx) {
+  return c.db.$executeRawUnsafe(`
+    UPDATE "Voucher" v SET "validTo" = s."endAt"
+    FROM "Reservation" r JOIN "ProductSlot" s ON s.id = r."slotId"
+    WHERE r."voucherId" = v.id AND v."validTo" < s."endAt"`);
+}
+
 // ───────────── ④ 정산 · 감사 로그 ─────────────
 async function fillSettlements(c: Ctx) {
   const { db, now } = c;
@@ -820,6 +828,7 @@ export async function demoLive(db: PrismaClient, now: Date) {
     log.push('API가 꺼져 있어 예약·구매·사용 채우기는 건너뜀');
   }
   await step('가입 시각 바로잡기', () => fixSignups(c), (n) => `${n}명`);
+  await step('예약 이용권 기한 맞춤', () => fixReservationVouchers(c), (n) => `${n}건`);
   await step('정산', () => fillSettlements(c), (n) => `${n}건 만듦`);
   await step('감사 로그', () => fillAudit(c), (n) => `${n}건`);
   return log.join(' · ');
