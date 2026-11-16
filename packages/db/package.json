@@ -11,7 +11,8 @@
     "seed": "tsx prisma/seed.ts",
     "studio": "prisma studio",
     "dev:db": "tsx scripts/dev-db.ts",
-    "demo:refresh": "tsx scripts/refresh-demo.ts"
+    "demo:refresh": "tsx scripts/refresh-demo.ts",
+    "demo:check": "tsx scripts/check-demo.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

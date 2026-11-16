@@ -9,6 +9,7 @@
  * 실서비스 DB에는 돌리지 않는다.
  */
 import { PrismaClient } from '@prisma/client';
+import { DEMO_UNTIL, demoLive } from './demo-live';
 
 const db = new PrismaClient();
 const HOUR = 3_600_000;
@@ -32,7 +33,7 @@ const DROPS: [string, number][] = [
   ['수변영화관 나이트 시네마 입장권', 122],
 ];
 
-/** 예약 상품의 시간대를 며칠 앞까지 채울지 */
+/** 예약 상품의 시간대를 며칠 앞까지 채울지 — 적어도 이만큼, 시연 마지막 날(demo-live.ts의 DEMO_UNTIL, 12월 31일)까지 */
 const SLOT_DAYS = 14;
 
 /**
@@ -119,7 +120,8 @@ async function refreshSlots(now: Date) {
     const taken = new Set(kept.map((s) => s.startAt.getTime()));
 
     const plan = SCHEDULES[p.name] ?? DEFAULT_SCHEDULE;
-    for (let d = 0; d < SLOT_DAYS; d++) {
+    const slotDays = Math.max(SLOT_DAYS, Math.ceil((DEMO_UNTIL.getTime() - now.getTime()) / DAY) + 1);
+    for (let d = 0; d < slotDays; d++) {
       const day = new Date(now);
       day.setDate(day.getDate() + d);
       const dow = day.getDay();
@@ -486,6 +488,8 @@ async function refreshPlanViews(now: Date) {
  * 옮긴 회차가 이미 있는 회차와 겹치면 예약만 그 회차로 옮긴다. 몇 번을 돌려도 된다(한 주씩 따라온다).
  */
 async function refreshRecentUsage(now: Date) {
+  // 날마다 새 활동을 채우는 방식(demo-live.ts)을 쓰는 DB는 옛 기록을 앞으로 옮기지 않는다 — 비어 버린 날은 거기서 채운다
+  if ((await db.user.count({ where: { providerId: { startsWith: 'demo-live-' } } })) > 0) return { shiftedDays: 0, redemptions: 0, orders: 0, slots: 0 };
   const today = new Date(now); today.setHours(0, 0, 0, 0);
   const latest = await db.redemption.findFirst({ where: { createdAt: { lt: today } }, orderBy: { createdAt: 'desc' }, select: { createdAt: true } });
   if (!latest) return { shiftedDays: 0, redemptions: 0, orders: 0, slots: 0 };
@@ -541,6 +545,8 @@ async function main() {
   const home = await refreshMemberHome(now);
   const dated = await refreshDatedTicket(now);
   const planViews = await refreshPlanViews(now);
+  // 12월 31일까지 날짜·예약·광고를 늘리고, 최근 14일의 가입·결제·사용·정산을 채운다 (demo-live.ts)
+  const live = await demoLive(db, now);
   if (recent.shiftedDays) console.log(`지난 활동 ${recent.shiftedDays}일 앞으로 옮김 — 사용 기록 ${recent.redemptions}건 · 주문 ${recent.orders}건 · 예약 회차 ${recent.slots}개`);
   console.log(`DROP ${drops}개 다시 열림 · 승인 대기 ${pending}개 기간 연장 · 기획전 ${campaigns}개 연장 · 예약 상품 ${slots.products}개에 시간대 ${slots.created}개 추가`);
   console.log(
@@ -551,6 +557,7 @@ async function main() {
         + ` · 날짜 있는 티켓 예시 ${dated.created ? '만듦' : dated.moved ? '한 달 뒤로 옮김' : '그대로'}`
         + ` · 잼 화면 조회 기록 ${planViews ? `${planViews}건 채움` : '그대로'}`,
   );
+  console.log(`12월까지 채우기 — ${live}`);
 }
 
 main()
