@@ -8,7 +8,7 @@
 import { createElement, useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Image, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { track } from '../../lib/analytics';
 import { api, img } from '../../lib/api';
 import { jamPeriodText, jamSpanText } from '../../lib/date';

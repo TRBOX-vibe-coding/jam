@@ -10,7 +10,7 @@ import {
   Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { track } from '../../lib/analytics';
 import { api, cacheGet, cacheSet, img } from '../../lib/api';

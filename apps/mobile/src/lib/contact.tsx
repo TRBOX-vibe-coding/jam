@@ -5,7 +5,7 @@
  * 가게 상품이면 가게에 이름·휴대폰 번호를 알려 주는 데도 동의를 받는다 — 가게가 무슨 일이 있을 때 전화한다.
  */
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useI18n } from './i18n';
 import { C } from './theme';
 import { Card } from './ui';

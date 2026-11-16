@@ -3,7 +3,7 @@ import { useCallback, useState } from 'react';
 import { Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { api } from '../lib/api';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useAuth } from '../lib/auth';
 import { useI18n } from '../lib/i18n';
 import { useRedeem } from '../lib/redeem';
