@@ -46,13 +46,22 @@ cd apps/api && npm run start:dev      # API (감시 모드 아님 — 코드 고
 `prisma db push`는 API를 내린 뒤에 한다(포트 4000 점유).
 스키마를 바꾸면 `npx prisma generate`까지 해야 API가 새 필드를 안다.
 
-## 시연 주소 확인
+## 시연 서버 (이 PC 본체에서 돈다 — 2026-11-17부터)
 
-시드는 '시드한 날' 기준으로 날짜를 만들어서, 며칠 지나면 DROP이 마감되고 오늘 판매·사용이 비고
-기획전이 끝나고 예약 시간대가 사라진다. 시연 주소를 확인할 때마다 돌린다.
+시연 사이트 세 곳(유저 앱·본사·점주)의 DB·API·터널은 **이 PC 본체**에서 작업 스케줄러 작업 `HolicGem-Demo-Keeper`가 창 없이 돌린다.
+90초마다 꺼진 것을 다시 켜고, 3시간마다 `demo:refresh`를 돌리며, 2027-01-01에 스스로 지워진다. 설치·끄기·고치기: `tools/demo-host/README.md`.
+
+- **클로드의 Bash·PowerShell 도구는 보호된 임시 공간에서 돈다.** 거기서 켠 서버는 작업이 끝나면 같이 꺼지고, `%LOCALAPPDATA%` 아래에 만든 파일은 이 PC에 남지 않는다(이 PC의 `AppData\Local`에는 홀릭잼 파일이 없다). 그래서 "서버가 어제 꺼져 화면이 비었다"가 반복됐다. 서버를 켜거나 고칠 때는 **이 PC의 터미널 패널**(`run_in_terminal`)로 한다 — 한 줄·영문 경로만 되므로 긴 것은 scratchpad에 스크립트를 써 두고 실행한다.
+- 상태 확인: 바깥 주소 세 곳의 `/api/home`이 200인지, `C:\Users\<나>\holicgem-demo-run\keeper.log`. 꺼져 있으면 터미널에서 `schtasks /run /tn HolicGem-Demo-Keeper`.
+- 터미널 패널의 PowerShell은 `npx.ps1`을 막는다 → `npx.cmd`로 쓴다.
+- DB 백업·되돌리기: `cd packages/db && npm run demo:backup -- <폴더>` / `npm run demo:restore -- <폴더>`.
+
+### 시연 데이터 날짜 맞추기
+
+시드는 '시드한 날' 기준으로 날짜를 만들어서, 며칠 지나면 DROP이 마감되고 오늘 판매·사용이 비고 기획전이 끝나고 예약 시간대가 사라진다.
 
 ```bash
-cd packages/db && npm run demo:refresh   # 시연 데이터를 지금 날짜에 맞게 다시 채운다 (몇 번 돌려도 된다)
+cd packages/db && npm run demo:refresh   # 시연 데이터를 지금 날짜에 맞게 다시 채운다 (몇 번 돌려도 된다; 지킴이가 3시간마다 돌린다)
 cd packages/db && npm run demo:check     # 날짜별로 빈 곳이 없는지 읽기만 해서 보여 준다
 ```
 
@@ -64,8 +73,18 @@ cd packages/db && npm run demo:check     # 날짜별로 빈 곳이 없는지 읽
   - **지난달 1일부터 오늘까지** 가입·잼 구매·이용권 구매·사용·딜 사용·잼 화면 조회·서프홀릭 판매/사용을 날짜별로 (앱과 같은 API로 만든 뒤 시각을 과거로 되돌린다)
   - 정산(정산일마다 생긴 것은 오래된 순으로 지급 완료·확정·정산 예정) · 감사 로그
   - 이미 채워진 날은 건드리지 않고 모자란 만큼만 더한다. API가 꺼져 있으면 구매·예약·사용은 건너뛴다.
-- 시각을 되돌리는 SQL은 `createdAt >= ($2::timestamptz AT TIME ZONE 'UTC')`처럼 비교해야 한다. DB 시간대가 한국(Asia/Seoul)이고 컬럼은 UTC 벽시계 값이라, Date를 그냥 넘기면 9시간 어긋나 한 건도 못 찾는다.
-- 컴퓨터를 며칠 껐다 켜면 DROP·오늘 몫이 비므로, 시연 전에 `demo:refresh`(또는 "시연주소 확인해줘")를 돌린다.
+- 시각을 되돌리는 SQL은 `"createdAt" >= ($2::timestamptz AT TIME ZONE 'UTC')`처럼 비교해야 한다. DB 시간대가 한국(Asia/Seoul)이고 컬럼은 UTC 벽시계 값이라, Date를 그냥 넘기면 9시간 어긋나 한 건도 못 찾는다.
+
+### 로컬 개발 화면 (에이젠테이션용)
+
+에이젠테이션(화면을 클릭해 수정 메모를 남기는 도구)은 **이 PC에서 띄운 개발 화면에서만** 붙는다. 배포 주소에서는 안 붙는다.
+
+```bash
+cd apps/mobile && npx.cmd expo start --port 8081   # 유저 앱 → http://localhost:8081 (에이젠테이션 메모 서버는 localhost:4747)
+```
+
+- `apps/mobile/.env`의 `EXPO_PUBLIC_API_URL=/api`는 배포본용 상대 주소라 개발 서버에서는 HTML이 돌아와 목록이 `{}`로 캐시된다. 개발 화면은 `.env.development.local`(git에서 빠짐)에 `EXPO_PUBLIC_API_URL=http://localhost:4000`을 둔다.
+- 브라우저 캐시에 `{}`가 박혀 `(drops ?? []).slice is not a function`이 나면 `localStorage`의 `hg_cache_drops:ko` 한 칸만 지운다.
 
 ## 빌드와 배포
 

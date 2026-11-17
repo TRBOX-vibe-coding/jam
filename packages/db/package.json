@@ -12,7 +12,9 @@
     "studio": "prisma studio",
     "dev:db": "tsx scripts/dev-db.ts",
     "demo:refresh": "tsx scripts/refresh-demo.ts",
-    "demo:check": "tsx scripts/check-demo.ts"
+    "demo:check": "tsx scripts/check-demo.ts",
+    "demo:backup": "tsx scripts/db-json.ts backup",
+    "demo:restore": "tsx scripts/db-json.ts restore"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
