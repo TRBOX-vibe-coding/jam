@@ -5,6 +5,7 @@ import { Platform, StyleSheet, View } from 'react-native';
 import { AuthProvider } from '../lib/auth';
 import { I18nProvider, useI18n } from '../lib/i18n';
 import { C } from '../lib/theme';
+import AgentationDev from '../components/AgentationDev';
 
 /**
  * 웹 전용 Pretendard 폰트 주입.
@@ -127,6 +128,7 @@ export default function RootLayout() {
         <PhoneFrame>
           <AppStack />
         </PhoneFrame>
+        <AgentationDev />
       </I18nProvider>
     </AuthProvider>
   );
