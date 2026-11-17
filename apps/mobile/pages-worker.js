@@ -3,7 +3,7 @@
  * 프론트는 항상 /api/... 만 부르고, 실제 API 터널 주소는 여기 한 줄에만 있다.
  * → 터널이 바뀌면 이 파일의 API 값만 바꾸고 dist에 복사 후 wrangler 재배포 (재빌드 불필요, 10초).
  */
-const API = 'https://one-pharmacy-state-translated.trycloudflare.com';
+const API = 'https://acrylic-caps-physics-projected.trycloudflare.com';
 
 // 파일 이름에 내용 해시가 들어 있는 정적 파일(JS·아이콘 폰트·이미지)은 내용이 바뀌면 이름도 바뀐다.
 // 그래서 브라우저가 매번 "바뀌었나?" 확인하지 않고 영구 보관해도 된다. (index.html 은 해당 없음)
